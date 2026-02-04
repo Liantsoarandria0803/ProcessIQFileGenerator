@@ -2,7 +2,15 @@
 
 API backend pour la gestion des candidats et la génération de documents administratifs (CERFA, Fiches de renseignements).
 
-## 🚀 Prérequis
+## � Documentation API
+
+Une documentation interactive Swagger/OpenAPI est disponible :
+
+- **Interface Swagger UI** : http://localhost:8001/api-docs
+- **Spec OpenAPI JSON** : http://localhost:8001/api-docs.json
+- **Guide de configuration** : [SWAGGER_SETUP.md](./SWAGGER_SETUP.md)
+
+## �🚀 Prérequis
 
 - Node.js >= 18
 - npm ou yarn

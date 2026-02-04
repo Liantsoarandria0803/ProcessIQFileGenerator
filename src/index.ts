@@ -2,9 +2,11 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import swaggerUi from 'swagger-ui-express';
 import config from './config';
 import routes from './routes';
 import logger from './utils/logger';
+import { swaggerSpec } from './config/swagger';
 
 // Crée l'application Express
 const app: Express = express();
@@ -14,7 +16,9 @@ const app: Express = express();
 // =====================================================
 
 // Sécurité
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false, // Désactive CSP pour Swagger UI
+}));
 
 // CORS
 app.use(cors({
@@ -36,6 +40,19 @@ if (config.nodeEnv !== 'production') {
 // ROUTES
 // =====================================================
 
+// Documentation Swagger
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Process IQ Rush School API Documentation'
+}));
+
+// Route JSON pour la spec OpenAPI
+app.get('/api-docs.json', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
 // Routes API
 app.use('/api', routes);
 
@@ -45,6 +62,7 @@ app.get('/', (req: Request, res: Response) => {
     name: 'Process IQ Rush School API',
     version: '1.0.0',
     description: 'API pour la génération de documents administratifs',
+    documentation: '/api-docs',
     endpoints: {
       health: '/api/health',
       candidats: '/api/admission/candidats',

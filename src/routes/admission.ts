@@ -1,17 +1,45 @@
 import { Router, Request, Response } from 'express';
 import { CandidatRepository, EntrepriseRepository } from '../repositories';
 import { PdfGeneratorService, CerfaGeneratorService } from '../services';
+import { AdmissionService } from '../services/admissionService';
 import logger from '../utils/logger';
+import { InformationsPersonnelles } from '../types/admission';
 
 const router = Router();
 const candidatRepo = new CandidatRepository();
 const entrepriseRepo = new EntrepriseRepository();
 const pdfService = new PdfGeneratorService();
 const cerfaService = new CerfaGeneratorService();
+const admissionService = new AdmissionService();
 
 /**
- * GET /api/admission/candidats
- * Liste tous les candidats
+ * @swagger
+ * /api/admission/candidats:
+ *   get:
+ *     summary: Liste tous les candidats
+ *     tags: [Candidats]
+ *     description: Récupère la liste complète des candidats depuis Airtable
+ *     responses:
+ *       200:
+ *         description: Liste des candidats récupérée avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Candidat'
+ *                 count:
+ *                   type: integer
+ *                   description: Nombre total de candidats
+ *                   example: 42
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 router.get('/candidats', async (req: Request, res: Response) => {
   try {
@@ -31,8 +59,37 @@ router.get('/candidats', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/admission/candidats/:id
- * Récupère un candidat par ID
+ * @swagger
+ * /api/admission/candidats/{id}:
+ *   get:
+ *     summary: Récupère un candidat par ID
+ *     tags: [Candidats]
+ *     description: Récupère les détails d'un candidat spécifique
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID Airtable du candidat
+ *         example: rec1BBjsjxhdqEKuq
+ *     responses:
+ *       200:
+ *         description: Candidat trouvé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/Candidat'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 router.get('/candidats/:id', async (req: Request, res: Response) => {
   try {
@@ -60,8 +117,37 @@ router.get('/candidats/:id', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/admission/candidats/:id/entreprise
- * Récupère les données entreprise d'un candidat
+ * @swagger
+ * /api/admission/candidats/{id}/entreprise:
+ *   get:
+ *     summary: Récupère les données entreprise d'un candidat
+ *     tags: [Entreprises]
+ *     description: Récupère les informations de l'entreprise associée à un candidat
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID Airtable du candidat
+ *         example: rec1BBjsjxhdqEKuq
+ *     responses:
+ *       200:
+ *         description: Données entreprise trouvées
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/Entreprise'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
   try {
@@ -89,8 +175,32 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/admission/candidats/:id/fiche-renseignement
- * Génère la fiche de renseignement PDF pour un candidat
+ * @swagger
+ * /api/admission/candidats/{id}/fiche-renseignement:
+ *   post:
+ *     summary: Génère la fiche de renseignement PDF
+ *     tags: [PDF]
+ *     description: Génère et télécharge la fiche de renseignement pour un candidat
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID Airtable du candidat
+ *         example: rec1BBjsjxhdqEKuq
+ *     responses:
+ *       200:
+ *         description: PDF généré avec succès
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Response) => {
   try {
@@ -138,8 +248,32 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
 });
 
 /**
- * POST /api/admission/candidats/:id/cerfa
- * Génère le CERFA FA13 pour un candidat
+ * @swagger
+ * /api/admission/candidats/{id}/cerfa:
+ *   post:
+ *     summary: Génère le CERFA FA13
+ *     tags: [PDF]
+ *     description: Génère et télécharge le formulaire CERFA FA13 pour un candidat
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID Airtable du candidat
+ *         example: rec1BBjsjxhdqEKuq
+ *     responses:
+ *       200:
+ *         description: CERFA généré avec succès
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
   try {
@@ -311,6 +445,196 @@ router.delete('/entreprises/:id', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Erreur lors de la suppression de la fiche entreprise'
+    });
+  }
+});
+
+// =====================================================
+// ROUTES POUR LES INFORMATIONS PERSONNELLES DES CANDIDATS
+// =====================================================
+
+/**
+ * @swagger
+ * /api/admission/candidates:
+ *   post:
+ *     summary: Crée un nouveau candidat avec informations personnelles
+ *     tags: [Candidats]
+ *     description: Crée un nouveau candidat avec toutes ses informations personnelles
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/InformationsPersonnelles'
+ *     responses:
+ *       200:
+ *         description: Candidat créé avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/InformationsPersonnellesResponse'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/candidates', async (req: Request, res: Response) => {
+  try {
+    const informations: InformationsPersonnelles = req.body;
+    const result = await admissionService.createCandidateWithInfo(informations);
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('❌ ERREUR création candidat:', error);
+    console.error('❌ Traceback:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur lors de la création du candidat'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admission/candidates/{recordId}:
+ *   put:
+ *     summary: Met à jour les informations personnelles d'un candidat
+ *     tags: [Candidats]
+ *     description: Met à jour toutes les informations personnelles d'un candidat existant
+ *     parameters:
+ *       - in: path
+ *         name: recordId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID du candidat dans Airtable
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/InformationsPersonnelles'
+ *     responses:
+ *       200:
+ *         description: Informations mises à jour avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/InformationsPersonnellesResponse'
+ *       404:
+ *         description: Candidat non trouvé
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.put('/candidates/:recordId', async (req: Request, res: Response) => {
+  try {
+    const { recordId } = req.params;
+    const informations: InformationsPersonnelles = req.body;
+    
+    const result = await admissionService.updateCandidateInfo(recordId, informations);
+    
+    res.json(result);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+    
+    if (errorMessage.includes('non trouvé')) {
+      return res.status(404).json({
+        success: false,
+        error: errorMessage
+      });
+    }
+    
+    logger.error('❌ ERREUR mise à jour candidat:', error);
+    res.status(500).json({
+      success: false,
+      error: errorMessage
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admission/candidates/{recordId}:
+ *   get:
+ *     summary: Récupère le profil complet d'un candidat
+ *     tags: [Candidats]
+ *     description: Récupère le profil complet d'un candidat (informations + documents)
+ *     parameters:
+ *       - in: path
+ *         name: recordId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID du candidat dans Airtable
+ *     responses:
+ *       200:
+ *         description: Profil du candidat récupéré avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CandidateProfile'
+ *       404:
+ *         description: Candidat non trouvé
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/candidates/:recordId', async (req: Request, res: Response) => {
+  try {
+    const { recordId } = req.params;
+    
+    const profile = await admissionService.getCandidateProfile(recordId);
+    
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: 'Candidat non trouvé'
+      });
+    }
+    
+    res.json(profile);
+  } catch (error) {
+    logger.error('❌ ERREUR récupération profil candidat:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur lors de la récupération du profil'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admission/candidates/{recordId}:
+ *   delete:
+ *     summary: Supprime complètement une candidature
+ *     tags: [Candidats]
+ *     description: Supprime complètement une candidature (Airtable + fichiers locaux)
+ *     parameters:
+ *       - in: path
+ *         name: recordId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID du candidat dans Airtable
+ *     responses:
+ *       200:
+ *         description: Candidature supprimée avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CandidateDeletionResponse'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
+  try {
+    const { recordId } = req.params;
+    
+    const result = await admissionService.deleteCandidate(recordId);
+    
+    res.json(result);
+  } catch (error) {
+    logger.error('❌ ERREUR suppression candidat:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur lors de la suppression'
     });
   }
 });
