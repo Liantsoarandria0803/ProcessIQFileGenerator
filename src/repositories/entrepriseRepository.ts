@@ -1,6 +1,7 @@
 import Airtable from 'airtable';
 import config from '../config';
 import logger from '../utils/logger';
+import { base } from '../utils/airtable';
 import { Entreprise, EntrepriseFields } from '../types';
 
 export class EntrepriseRepository {
@@ -8,9 +9,7 @@ export class EntrepriseRepository {
   private tableName: string;
 
   constructor() {
-    this.base = new Airtable({ 
-      apiKey: config.airtable.apiToken 
-    }).base(config.airtable.baseId);
+    this.base = base;
     this.tableName = config.airtable.tables.entreprise;
   }
 

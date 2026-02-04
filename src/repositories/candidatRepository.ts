@@ -1,6 +1,7 @@
 import Airtable from 'airtable';
 import config from '../config';
 import logger from '../utils/logger';
+import { base } from '../utils/airtable';
 import { Candidat, CandidatFields } from '../types';
 
 export class CandidatRepository {
@@ -8,9 +9,7 @@ export class CandidatRepository {
   private tableName: string;
 
   constructor() {
-    this.base = new Airtable({ 
-      apiKey: config.airtable.apiToken 
-    }).base(config.airtable.baseId);
+    this.base = base;
     this.tableName = config.airtable.tables.candidats;
   }
 
