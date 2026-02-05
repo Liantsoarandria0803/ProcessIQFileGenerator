@@ -202,66 +202,71 @@ export class AdmissionService {
    */
   private mapInformationsToAirtable(info: InformationsPersonnelles): Partial<CandidatFields> {
     const airtableData: Partial<CandidatFields> = {
-      Prénom: info.prenom,
+      // Section 1: Informations personnelles de base
+      'Prénom': info.prenom,
       'NOM de naissance': info.nom_naissance,
       'NOM dusage': info.nom_usage,
-      Sexe: info.sexe,
+      'Sexe': info.sexe, // "Féminin" ou "Masculin"
       'Date de naissance': info.date_naissance,
-      Nationalité: this.mapNationaliteValue(info.nationalite),
+      'Nationalité': info.nationalite,
       'Commune de naissance': info.commune_naissance,
-      Département: info.departement,
+      'Département': info.departement,
 
-      // Adresse complète
-      'Adresse lieu dexécution du contrat': `${info.adresse_residence}, ${info.ville}, ${info.code_postal}, ${info.email}, ${info.telephone}${info.nir ? ', ' + info.nir : ''}`,
-      'Code postal ': String(info.code_postal),
-      ville: info.ville,
-      'E-mail': info.email.toLowerCase(),
-      Téléphone: normalizePhone(info.telephone),
-      NIR: info.nir,
+      // Section 2: Adresse et coordonnées
+      'Adresse lieu dexécution du contrat': `${info.adresse_residence}, ${info.code_postal}, ${info.ville}`,
+      'Code postal ': parseFloat(String(info.code_postal)), // Airtable attend un float
+      'ville': info.ville,
+      'E-mail': info.email,
+      'Téléphone': info.telephone,
 
-      // Représentant légal principal
+      // Section 3: Représentant légal principal
       'Nom Représentant légal principal': info.nom_representant_legal,
-      'Prénom Représentant légal Principal': info.prenom_representant_legal,
-      'Voie Représentant légal Principal': info.voie_representant_legal,
-      'Lien de parenté Représentant légal Principal': info.lien_parente_legal,
+      'Prénom Représentant légal principal': info.prenom_representant_legal,
+      'Numéro Représentant légal principal': info.numero_legal,
+      'Lien de parenté': info.lien_parente_legal,
       'Numero adresse Représentant légal': info.numero_adress_legal,
+      'Voie Représentant légal Principal': info.voie_representant_legal,
       'Complémet Représentant légal Principal': info.complement_adresse_legal,
       'Code postal Représentant légal Principal': info.code_postal_legal,
       'Commune Représentant légal Principal': info.commune_legal,
-      'courriel representant legal ': info.courriel_legal,
+      'email Représentant légal principal': info.courriel_legal,
 
-      // Représentant légal secondaire
+      // Section 4: Représentant légal secondaire
       'Nom Représentant légal secondaire': info.nom_representant_legal2,
       'Prénom Représentant légal secondaire': info.prenom_representant_legal2,
-      'Voie Représentant légal secondaire': info.voie_representant_legal2,
+      'Numéro Représentant légal secondaire': info.numero_legal2,
       'Lien de parenté Représentant légal secondaire': info.lien_parente_legal2,
-      'Numero adresse Représentant légal secondaire': info.numero_adress_legal2,
-      'Complémet Représentant légal secondaire': info.complement_adresse_legal2,
+      'N° adresse Représentant légal secondaire': info.numero_adress_legal2,
+      'Voie Représentant légal secondaire': info.voie_representant_legal2,
+      'Complément Représentant légal secondaire': info.complement_adresse_legal2,
       'Code postal Représentant légal secondaire': info.code_postal_legal2,
       'Commune Représentant légal secondaire': info.commune_legal2,
-      'courriel representant legal secondaire': info.courriel_legal2,
+      'email Représentant légal secondaire': info.courriel_legal2,
 
-      // Situations & déclarations
+      // Section 5: NIR
+      'NIR': info.nir,
+
+      // Section 6: Parcours scolaire
+      'Dernier diplôme ou titre préparé': info.dernier_diplome_prepare,
+      'Dernière classe / année suivie': info.derniere_classe,
+      'Intitulé précis du dernier diplôme ou titre préparé': info.intitulePrecisDernierDiplome,
+      'BAC': info.bac,
+
+      // Section 7: Situations & déclarations
       'Situation avant le contrat': info.situation,
       'Régime social': info.regime_social,
       'Déclare être inscrits sur la liste des sportifs de haut niveau': info.declare_inscription_sportif_haut_niveau ? 'Oui' : 'Non',
       'Déclare avoir un projet de création ou de reprise dentreprise': info.declare_avoir_projet_creation_reprise_entreprise ? 'Oui' : 'Non',
       'Déclare bénéficier de la reconnaissance travailleur handicapé': info.declare_travailleur_handicape ? 'Oui' : 'Non',
-      alternance: info.alternance ? 'Oui' : 'Non',
+      'alternance': info.alternance ? 'Oui' : 'Non',
 
-      // Parcours scolaire
-      'Dernier diplôme ou titre préparé': info.dernier_diplome_prepare,
-      'Dernière classe / année suivie': info.derniere_classe,
-      BAC: info.bac,
-      'Intitulé précis du dernier diplôme ou titre préparé': info.intitulePrecisDernierDiplome,
-
-      // Formation souhaitée
-      Formation: info.formation_souhaitee,
+      // Section 8: Formation souhaitée
+      'Formation': info.formation_souhaitee,
       'Date de visite': info.date_de_visite,
       'Date denvoi du réglement': info.date_de_reglement,
       'Entreprise daccueil': info.entreprise_d_accueil,
 
-      // Informations supplémentaires
+      // Section 9: Informations supplémentaires
       'connaissance rush': info.connaissance_rush_how,
       'motivation projet perso': info.motivation_projet_professionnel
     };
@@ -291,12 +296,12 @@ export class AdmissionService {
       departement: fields['Département'] || '',
 
       nom_representant_legal: fields['Nom Représentant légal principal'],
-      prenom_representant_legal: fields['Prénom Représentant légal Principal'],
-      voie_representant_legal: fields['Voie Représentant légal Principal'],
-      lien_parente_legal: fields['Lien de parenté Représentant légal Principal'],
-      numero_adress_legal: fields['Numero adresse Représentant légal'],
-      complement_adresse_legal: fields['Complémet Représentant légal Principal'],
-      code_postal_legal: fields['Code postal Représentant légal Principal'],
+      prenom_representant_legal: fields['Prénom Représentant légal principal'],
+      voie_representant_legal: fields['Voie Représentant légal principal'],
+      lien_parente_legal: fields['Lien de parenté'],
+      numero_adress_legal: fields['Numéro adresse Représentant légal principal'],
+      complement_adresse_legal: fields['Complément Représentant légal principal'],
+      code_postal_legal: fields['Code postal Représentant légal principal'],
       commune_legal: fields['Commune Représentant légal Principal'],
       courriel_legal: fields['courriel representant legal '],
 

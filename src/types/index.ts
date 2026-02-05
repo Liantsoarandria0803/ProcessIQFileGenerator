@@ -17,7 +17,7 @@ export interface CandidatFields {
   'Commune de naissance'?: string;
   'Département'?: string;
   'Adresse lieu dexécution du contrat'?: string;
-  'Code postal '?: string;
+  'Code postal '?: number; // Float dans Airtable
   'ville'?: string;
   'Régime social'?: string;
   'Situation avant le contrat'?: string;
