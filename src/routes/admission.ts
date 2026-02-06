@@ -383,8 +383,46 @@ router.post('/entreprises', async (req: Request, res: Response) => {
 });
 
 /**
- * PUT /api/admission/entreprises/:id
- * Met à jour une fiche entreprise
+ * @swagger
+ * /api/admission/entreprises/{recordId}:
+ *   put:
+ *     summary: Met à jour une fiche entreprise existante
+ *     tags: [Entreprises]
+ *     description: Met à jour une fiche de renseignement entreprise dans Airtable
+ *     parameters:
+ *       - in: path
+ *         name: recordId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID Airtable de la fiche entreprise
+ *         example: recABCDEFGHIJKL
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/FicheRenseignementEntreprise'
+ *     responses:
+ *       200:
+ *         description: Fiche entreprise mise à jour avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Fiche entreprise mise à jour avec succès
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 router.put('/entreprises/:id', async (req: Request, res: Response) => {
   try {
@@ -398,18 +436,11 @@ router.put('/entreprises/:id', async (req: Request, res: Response) => {
       });
     }
     
-    const entreprise = await entrepriseRepo.update(id, fields);
-    
-    if (!entreprise) {
-      return res.status(404).json({
-        success: false,
-        error: 'Fiche entreprise non trouvée'
-      });
-    }
+    const success = await entrepriseRepo.update(id, fields);
     
     res.json({
       success: true,
-      data: entreprise
+      message: 'Fiche entreprise mise à jour avec succès'
     });
   } catch (error) {
     logger.error('Erreur mise à jour entreprise:', error);
@@ -421,8 +452,38 @@ router.put('/entreprises/:id', async (req: Request, res: Response) => {
 });
 
 /**
- * DELETE /api/admission/entreprises/:id
- * Supprime une fiche entreprise
+ * @swagger
+ * /api/admission/entreprises/{recordId}:
+ *   delete:
+ *     summary: Supprime une fiche entreprise
+ *     tags: [Entreprises]
+ *     description: Supprime une fiche de renseignement entreprise dans Airtable
+ *     parameters:
+ *       - in: path
+ *         name: recordId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID Airtable de la fiche entreprise
+ *         example: recABCDEFGHIJKL
+ *     responses:
+ *       200:
+ *         description: Fiche entreprise supprimée avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Fiche entreprise supprimée avec succès
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 router.delete('/entreprises/:id', async (req: Request, res: Response) => {
   try {
@@ -438,7 +499,7 @@ router.delete('/entreprises/:id', async (req: Request, res: Response) => {
     
     res.json({
       success: true,
-      message: 'Fiche entreprise supprimée'
+      message: 'Fiche entreprise supprimée avec succès'
     });
   } catch (error) {
     logger.error('Erreur suppression entreprise:', error);
@@ -635,6 +696,64 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Erreur lors de la suppression'
+    });
+  }
+});
+
+// =====================================================
+// ROUTES ENTREPRISE - CRÉATION
+// =====================================================
+
+/**
+ * @swagger
+ * /api/admission/entreprise:
+ *   post:
+ *     summary: Crée une nouvelle fiche entreprise
+ *     tags: [Entreprises]
+ *     description: Crée une nouvelle fiche de renseignement entreprise avec toutes les informations
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/FicheRenseignementEntreprise'
+ *     responses:
+ *       200:
+ *         description: Fiche entreprise créée avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Fiche entreprise créée avec succès
+ *                 record_id:
+ *                   type: string
+ *                   example: recXXXXXXXXXXXXXX
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/entreprise', async (req: Request, res: Response) => {
+  try {
+    const ficheData = req.body;
+    
+    logger.info(`📝 Création entreprise - Données reçues: ${ficheData.identification?.raison_sociale || 'N/A'}`);
+    
+    const recordId = await entrepriseRepo.createFicheEntreprise(ficheData);
+    
+    logger.info(`✅ Entreprise créée avec ID: ${recordId}`);
+    
+    res.json({
+      message: 'Fiche entreprise créée avec succès',
+      record_id: recordId
+    });
+  } catch (error) {
+    logger.error('❌ ERREUR création entreprise:', error);
+    console.error('❌ Traceback:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur lors de la création de la fiche entreprise'
     });
   }
 });

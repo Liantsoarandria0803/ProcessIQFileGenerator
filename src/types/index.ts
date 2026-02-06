@@ -149,3 +149,8 @@ export interface PdfGenerationResult {
   filePath?: string;
   message: string;
 }
+
+// =====================================================
+// EXPORTS DES TYPES ENTREPRISE
+// =====================================================
+export * from './ficheEntreprise';

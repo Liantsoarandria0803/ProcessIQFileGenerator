@@ -241,6 +241,114 @@ const swaggerDefinition: SwaggerDefinition = {
           record_id: { type: 'string', description: 'ID du candidat supprimé', example: 'rec1BBjsjxhdqEKuq' },
           deleted_files: { type: 'integer', nullable: true, description: 'Nombre de fichiers supprimés', example: 5 }
         }
+      },
+      // ========================================
+      // SCHÉMAS ENTREPRISE
+      // ========================================
+      FicheRenseignementEntreprise: {
+        type: 'object',
+        properties: {
+          identification: {
+            $ref: '#/components/schemas/IdentificationEntreprise'
+          },
+          adresse: {
+            $ref: '#/components/schemas/AdresseEntreprise'
+          },
+          maitre_apprentissage: {
+            $ref: '#/components/schemas/MaitreApprentissage'
+          },
+          opco: {
+            $ref: '#/components/schemas/InformationsOPCO'
+          },
+          contrat: {
+            $ref: '#/components/schemas/InformationsContrat'
+          },
+          formation_missions: {
+            $ref: '#/components/schemas/FormationMissions'
+          },
+          record_id_etudiant: {
+            type: 'string',
+            description: 'ID Airtable du candidat lié',
+            example: 'recXXXXXXXXXXXXXX'
+          }
+        }
+      },
+      IdentificationEntreprise: {
+        type: 'object',
+        properties: {
+          raison_sociale: { type: 'string', example: 'ACME Corporation' },
+          siret: { type: 'number', example: 12345678901234 },
+          code_ape_naf: { type: 'string', example: '6201Z' },
+          type_employeur: { type: 'string', example: 'Entreprise privée' },
+          nombre_salaries: { type: 'number', example: 50 },
+          convention_collective: { type: 'string', example: 'Syntec' }
+        }
+      },
+      AdresseEntreprise: {
+        type: 'object',
+        properties: {
+          numero: { type: 'string', example: '12' },
+          voie: { type: 'string', example: 'Rue de la Paix' },
+          complement: { type: 'string', example: 'Bâtiment A' },
+          code_postal: { type: 'number', example: 75001 },
+          ville: { type: 'string', example: 'Paris' },
+          telephone: { type: 'string', example: '0123456789' },
+          email: { type: 'string', example: 'contact@acme.com' }
+        }
+      },
+      MaitreApprentissage: {
+        type: 'object',
+        properties: {
+          nom: { type: 'string', example: 'Dupont' },
+          prenom: { type: 'string', example: 'Marie' },
+          date_naissance: { type: 'string', format: 'date', example: '1985-05-15' },
+          fonction: { type: 'string', example: 'Responsable Formation' },
+          diplome_plus_eleve: { type: 'string', example: 'Master' },
+          annees_experience: { type: 'string', example: '10 ans' },
+          telephone: { type: 'string', example: '0612345678' },
+          email: { type: 'string', example: 'marie.dupont@acme.com' }
+        }
+      },
+      InformationsOPCO: {
+        type: 'object',
+        properties: {
+          nom_opco: { type: 'string', example: 'OPCO Atlas' }
+        }
+      },
+      InformationsContrat: {
+        type: 'object',
+        properties: {
+          type_contrat: { type: 'string', example: 'Contrat d\'apprentissage' },
+          type_derogation: { type: 'string', example: 'Aucune' },
+          date_debut: { type: 'string', format: 'date', example: '2026-09-01' },
+          date_fin: { type: 'string', format: 'date', example: '2028-08-31' },
+          duree_hebdomadaire: { type: 'string', example: '35h' },
+          poste_occupe: { type: 'string', example: 'Assistant commercial' },
+          lieu_execution: { type: 'string', example: 'Paris 75001' },
+          pourcentage_smic1: { type: 'number', example: 50 },
+          smic1: { type: 'string', example: 'Année 1' },
+          montant_salaire_brut1: { type: 'number', example: 800.50 },
+          date_conclusion: { type: 'string', format: 'date', example: '2026-08-15' },
+          date_debut_execution: { type: 'string', format: 'date', example: '2026-09-01' }
+        }
+      },
+      FormationMissions: {
+        type: 'object',
+        properties: {
+          formation_alternant: { type: 'string', example: 'BTS MCO' },
+          formation_choisie: { type: 'string', example: 'BTS MCO' },
+          code_rncp: { type: 'string', example: 'RNCP38362' },
+          code_diplome: { type: 'string', example: '54' },
+          nombre_heures_formation: { type: 'number', example: 675 },
+          jours_de_cours: { type: 'number', example: 2 },
+          cfaEnterprise: { type: 'boolean', example: false },
+          DenominationCFA: { type: 'string', example: 'CFA Rush School' },
+          NumeroUAI: { type: 'string', example: '0123456A' },
+          NumeroSiretCFA: { type: 'string', example: '12345678901234' },
+          AdresseCFA: { type: 'string', example: '10 Avenue des Champs' },
+          codePostalCFA: { type: 'number', example: 75008 },
+          communeCFA: { type: 'string', example: 'Paris' }
+        }
       }
     },
     responses: {
