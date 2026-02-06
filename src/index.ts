@@ -1,3 +1,7 @@
+import dns from 'dns';
+// ⚡ Forcer IPv4 globalement - résout les ETIMEDOUT sur connexion mobile
+dns.setDefaultResultOrder('ipv4first');
+
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';

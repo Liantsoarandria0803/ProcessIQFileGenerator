@@ -61,13 +61,13 @@ export interface InformationsContrat {
   poste_occupe?: string;
   lieu_execution?: string;
   pourcentage_smic1?: number;
-  smic1?: string;
+  smic1?: number;
   pourcentage_smic2?: number;
-  smic2?: string;
+  smic2?: number;
   pourcentage_smic3?: number;
-  smic3?: string;
+  smic3?: number;
   pourcentage_smic4?: number;
-  smic4?: string;
+  smic4?: number;
   montant_salaire_brut1?: number;
   montant_salaire_brut2?: number;
   montant_salaire_brut3?: number;

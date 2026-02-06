@@ -1,44 +1,40 @@
 import https from 'https';
+import dns from 'dns';
 import Airtable from 'airtable';
 import config from '../config';
 
+// ⚡ Forcer IPv4 globalement pour éviter les problèmes de connexion mobile
+dns.setDefaultResultOrder('ipv4first');
+
 /**
  * Configuration de l'agent HTTPS pour Airtable
- * Résout les problèmes de timeout de connexion
+ * Optimisé pour les connexions mobiles/lentes avec keep-alive désactivé
  */
 const httpsAgent = new https.Agent({
-  keepAlive: true,
-  timeout: 60000,           // 60 secondes
-  keepAliveMsecs: 30000,    // Keep-alive ping toutes les 30s
-  maxSockets: 10,
-  rejectUnauthorized: true
+  keepAlive: false,
+  timeout: 300000,           // 5 minutes
+  rejectUnauthorized: true,
 });
 
-/**
- * Patch global pour forcer l'utilisation de notre agent HTTPS
- * avec des timeouts augmentés pour toutes les requêtes Airtable
- */
-const originalRequest = https.request;
-https.request = function(options: any, callback?: any) {
-  if (options.hostname && options.hostname.includes('airtable.com')) {
-    options.agent = httpsAgent;
-    options.timeout = 60000;
-  }
-  return originalRequest.call(this, options, callback);
-};
+// Définir l'agent globalement
+(https as any).globalAgent = httpsAgent;
 
 /**
- * Configuration Airtable avec timeouts personnalisés
+ * Configuration Airtable avec timeouts personnalisés pour connexions mobiles
  */
-const airtableConfig = {
+Airtable.configure({
   apiKey: config.airtable.apiToken,
-  requestTimeout: 60000  // 60 secondes
-};
+  requestTimeout: 300000,  // 5 minutes
+  endpointUrl: 'https://api.airtable.com'
+});
 
 /**
  * Instance Airtable configurée
  */
-export const airtable = new Airtable(airtableConfig);
+export const airtable = new Airtable({
+  apiKey: config.airtable.apiToken,
+  requestTimeout: 300000
+});
 
 /**
  * Base Airtable

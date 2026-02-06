@@ -1,15 +1,12 @@
-import Airtable from 'airtable';
 import config from '../config';
 import logger from '../utils/logger';
-import { base } from '../utils/airtable';
+import airtableClient from '../utils/airtableClient';
 import { Entreprise, EntrepriseFields, FicheRenseignementEntreprise } from '../types';
 
 export class EntrepriseRepository {
-  private base: Airtable.Base;
   private tableName: string;
 
   constructor() {
-    this.base = base;
     this.tableName = config.airtable.tables.entreprise;
   }
 
@@ -17,101 +14,40 @@ export class EntrepriseRepository {
     maxRecords?: number;
     formula?: string;
   } = {}): Promise<Entreprise[]> {
-    return new Promise((resolve, reject) => {
-      const entreprises: Entreprise[] = [];
-      const selectOptions: Record<string, unknown> = {};
-      
-      if (options.maxRecords) {
-        selectOptions.maxRecords = options.maxRecords;
-      }
-      if (options.formula) {
-        selectOptions.filterByFormula = options.formula;
-      }
-
-      this.base(this.tableName).select(selectOptions).eachPage(
-        (records, fetchNextPage) => {
-          records.forEach((record) => {
-            entreprises.push({
-              id: record.id,
-              fields: record.fields as EntrepriseFields
-            });
-          });
-          fetchNextPage();
-        },
-        (err) => {
-          if (err) {
-            logger.error('Erreur entreprises: ' + err.message);
-            reject(err);
-          } else {
-            logger.info(entreprises.length + ' entreprises OK');
-            resolve(entreprises);
-          }
-        }
-      );
-    });
+    try {
+      const records = await airtableClient.getAll<EntrepriseFields>(this.tableName, {
+        maxRecords: options.maxRecords,
+        filterByFormula: options.formula
+      });
+      logger.info(`${records.length} entreprises récupérées`);
+      return records;
+    } catch (error) {
+      logger.error('Erreur entreprises:', error);
+      throw error;
+    }
   }
 
   async getById(recordId: string): Promise<Entreprise | null> {
-    return new Promise((resolve) => {
-      this.base(this.tableName).find(recordId, (err, record) => {
-        if (err || !record) {
-          resolve(null);
-          return;
-        }
-        resolve({
-          id: record.id,
-          fields: record.fields as EntrepriseFields
-        });
-      });
-    });
+    try {
+      return await airtableClient.getById<EntrepriseFields>(this.tableName, recordId);
+    } catch (error) {
+      logger.error(`Erreur getById entreprise ${recordId}:`, error);
+      return null;
+    }
   }
 
   async getByEtudiantId(etudiantId: string): Promise<Entreprise | null> {
-    return new Promise((resolve, reject) => {
-      const formula = "{recordIdetudiant} = '" + etudiantId + "'";
-      
-      this.base(this.tableName).select({
-        filterByFormula: formula,
-        maxRecords: 1
-      }).eachPage(
-        (records, fetchNextPage) => {
-          if (records.length > 0) {
-            resolve({
-              id: records[0].id,
-              fields: records[0].fields as EntrepriseFields
-            });
-          } else {
-            fetchNextPage();
-          }
-        },
-        (err) => {
-          if (err) {
-            logger.error('Erreur recherche entreprise: ' + err.message);
-            reject(err);
-          } else {
-            resolve(null);
-          }
-        }
-      );
-    });
+    try {
+      const formula = `{recordIdetudiant} = '${etudiantId}'`;
+      return await airtableClient.findFirst<EntrepriseFields>(this.tableName, formula);
+    } catch (error) {
+      logger.error('Erreur recherche entreprise:', error);
+      throw error;
+    }
   }
 
   async create(data: Partial<EntrepriseFields>): Promise<Entreprise> {
-    return new Promise((resolve, reject) => {
-      this.base(this.tableName).create(
-        [{ fields: data }], 
-        (err: Error | undefined, records: Airtable.Records<Airtable.FieldSet> | undefined) => {
-          if (err || !records || records.length === 0) {
-            reject(err || new Error('Creation failed'));
-            return;
-          }
-          resolve({
-            id: records[0].id,
-            fields: records[0].fields as EntrepriseFields
-          });
-        }
-      );
-    });
+    return await airtableClient.create<EntrepriseFields>(this.tableName, data);
   }
 
   /**
@@ -135,8 +71,8 @@ export class EntrepriseRepository {
         if (fiche.identification.raison_sociale) {
           airtableData['Raison sociale'] = fiche.identification.raison_sociale;
         }
-        if (fiche.identification.siret) {
-          airtableData['Numéro SIRET'] = fiche.identification.siret;
+        if (fiche.identification.siret != null) {
+          airtableData['Numéro SIRET'] = Number(fiche.identification.siret);
         }
         if (fiche.identification.code_ape_naf !== undefined) {
           airtableData['Code APE/NAF'] = fiche.identification.code_ape_naf;
@@ -144,8 +80,8 @@ export class EntrepriseRepository {
         if (fiche.identification.type_employeur) {
           airtableData['Type demployeur'] = fiche.identification.type_employeur;
         }
-        if (fiche.identification.nombre_salaries !== undefined) {
-          airtableData["Effectif salarié de l'entreprise"] = fiche.identification.nombre_salaries;
+        if (fiche.identification.nombre_salaries != null) {
+          airtableData["Effectif salarié de l'entreprise"] = Number(fiche.identification.nombre_salaries);
         }
         if (fiche.identification.convention_collective) {
           airtableData['Convention collective'] = fiche.identification.convention_collective;
@@ -163,8 +99,8 @@ export class EntrepriseRepository {
         if (fiche.adresse.complement) {
           airtableData['Complément dadresse entreprise'] = fiche.adresse.complement;
         }
-        if (fiche.adresse.code_postal !== undefined) {
-          airtableData['Code postal entreprise'] = fiche.adresse.code_postal;
+        if (fiche.adresse.code_postal != null) {
+          airtableData['Code postal entreprise'] = Number(fiche.adresse.code_postal);
         }
         if (fiche.adresse.ville) {
           airtableData['Ville entreprise'] = fiche.adresse.ville;
@@ -220,19 +156,19 @@ export class EntrepriseRepository {
         if (fiche.contrat.poste_occupe) airtableData['Poste occupé'] = fiche.contrat.poste_occupe;
         if (fiche.contrat.lieu_execution) airtableData['Lieu dexécution du contrat (si différent du siège)'] = fiche.contrat.lieu_execution;
 
-        // SMIC et salaires
-        if (fiche.contrat.pourcentage_smic1 !== undefined) airtableData['Pourcentage du SMIC 1'] = fiche.contrat.pourcentage_smic1;
-        if (fiche.contrat.smic1 !== undefined) airtableData['SMIC 1'] = fiche.contrat.smic1;
-        if (fiche.contrat.pourcentage_smic2 !== undefined) airtableData['Pourcentage smic 2'] = fiche.contrat.pourcentage_smic2;
-        if (fiche.contrat.smic2 !== undefined) airtableData['smic 2'] = fiche.contrat.smic2;
-        if (fiche.contrat.pourcentage_smic3 !== undefined) airtableData['Pourcentage smic 3'] = fiche.contrat.pourcentage_smic3;
-        if (fiche.contrat.smic3 !== undefined) airtableData['smic 3'] = fiche.contrat.smic3;
-        if (fiche.contrat.pourcentage_smic4 !== undefined) airtableData['Pourcentage smic 4'] = fiche.contrat.pourcentage_smic4;
-        if (fiche.contrat.smic4 !== undefined) airtableData['smic 4'] = fiche.contrat.smic4;
-        if (fiche.contrat.montant_salaire_brut1 !== undefined) airtableData['Salaire brut mensuel 1'] = fiche.contrat.montant_salaire_brut1;
-        if (fiche.contrat.montant_salaire_brut2 !== undefined) airtableData['Salaire brut mensuel 2'] = fiche.contrat.montant_salaire_brut2;
-        if (fiche.contrat.montant_salaire_brut3 !== undefined) airtableData['Salaire brut mensuel 3'] = fiche.contrat.montant_salaire_brut3;
-        if (fiche.contrat.montant_salaire_brut4 !== undefined) airtableData['Salaire brut mensuel 4'] = fiche.contrat.montant_salaire_brut4;
+        // SMIC et salaires - conversions en nombre
+        if (fiche.contrat.pourcentage_smic1 != null) airtableData['Pourcentage du SMIC 1'] = Number(fiche.contrat.pourcentage_smic1);
+        if (fiche.contrat.smic1 != null) airtableData['SMIC 1'] = Number(fiche.contrat.smic1);
+        if (fiche.contrat.pourcentage_smic2 != null) airtableData['Pourcentage smic 2'] = Number(fiche.contrat.pourcentage_smic2);
+        if (fiche.contrat.smic2 != null) airtableData['smic 2'] = Number(fiche.contrat.smic2);
+        if (fiche.contrat.pourcentage_smic3 != null) airtableData['Pourcentage smic 3'] = Number(fiche.contrat.pourcentage_smic3);
+        if (fiche.contrat.smic3 != null) airtableData['smic 3'] = Number(fiche.contrat.smic3);
+        if (fiche.contrat.pourcentage_smic4 != null) airtableData['Pourcentage smic 4'] = Number(fiche.contrat.pourcentage_smic4);
+        if (fiche.contrat.smic4 != null) airtableData['smic 4'] = Number(fiche.contrat.smic4);
+        if (fiche.contrat.montant_salaire_brut1 != null) airtableData['Salaire brut mensuel 1'] = Number(fiche.contrat.montant_salaire_brut1);
+        if (fiche.contrat.montant_salaire_brut2 != null) airtableData['Salaire brut mensuel 2'] = Number(fiche.contrat.montant_salaire_brut2);
+        if (fiche.contrat.montant_salaire_brut3 != null) airtableData['Salaire brut mensuel 3'] = Number(fiche.contrat.montant_salaire_brut3);
+        if (fiche.contrat.montant_salaire_brut4 != null) airtableData['Salaire brut mensuel 4'] = Number(fiche.contrat.montant_salaire_brut4);
 
         // Dates des périodes
         if (fiche.contrat.date_debut_2periode_1er_annee) airtableData['date_debut_2periode_1er_annee'] = fiche.contrat.date_debut_2periode_1er_annee;
@@ -261,7 +197,7 @@ export class EntrepriseRepository {
         if (fiche.formation_missions.formation_choisie) airtableData['Formation choisie'] = fiche.formation_missions.formation_choisie;
         if (fiche.formation_missions.code_rncp) airtableData['Code RNCP'] = fiche.formation_missions.code_rncp;
         if (fiche.formation_missions.code_diplome) airtableData['Code diplôme'] = fiche.formation_missions.code_diplome;
-        if (fiche.formation_missions.nombre_heures_formation !== undefined) airtableData['Nombre heure formation'] = fiche.formation_missions.nombre_heures_formation;
+        if (fiche.formation_missions.nombre_heures_formation != null) airtableData['Nombre heure formation'] = Number(fiche.formation_missions.nombre_heures_formation);
         if (fiche.formation_missions.missions) airtableData['Missions'] = fiche.formation_missions.missions;
 
         // CFA si cfaEnterprise = true
@@ -271,7 +207,7 @@ export class EntrepriseRepository {
           if (fiche.formation_missions.NumeroUAI) airtableData['N° UAI du CFA'] = fiche.formation_missions.NumeroUAI;
           if (fiche.formation_missions.NumeroSiretCFA) airtableData['N° SIRET CFA'] = fiche.formation_missions.NumeroSiretCFA;
           if (fiche.formation_missions.AdresseCFA) airtableData['Voie Adresse CFA'] = fiche.formation_missions.AdresseCFA;
-          if (fiche.formation_missions.codePostalCFA !== undefined) airtableData['Code postal CFA'] = fiche.formation_missions.codePostalCFA;
+          if (fiche.formation_missions.codePostalCFA != null) airtableData['Code postal CFA'] = Number(fiche.formation_missions.codePostalCFA);
           if (fiche.formation_missions.communeCFA) airtableData['Commune CFA'] = fiche.formation_missions.communeCFA;
         } else {
           airtableData['CFA entreprise'] = 'Non';
@@ -290,8 +226,8 @@ export class EntrepriseRepository {
 
       logger.info(`📝 Données à mettre à jour: ${Object.keys(cleanedData).length} champs`);
 
-      // Mettre à jour l'enregistrement
-      await this.base(this.tableName).update(recordId, cleanedData);
+      // Mettre à jour l'enregistrement via axios
+      await airtableClient.update<EntrepriseFields>(this.tableName, recordId, cleanedData);
 
       const raisonSociale = fiche.identification?.raison_sociale || 'N/A';
       logger.info(`✅ Fiche entreprise mise à jour avec succès: ${recordId}`);
@@ -318,8 +254,8 @@ export class EntrepriseRepository {
         return false;
       }
 
-      // Supprimer la fiche
-      await this.base(this.tableName).destroy(recordId);
+      // Supprimer la fiche via axios
+      await airtableClient.delete(this.tableName, recordId);
 
       logger.info(`✅ Fiche entreprise supprimée: ${recordId}`);
       logger.info(`   Entreprise: ${existing.fields['Raison sociale'] || 'N/A'}`);
@@ -369,8 +305,8 @@ export class EntrepriseRepository {
         if (fiche.identification.raison_sociale) {
           airtableData['Raison sociale'] = fiche.identification.raison_sociale;
         }
-        if (fiche.identification.siret) {
-          airtableData['Numéro SIRET'] = fiche.identification.siret;
+        if (fiche.identification.siret != null) {
+          airtableData['Numéro SIRET'] = Number(fiche.identification.siret);
         }
         if (fiche.identification.code_ape_naf) {
           airtableData['Code APE/NAF'] = fiche.identification.code_ape_naf;
@@ -378,8 +314,8 @@ export class EntrepriseRepository {
         if (fiche.identification.type_employeur) {
           airtableData['Type demployeur'] = fiche.identification.type_employeur;
         }
-        if (fiche.identification.nombre_salaries !== undefined) {
-          airtableData["Effectif salarié de l'entreprise"] = fiche.identification.nombre_salaries;
+        if (fiche.identification.nombre_salaries != null) {
+          airtableData["Effectif salarié de l'entreprise"] = Number(fiche.identification.nombre_salaries);
         }
         if (fiche.identification.convention_collective) {
           airtableData['Convention collective'] = fiche.identification.convention_collective;
@@ -397,8 +333,8 @@ export class EntrepriseRepository {
         if (fiche.adresse.complement) {
           airtableData['Complément dadresse entreprise'] = fiche.adresse.complement;
         }
-        if (fiche.adresse.code_postal !== undefined) {
-          airtableData['Code postal entreprise'] = fiche.adresse.code_postal;
+        if (fiche.adresse.code_postal != null) {
+          airtableData['Code postal entreprise'] = Number(fiche.adresse.code_postal);
         }
         if (fiche.adresse.ville) {
           airtableData['Ville entreprise'] = fiche.adresse.ville;
@@ -467,41 +403,41 @@ export class EntrepriseRepository {
         if (fiche.contrat.lieu_execution) {
           airtableData['Lieu dexécution du contrat (si différent du siège)'] = fiche.contrat.lieu_execution;
         }
-        if (fiche.contrat.pourcentage_smic1 !== undefined) {
-          airtableData['Pourcentage du SMIC 1'] = fiche.contrat.pourcentage_smic1;
+        if (fiche.contrat.pourcentage_smic1 != null) {
+          airtableData['Pourcentage du SMIC 1'] = Number(fiche.contrat.pourcentage_smic1);
         }
-        if (fiche.contrat.smic1) {
-          airtableData['SMIC 1'] = fiche.contrat.smic1;
+        if (fiche.contrat.smic1 != null) {
+          airtableData['SMIC 1'] = Number(fiche.contrat.smic1);
         }
-        if (fiche.contrat.pourcentage_smic2 !== undefined) {
-          airtableData['Pourcentage smic 2'] = fiche.contrat.pourcentage_smic2;
+        if (fiche.contrat.pourcentage_smic2 != null) {
+          airtableData['Pourcentage smic 2'] = Number(fiche.contrat.pourcentage_smic2);
         }
-        if (fiche.contrat.smic2) {
-          airtableData['smic 2'] = fiche.contrat.smic2;
+        if (fiche.contrat.smic2 != null) {
+          airtableData['smic 2'] = Number(fiche.contrat.smic2);
         }
-        if (fiche.contrat.pourcentage_smic3 !== undefined) {
-          airtableData['Pourcentage smic 3'] = fiche.contrat.pourcentage_smic3;
+        if (fiche.contrat.pourcentage_smic3 != null) {
+          airtableData['Pourcentage smic 3'] = Number(fiche.contrat.pourcentage_smic3);
         }
-        if (fiche.contrat.smic3) {
-          airtableData['smic 3'] = fiche.contrat.smic3;
+        if (fiche.contrat.smic3 != null) {
+          airtableData['smic 3'] = Number(fiche.contrat.smic3);
         }
-        if (fiche.contrat.pourcentage_smic4 !== undefined) {
-          airtableData['Pourcentage smic 4'] = fiche.contrat.pourcentage_smic4;
+        if (fiche.contrat.pourcentage_smic4 != null) {
+          airtableData['Pourcentage smic 4'] = Number(fiche.contrat.pourcentage_smic4);
         }
-        if (fiche.contrat.smic4) {
-          airtableData['smic 4'] = fiche.contrat.smic4;
+        if (fiche.contrat.smic4 != null) {
+          airtableData['smic 4'] = Number(fiche.contrat.smic4);
         }
-        if (fiche.contrat.montant_salaire_brut1 !== undefined) {
-          airtableData['Salaire brut mensuel 1'] = fiche.contrat.montant_salaire_brut1;
+        if (fiche.contrat.montant_salaire_brut1 != null) {
+          airtableData['Salaire brut mensuel 1'] = Number(fiche.contrat.montant_salaire_brut1);
         }
-        if (fiche.contrat.montant_salaire_brut2 !== undefined) {
-          airtableData['Salaire brut mensuel 2'] = fiche.contrat.montant_salaire_brut2;
+        if (fiche.contrat.montant_salaire_brut2 != null) {
+          airtableData['Salaire brut mensuel 2'] = Number(fiche.contrat.montant_salaire_brut2);
         }
-        if (fiche.contrat.montant_salaire_brut3 !== undefined) {
-          airtableData['Salaire brut mensuel 3'] = fiche.contrat.montant_salaire_brut3;
+        if (fiche.contrat.montant_salaire_brut3 != null) {
+          airtableData['Salaire brut mensuel 3'] = Number(fiche.contrat.montant_salaire_brut3);
         }
-        if (fiche.contrat.montant_salaire_brut4 !== undefined) {
-          airtableData['Salaire brut mensuel 4'] = fiche.contrat.montant_salaire_brut4;
+        if (fiche.contrat.montant_salaire_brut4 != null) {
+          airtableData['Salaire brut mensuel 4'] = Number(fiche.contrat.montant_salaire_brut4);
         }
         
         // Dates des périodes
@@ -583,11 +519,11 @@ export class EntrepriseRepository {
         if (fiche.formation_missions.code_diplome) {
           airtableData['Code  diplome'] = fiche.formation_missions.code_diplome;
         }
-        if (fiche.formation_missions.nombre_heures_formation !== undefined) {
-          airtableData['nombre heure formation'] = fiche.formation_missions.nombre_heures_formation;
+        if (fiche.formation_missions.nombre_heures_formation != null) {
+          airtableData['nombre heure formation'] = Number(fiche.formation_missions.nombre_heures_formation);
         }
-        if (fiche.formation_missions.jours_de_cours !== undefined) {
-          airtableData['jour de cours'] = fiche.formation_missions.jours_de_cours;
+        if (fiche.formation_missions.jours_de_cours != null) {
+          airtableData['jour de cours'] = Number(fiche.formation_missions.jours_de_cours);
         }
 
         // Informations CFA (si cfaEnterprise = true)
@@ -607,8 +543,8 @@ export class EntrepriseRepository {
           if (fiche.formation_missions.complementAdresseCFA) {
             airtableData['Complément adresse CFA'] = fiche.formation_missions.complementAdresseCFA;
           }
-          if (fiche.formation_missions.codePostalCFA !== undefined) {
-            airtableData['Code postal CFA'] = fiche.formation_missions.codePostalCFA;
+          if (fiche.formation_missions.codePostalCFA != null) {
+            airtableData['Code postal CFA'] = Number(fiche.formation_missions.codePostalCFA);
           }
           if (fiche.formation_missions.communeCFA) {
             airtableData['Commune CFA'] = fiche.formation_missions.communeCFA;
@@ -623,15 +559,41 @@ export class EntrepriseRepository {
 
       logger.info(`📝 Données à envoyer à Airtable: ${Object.keys(airtableData).length} champs`);
 
-      // Créer l'enregistrement
-      const result = await this.base(this.tableName).create(airtableData);
-      const recordId = result.id;
+      // Créer l'enregistrement avec retry en cas de timeout
+      let lastError: Error | null = null;
+      const maxRetries = 3;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          logger.info(`🔄 Tentative ${attempt}/${maxRetries} de création...`);
+          const result = await airtableClient.create<EntrepriseFields>(this.tableName, airtableData);
+          const recordId = result.id;
 
-      const raisonSociale = fiche.identification?.raison_sociale || 'N/A';
-      logger.info(`✅ Fiche entreprise créée avec succès dans Airtable: ${recordId}`);
-      logger.info(`   Entreprise: ${raisonSociale}`);
+          const raisonSociale = fiche.identification?.raison_sociale || 'N/A';
+          logger.info(`✅ Fiche entreprise créée avec succès dans Airtable: ${recordId}`);
+          logger.info(`   Entreprise: ${raisonSociale}`);
 
-      return recordId;
+          return recordId;
+        } catch (err: any) {
+          lastError = err;
+          logger.warn(`⚠️ Tentative ${attempt}/${maxRetries} échouée: ${err.message}`);
+          
+          // Ne pas réessayer les erreurs de validation (422) ou d'authentification (401/403)
+          const statusCode = err.response?.status || err.statusCode;
+          if (statusCode && statusCode >= 400 && statusCode < 500) {
+            logger.error(`❌ Erreur client ${statusCode}, pas de retry`);
+            break;
+          }
+          
+          if (attempt < maxRetries && (err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.type === 'system')) {
+            const delay = attempt * 2000; // 2s, 4s, 6s
+            logger.info(`⏳ Attente de ${delay}ms avant nouvelle tentative...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+      }
+
+      throw lastError || new Error('Échec de création après plusieurs tentatives');
     } catch (error) {
       logger.error('❌ Erreur création fiche entreprise:', error);
       throw error;

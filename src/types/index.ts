@@ -45,11 +45,11 @@ export interface Candidat {
 export interface EntrepriseFields {
   'recordIdetudiant'?: string;
   'Raison sociale'?: string;
-  'Numéro SIRET'?: string;
+  'Numéro SIRET'?: number;
   'Numéro entreprise'?: string;
   'Voie entreprise'?: string;
   'Complément dadresse entreprise'?: string;
-  'Code postal entreprise'?: string;
+  'Code postal entreprise'?: number;
   'Ville entreprise'?: string;
   'Téléphone entreprise'?: string;
   'Email entreprise'?: string;

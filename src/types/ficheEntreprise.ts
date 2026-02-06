@@ -9,7 +9,7 @@
 
 export interface IdentificationEntreprise {
   raison_sociale?: string;
-  siret?: string;
+  siret?: number;
   code_ape_naf?: string;
   type_employeur?: string;
   nombre_salaries?: number;
@@ -20,7 +20,7 @@ export interface AdresseEntreprise {
   numero?: string;
   voie?: string;
   complement?: string;
-  code_postal?: string; // String pour Airtable
+  code_postal?: number;
   ville?: string;
   telephone?: string;
   email?: string;
@@ -103,7 +103,7 @@ export interface FormationMissions {
   code_rncp?: string;
   code_diplome?: string;
   nombre_heures_formation?: number;
-  jours_de_cours?: string;
+  jours_de_cours?: number;
   
   // CFA Enterprise
   cfaEnterprise?: boolean;
