@@ -25,6 +25,13 @@ export const config = {
   // Paths
   paths: {
     templates: './assets/templates_pdf'
+  },
+
+  // Upload
+  upload: {
+    dir: process.env.UPLOAD_DIR || 'uploads',
+    maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10), // 10MB
+    allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png']
   }
 };
 

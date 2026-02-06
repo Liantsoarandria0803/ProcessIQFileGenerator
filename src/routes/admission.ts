@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import { CandidatRepository, EntrepriseRepository } from '../repositories';
 import { PdfGeneratorService, CerfaGeneratorService } from '../services';
 import { AdmissionService } from '../services/admissionService';
 import logger from '../utils/logger';
 import { InformationsPersonnelles } from '../types/admission';
+import config from '../config';
 
 const router = Router();
 const candidatRepo = new CandidatRepository();
@@ -11,6 +13,12 @@ const entrepriseRepo = new EntrepriseRepository();
 const pdfService = new PdfGeneratorService();
 const cerfaService = new CerfaGeneratorService();
 const admissionService = new AdmissionService();
+
+// Configuration multer : stockage en mémoire (buffer)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: config.upload.maxFileSize },
+});
 
 /**
  * @swagger
@@ -755,6 +763,281 @@ router.post('/entreprise', async (req: Request, res: Response) => {
       success: false,
       error: error instanceof Error ? error.message : 'Erreur lors de la création de la fiche entreprise'
     });
+  }
+});
+
+// =====================================================
+// UPLOAD DE DOCUMENTS
+// =====================================================
+
+/**
+ * @swagger
+ * /api/admission/candidates/{record_id}/documents/cv:
+ *   post:
+ *     summary: Upload d'un CV
+ *     tags: [Documents]
+ *     description: Upload un fichier CV pour un candidat
+ *     parameters:
+ *       - in: path
+ *         name: record_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID du record Airtable du candidat
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Le fichier CV à uploader (pdf, doc, docx, jpg, jpeg, png)
+ *     responses:
+ *       200:
+ *         description: CV uploadé avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UploadResponse'
+ *       400:
+ *         description: Aucun fichier fourni
+ *       404:
+ *         description: Candidat non trouvé
+ *       413:
+ *         description: Fichier trop volumineux
+ *       422:
+ *         description: Type de fichier non autorisé
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/candidates/:record_id/documents/cv', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Aucun fichier fourni' });
+    }
+    const result = await admissionService.uploadCV(req.params.record_id, req.file);
+    res.json(result);
+  } catch (error: any) {
+    logger.error('❌ Erreur upload CV:', error);
+    const status = error.message?.includes('non trouvé') ? 404
+      : error.message?.includes('trop volumineux') ? 413
+      : error.message?.includes('non autorisé') ? 422 : 500;
+    res.status(status).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admission/candidates/{record_id}/documents/cin:
+ *   post:
+ *     summary: Upload d'une carte d'identité
+ *     tags: [Documents]
+ *     description: Upload un fichier carte d'identité pour un candidat
+ *     parameters:
+ *       - in: path
+ *         name: record_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: CIN uploadée avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UploadResponse'
+ *       400:
+ *         description: Aucun fichier fourni
+ *       404:
+ *         description: Candidat non trouvé
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/candidates/:record_id/documents/cin', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Aucun fichier fourni' });
+    }
+    const result = await admissionService.uploadCIN(req.params.record_id, req.file);
+    res.json(result);
+  } catch (error: any) {
+    logger.error('❌ Erreur upload CIN:', error);
+    const status = error.message?.includes('non trouvé') ? 404
+      : error.message?.includes('trop volumineux') ? 413
+      : error.message?.includes('non autorisé') ? 422 : 500;
+    res.status(status).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admission/candidates/{record_id}/documents/lettre-motivation:
+ *   post:
+ *     summary: Upload d'une lettre de motivation
+ *     tags: [Documents]
+ *     description: Upload un fichier lettre de motivation pour un candidat
+ *     parameters:
+ *       - in: path
+ *         name: record_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Lettre de motivation uploadée avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UploadResponse'
+ *       400:
+ *         description: Aucun fichier fourni
+ *       404:
+ *         description: Candidat non trouvé
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/candidates/:record_id/documents/lettre-motivation', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Aucun fichier fourni' });
+    }
+    const result = await admissionService.uploadLettreMotivation(req.params.record_id, req.file);
+    res.json(result);
+  } catch (error: any) {
+    logger.error('❌ Erreur upload lettre motivation:', error);
+    const status = error.message?.includes('non trouvé') ? 404
+      : error.message?.includes('trop volumineux') ? 413
+      : error.message?.includes('non autorisé') ? 422 : 500;
+    res.status(status).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admission/candidates/{record_id}/documents/carte-vitale:
+ *   post:
+ *     summary: Upload d'une carte vitale
+ *     tags: [Documents]
+ *     description: Upload un fichier carte vitale pour un candidat
+ *     parameters:
+ *       - in: path
+ *         name: record_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Carte vitale uploadée avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UploadResponse'
+ *       400:
+ *         description: Aucun fichier fourni
+ *       404:
+ *         description: Candidat non trouvé
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/candidates/:record_id/documents/carte-vitale', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Aucun fichier fourni' });
+    }
+    const result = await admissionService.uploadCarteVitale(req.params.record_id, req.file);
+    res.json(result);
+  } catch (error: any) {
+    logger.error('❌ Erreur upload carte vitale:', error);
+    const status = error.message?.includes('non trouvé') ? 404
+      : error.message?.includes('trop volumineux') ? 413
+      : error.message?.includes('non autorisé') ? 422 : 500;
+    res.status(status).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admission/candidates/{record_id}/documents/dernier-diplome:
+ *   post:
+ *     summary: Upload d'un dernier diplôme
+ *     tags: [Documents]
+ *     description: Upload un fichier dernier diplôme pour un candidat
+ *     parameters:
+ *       - in: path
+ *         name: record_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Dernier diplôme uploadé avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UploadResponse'
+ *       400:
+ *         description: Aucun fichier fourni
+ *       404:
+ *         description: Candidat non trouvé
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/candidates/:record_id/documents/dernier-diplome', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Aucun fichier fourni' });
+    }
+    const result = await admissionService.uploadDernierDiplome(req.params.record_id, req.file);
+    res.json(result);
+  } catch (error: any) {
+    logger.error('❌ Erreur upload dernier diplôme:', error);
+    const status = error.message?.includes('non trouvé') ? 404
+      : error.message?.includes('trop volumineux') ? 413
+      : error.message?.includes('non autorisé') ? 422 : 500;
+    res.status(status).json({ success: false, error: error.message });
   }
 });
 

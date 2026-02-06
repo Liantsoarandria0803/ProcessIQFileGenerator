@@ -106,6 +106,14 @@ export interface CandidateDeletionResponse {
   deleted_files?: number;
 }
 
+export interface UploadResponse {
+  success: boolean;
+  message: string;
+  file_name?: string;
+  file_size?: number;
+  airtable_record_id?: string;
+}
+
 // =====================================================
 // VALIDATION HELPERS
 // =====================================================

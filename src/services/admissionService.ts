@@ -3,8 +3,11 @@
  * Gère la logique métier pour les candidats
  */
 
+import fs from 'fs';
+import path from 'path';
 import { CandidatRepository } from '../repositories/candidatRepository';
 import { EntrepriseRepository } from '../repositories/entrepriseRepository';
+import config from '../config';
 import logger from '../utils/logger';
 import {
   InformationsPersonnelles,
@@ -12,6 +15,7 @@ import {
   CandidateProfile,
   CandidateDocuments,
   CandidateDeletionResponse,
+  UploadResponse,
   validateEmail,
   validateTelephone,
   normalizePhone
@@ -363,5 +367,130 @@ export class AdmissionService {
   private mapNationaliteValue(nationalite: string): string {
     // Mapping des nationalités si nécessaire
     return nationalite;
+  }
+
+  // =====================================================
+  // UPLOAD DE DOCUMENTS
+  // =====================================================
+
+  /**
+   * Valide un fichier uploadé (taille + extension)
+   */
+  private validateFile(file: Express.Multer.File): void {
+    // Vérifier la taille
+    if (file.size > config.upload.maxFileSize) {
+      const maxMB = (config.upload.maxFileSize / 1024 / 1024).toFixed(1);
+      throw new Error(`Le fichier est trop volumineux. Taille maximale: ${maxMB}MB`);
+    }
+
+    // Vérifier l'extension
+    const ext = path.extname(file.originalname).toLowerCase().replace('.', '');
+    if (!config.upload.allowedExtensions.includes(ext)) {
+      throw new Error(
+        `Type de fichier non autorisé. Extensions autorisées: ${config.upload.allowedExtensions.join(', ')}`
+      );
+    }
+  }
+
+  /**
+   * Sauvegarde temporairement le fichier sur disque
+   * Retourne le chemin du fichier temporaire
+   */
+  private saveTempFile(file: Express.Multer.File, recordId: string, documentType: string): string {
+    fs.mkdirSync(config.upload.dir, { recursive: true });
+    const tempFilename = `${recordId}_${documentType}_${file.originalname}`;
+    const tempFilePath = path.join(config.upload.dir, tempFilename);
+    fs.writeFileSync(tempFilePath, file.buffer);
+    return tempFilePath;
+  }
+
+  /**
+   * Nettoie le fichier temporaire
+   */
+  private cleanupTempFile(filePath: string): void {
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (err: any) {
+      logger.warn(`Erreur suppression fichier temporaire ${filePath}: ${err.message}`);
+    }
+  }
+
+  /**
+   * Méthode générique d'upload de document
+   */
+  private async uploadDocument(
+    recordId: string,
+    file: Express.Multer.File,
+    documentType: string,
+    uploadMethod: (recordId: string, filePath: string) => Promise<boolean>
+  ): Promise<UploadResponse> {
+    // Valider le fichier
+    this.validateFile(file);
+
+    // Vérifier que le candidat existe
+    const candidate = await this.candidatRepo.getById(recordId);
+    if (!candidate) {
+      throw new Error(`Candidat avec l'ID ${recordId} non trouvé`);
+    }
+
+    // Sauvegarder temporairement le fichier
+    const tempFilePath = this.saveTempFile(file, recordId, documentType);
+
+    try {
+      // Uploader vers Airtable
+      const success = await uploadMethod(recordId, tempFilePath);
+
+      if (success) {
+        return {
+          success: true,
+          message: `${documentType} uploadé avec succès`,
+          file_name: file.originalname,
+          file_size: file.size,
+          airtable_record_id: recordId
+        };
+      } else {
+        throw new Error(`Erreur lors de l'upload vers Airtable`);
+      }
+    } finally {
+      // Nettoyer le fichier temporaire
+      this.cleanupTempFile(tempFilePath);
+    }
+  }
+
+  /**
+   * Upload d'un CV
+   */
+  async uploadCV(recordId: string, file: Express.Multer.File): Promise<UploadResponse> {
+    return this.uploadDocument(recordId, file, 'CV', (rid, fp) => this.candidatRepo.uploadCV(rid, fp));
+  }
+
+  /**
+   * Upload d'une carte d'identité
+   */
+  async uploadCIN(recordId: string, file: Express.Multer.File): Promise<UploadResponse> {
+    return this.uploadDocument(recordId, file, 'CIN', (rid, fp) => this.candidatRepo.uploadCIN(rid, fp));
+  }
+
+  /**
+   * Upload d'une lettre de motivation
+   */
+  async uploadLettreMotivation(recordId: string, file: Express.Multer.File): Promise<UploadResponse> {
+    return this.uploadDocument(recordId, file, 'lettre_motivation', (rid, fp) => this.candidatRepo.uploadLettreMotivation(rid, fp));
+  }
+
+  /**
+   * Upload d'une carte vitale
+   */
+  async uploadCarteVitale(recordId: string, file: Express.Multer.File): Promise<UploadResponse> {
+    return this.uploadDocument(recordId, file, 'carte_vitale', (rid, fp) => this.candidatRepo.uploadCarteVitale(rid, fp));
+  }
+
+  /**
+   * Upload d'un dernier diplôme
+   */
+  async uploadDernierDiplome(recordId: string, file: Express.Multer.File): Promise<UploadResponse> {
+    return this.uploadDocument(recordId, file, 'dernier_diplome', (rid, fp) => this.candidatRepo.uploadDernierDiplome(rid, fp));
   }
 }

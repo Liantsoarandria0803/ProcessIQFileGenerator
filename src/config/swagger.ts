@@ -42,6 +42,10 @@ const swaggerDefinition: SwaggerDefinition = {
     {
       name: 'PDF',
       description: 'Génération de documents PDF'
+    },
+    {
+      name: 'Documents',
+      description: 'Upload de documents (CV, CIN, lettre de motivation, etc.)'
     }
   ],
   components: {
@@ -348,6 +352,16 @@ const swaggerDefinition: SwaggerDefinition = {
           AdresseCFA: { type: 'string', example: '10 Avenue des Champs' },
           codePostalCFA: { type: 'number', example: 75008 },
           communeCFA: { type: 'string', example: 'Paris' }
+        }
+      },
+      UploadResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean', example: true },
+          message: { type: 'string', example: 'CV uploadé avec succès' },
+          file_name: { type: 'string', example: 'mon_cv.pdf' },
+          file_size: { type: 'number', example: 204800 },
+          airtable_record_id: { type: 'string', example: 'rec1BBjsjxhdqEKuq' }
         }
       }
     },
