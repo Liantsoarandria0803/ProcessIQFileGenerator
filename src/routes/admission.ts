@@ -1,5 +1,8 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 import { CandidatRepository, EntrepriseRepository } from '../repositories';
 import { PdfGeneratorService, CerfaGeneratorService } from '../services';
 import { AdmissionService } from '../services/admissionService';
@@ -315,17 +318,42 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
       return res.status(500).json({
         success: false,
         error: result.error || 'Erreur génération CERFA',
-        warnings: result.warnings
       });
     }
     
-    // Log les warnings s'il y en a
-    if (result.warnings && result.warnings.length > 0) {
-      logger.warn('CERFA généré avec warnings:', result.warnings);
+    // Upload vers Airtable dans la colonne "cerfa"
+    const fileName = `CERFA_FA13_${candidat.fields['NOM de naissance'] || 'candidat'}_${candidat.fields['Prénom'] || ''}.pdf`;
+    let cerfaUrl: string | null = null;
+    try {
+      // Sauvegarder le buffer dans un fichier temporaire pour l'upload
+      const tmpFilePath = path.join(os.tmpdir(), `cerfa_${id}_${Date.now()}.pdf`);
+      fs.writeFileSync(tmpFilePath, result.pdfBuffer);
+      
+      // Upload vers Airtable
+      const uploadSuccess = await candidatRepo.uploadDocument(id, 'cerfa', tmpFilePath);
+      
+      if (uploadSuccess) {
+        logger.info(`✅ CERFA uploadé vers Airtable pour ${id}`);
+        // Récupérer l'URL du fichier uploadé
+        try {
+          const updatedRecord = await candidatRepo.getById(id);
+          const cerfaData = updatedRecord?.fields?.['cerfa'] as any[] | undefined;
+          cerfaUrl = cerfaData?.[0]?.url || null;
+        } catch (e) {
+          // Pas grave si on n'arrive pas à récupérer l'URL
+        }
+      } else {
+        logger.warn(`⚠️ Échec upload CERFA vers Airtable pour ${id}`);
+      }
+      
+      // Nettoyer le fichier temporaire
+      try { fs.unlinkSync(tmpFilePath); } catch (e) { /* ignore */ }
+    } catch (uploadError: any) {
+      logger.warn(`⚠️ Erreur upload CERFA vers Airtable: ${uploadError.message}`);
+      // On continue quand même, le PDF sera retourné en réponse
     }
     
     // Envoie le PDF
-    const fileName = `CERFA_FA13_${candidat.fields['NOM de naissance'] || 'candidat'}_${candidat.fields['Prénom'] || ''}.pdf`;
     
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);

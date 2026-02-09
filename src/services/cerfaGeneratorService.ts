@@ -1,4 +1,8 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+/**
+ * Service de generation de fiches CERFA PDF
+ * Transcription fidele du fichier Python cerfa_generator_service.py
+ */
+import { PDFDocument, StandardFonts, rgb, PDFName, PDFString, PDFHexString, PDFArray, PDFNumber, PDFDict, PDFRef } from 'pdf-lib';
 import fs from 'fs';
 import path from 'path';
 import logger from '../utils/logger';
@@ -9,384 +13,779 @@ import {
   FORMATIONS_MAPPING,
   CFA_RUSH_SCHOOL,
   CODES_DIPLOMES,
+  CODES_DERNIERE_CLASSE,
   CODES_TYPE_EMPLOYEUR,
   CODES_TYPE_CONTRAT,
-  CODES_TYPE_DEROGATION
+  CODES_TYPE_DEROGATION,
+  CODES_EMPLOYEUR_SPECIFIQUE,
+  CODES_DIPLOMES_MAITRE,
+  CODES_REGIME_SOCIAL,
+  PAYS_UE,
+  PAYS_FRANCE,
+  TYPES_EMPLOYEUR_PRIVE,
+  TYPES_EMPLOYEUR_PUBLIC,
+  SMALL_FONT_FIELDS,
+  EXTRA_SMALL_FONT_FIELDS,
 } from './mappings/cerfaMappings';
-import type { CandidatFields, EntrepriseFields } from '../types';
 
 export interface CerfaGenerationResult {
   success: boolean;
   pdfBuffer?: Buffer;
+  nom?: string;
+  prenom?: string;
+  fieldsCount?: number;
+  checkboxesCount?: number;
   error?: string;
-  warnings?: string[];
 }
 
-interface FormationInfo {
-  code_diplome: string;
-  code_formation: string;
-  code_rncp: string;
-  intitule: string;
-  heures: number;
+interface ParsedAddress {
+  numero: string;
+  voie: string;
+  complement: string;
+  code_postal: string;
+  commune: string;
+}
+
+interface ParsedDate {
+  jour: string;
+  mois: string;
+  annee: string;
 }
 
 export class CerfaGeneratorService {
   private templatePath: string;
-  private warnings: string[] = [];
 
   constructor(templatePath?: string) {
-    this.templatePath = templatePath || path.join(
+    this.templatePath = templatePath || path.resolve(
       __dirname,
-      '../../assets/templates_pdf/Cerfa FA13_remplissable.pdf'
+      '../../assets/templates_pdf/cerfa.pdf'
     );
   }
 
-  /**
-   * Convertit un code diplôme texte en code numérique
-   */
-  private getCodeDiplome(diplome: string | undefined): string {
-    if (!diplome) return '';
-    
-    // Cherche dans les mappings
-    const code = CODES_DIPLOMES[diplome];
-    if (code) return code;
-    
-    // Essaie une recherche partielle
-    for (const [key, value] of Object.entries(CODES_DIPLOMES)) {
-      if (diplome.toLowerCase().includes(key.toLowerCase())) {
-        return value;
+  // =====================================================
+  // PARSING HELPERS
+  // =====================================================
+
+  private parseDate(dateStr: string | undefined | null): ParsedDate | null {
+    if (!dateStr) return null;
+    try {
+      const s = String(dateStr).trim();
+      // Format ISO: 2024-01-15 ou 2024-01-15T00:00:00
+      if (s.includes('-') && s.length >= 10) {
+        const parts = s.substring(0, 10).split('-');
+        if (parts.length === 3) {
+          return { jour: parts[2], mois: parts[1], annee: parts[0] };
+        }
       }
-    }
-    
-    return '';
-  }
-
-  /**
-   * Convertit un type d'employeur en code
-   */
-  private getCodeTypeEmployeur(typeEmployeur: string | undefined): string {
-    if (!typeEmployeur) return '';
-    
-    // Le code est généralement au début (ex: "11 Entreprise inscrite...")
-    const match = typeEmployeur.match(/^(\d{2})/);
-    if (match) return match[1];
-    
-    const code = CODES_TYPE_EMPLOYEUR[typeEmployeur];
-    return code || '';
-  }
-
-  /**
-   * Convertit un type de contrat en code
-   */
-  private getCodeTypeContrat(typeContrat: string | undefined): string {
-    if (!typeContrat) return '';
-    
-    const match = typeContrat.match(/^(\d{2})/);
-    if (match) return match[1];
-    
-    const code = CODES_TYPE_CONTRAT[typeContrat];
-    return code || '';
-  }
-
-  /**
-   * Convertit un type de dérogation en code
-   */
-  private getCodeTypeDerogation(typeDerogation: string | undefined): string {
-    if (!typeDerogation) return '0';
-    
-    const match = typeDerogation.match(/^(\d{2})/);
-    if (match) return match[1];
-    
-    const code = CODES_TYPE_DEROGATION[typeDerogation];
-    return code || '0';
-  }
-
-  /**
-   * Récupère les informations de formation
-   */
-  private getFormationInfo(formationName: string | undefined): FormationInfo | null {
-    if (!formationName) return null;
-    
-    // Recherche exacte
-    if (FORMATIONS_MAPPING[formationName]) {
-      return FORMATIONS_MAPPING[formationName];
-    }
-    
-    // Recherche partielle
-    for (const [key, value] of Object.entries(FORMATIONS_MAPPING)) {
-      if (formationName.toLowerCase().includes(key.toLowerCase())) {
-        return value;
+      // Format FR: 15/01/2024
+      if (s.includes('/')) {
+        const parts = s.split('/');
+        if (parts.length === 3) {
+          return { jour: parts[0], mois: parts[1], annee: parts[2] };
+        }
       }
+    } catch (e) {
+      logger.warn('Erreur parsing date: ' + dateStr);
     }
-    
-    this.warnings.push(`Formation "${formationName}" non trouvée dans le mapping`);
     return null;
   }
 
-  /**
-   * Parse une date et retourne jour, mois, année
-   */
-  private parseDate(dateValue: string | undefined): { jour: string; mois: string; annee: string } | null {
-    if (!dateValue) return null;
-    
+  private splitPrice(priceStr: string | undefined | null): [string, string] {
+    if (!priceStr) return ['', ''];
     try {
-      const date = new Date(dateValue);
-      if (isNaN(date.getTime())) {
-        // Essaie de parser un format DD/MM/YYYY
-        const parts = dateValue.split('/');
-        if (parts.length === 3) {
-          return {
-            jour: parts[0].padStart(2, '0'),
-            mois: parts[1].padStart(2, '0'),
-            annee: parts[2]
-          };
+      const s = String(priceStr).trim().replace(',', '.');
+      const priceFloat = parseFloat(s);
+      if (isNaN(priceFloat)) return [s, '00'];
+      const formatted = priceFloat.toFixed(2);
+      const parts = formatted.split('.');
+      const entier = parts[0];
+      let centimes = parts[1] || '00';
+      centimes = centimes.padEnd(2, '0').substring(0, 2);
+      return [entier, centimes];
+    } catch (e) {
+      return [String(priceStr), '00'];
+    }
+  }
+
+  private parseAddress(addressStr: string | undefined | null): ParsedAddress {
+    const empty: ParsedAddress = { numero: '', voie: '', complement: '', code_postal: '', commune: '' };
+    if (!addressStr) return empty;
+    try {
+      const s = String(addressStr).trim();
+      const parts = s.split(',').map((p: string) => p.trim());
+      const result: ParsedAddress = { ...empty };
+
+      if (parts.length === 5) {
+        // 5 parts: numero, voie, complement, code_postal, commune
+        result.numero = parts[0];
+        result.voie = parts[1];
+        result.complement = parts[2];
+        result.code_postal = parts[3];
+        result.commune = parts[4];
+      } else if (parts.length === 4) {
+        // 4 parts: check if 3rd is code postal
+        if (/^\d{5}$/.test(parts[2])) {
+          result.numero = parts[0];
+          result.voie = parts[1];
+          result.code_postal = parts[2];
+          result.commune = parts[3];
+        } else {
+          result.numero = parts[0];
+          result.voie = parts[1];
+          result.complement = parts[2];
+          result.commune = parts[3];
         }
-        return null;
+      } else if (parts.length === 3) {
+        // 3 parts: multiple cases
+        if (/^\d{5}$/.test(parts[1])) {
+          result.numero = parts[0];
+          result.code_postal = parts[1];
+          result.commune = parts[2];
+        } else if (/^\d{5}$/.test(parts[2])) {
+          result.numero = parts[0];
+          result.voie = parts[1];
+          result.code_postal = parts[2];
+        } else {
+          result.numero = parts[0];
+          result.voie = parts[1];
+          result.commune = parts[2];
+        }
+      } else if (parts.length === 2) {
+        if (/^\d{5}$/.test(parts[1])) {
+          result.voie = parts[0];
+          result.code_postal = parts[1];
+        } else {
+          result.numero = parts[0];
+          result.voie = parts[1];
+        }
+      } else if (parts.length === 1) {
+        result.voie = parts[0];
       }
-      
-      return {
-        jour: date.getDate().toString().padStart(2, '0'),
-        mois: (date.getMonth() + 1).toString().padStart(2, '0'),
-        annee: date.getFullYear().toString()
-      };
-    } catch {
-      return null;
+      return result;
+    } catch (e) {
+      return empty;
     }
   }
 
-  /**
-   * Parse une adresse en composants
-   */
-  private parseAddress(address: string | undefined): { numero: string; voie: string; complement: string } {
-    if (!address) return { numero: '', voie: '', complement: '' };
-    
-    const parts = address.split(',').map(p => p.trim());
-    const firstPart = parts[0] || '';
-    const match = firstPart.match(/^(\d+)\s*(.*)$/);
-    
-    let numero = '';
-    let voie = firstPart;
-    
-    if (match) {
-      numero = match[1];
-      voie = match[2] || '';
+  // =====================================================
+  // CODE LOOKUP HELPERS
+  // =====================================================
+
+  private getCodeDiplome(diplomeStr: string | undefined): string {
+    if (!diplomeStr) return '';
+    const d = String(diplomeStr).trim();
+    if (/^\d{2}$/.test(d)) return d;
+    if (CODES_DIPLOMES[d]) return CODES_DIPLOMES[d];
+    for (const [key, code] of Object.entries(CODES_DIPLOMES)) {
+      if (key.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(key.toLowerCase())) return code;
     }
-    
-    return {
-      numero,
-      voie,
-      complement: parts.slice(1).join(', ')
-    };
+    return d;
   }
 
-  /**
-   * Récupère une valeur depuis les données
-   */
-  private getValue(
+  private getCodeClasse(classeStr: string | undefined): string {
+    if (!classeStr) return '';
+    const c = String(classeStr).trim();
+    if (/^\d{2}$/.test(c)) return c;
+    if (CODES_DERNIERE_CLASSE[c]) return CODES_DERNIERE_CLASSE[c];
+    for (const [key, code] of Object.entries(CODES_DERNIERE_CLASSE)) {
+      if (key.toLowerCase().includes(c.toLowerCase()) || c.toLowerCase().includes(key.toLowerCase())) return code;
+    }
+    return c;
+  }
+
+  private getCodeTypeEmployeur(typeStr: string | undefined): string {
+    if (!typeStr) return '';
+    const t = String(typeStr).trim();
+    if (/^\d{2}$/.test(t)) return t;
+    if (CODES_TYPE_EMPLOYEUR[t]) return CODES_TYPE_EMPLOYEUR[t];
+    for (const [key, code] of Object.entries(CODES_TYPE_EMPLOYEUR)) {
+      if (key.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(key.toLowerCase())) return code;
+    }
+    return t;
+  }
+
+  private getCodeTypeContrat(typeStr: string | undefined): string {
+    if (!typeStr) return '11';
+    const t = String(typeStr).trim();
+    if (/^\d{2}$/.test(t)) return t;
+    if (CODES_TYPE_CONTRAT[t]) return CODES_TYPE_CONTRAT[t];
+    for (const [key, code] of Object.entries(CODES_TYPE_CONTRAT)) {
+      if (key.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(key.toLowerCase())) return code;
+    }
+    return t;
+  }
+
+  private getCodeTypeDerogation(typeStr: string | undefined): string {
+    if (!typeStr) return '0';
+    const t = String(typeStr).trim();
+    if (/^\d+$/.test(t)) return t;
+    if (CODES_TYPE_DEROGATION[t]) return CODES_TYPE_DEROGATION[t];
+    for (const [key, code] of Object.entries(CODES_TYPE_DEROGATION)) {
+      if (key.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(key.toLowerCase())) return code;
+    }
+    return '0';
+  }
+
+  private getCodeEmployeurSpecifique(typeStr: string | undefined): string {
+    if (!typeStr) return '0';
+    const t = String(typeStr).trim();
+    if (/^\d$/.test(t)) return t;
+    if (CODES_EMPLOYEUR_SPECIFIQUE[t]) return CODES_EMPLOYEUR_SPECIFIQUE[t];
+    for (const [key, code] of Object.entries(CODES_EMPLOYEUR_SPECIFIQUE)) {
+      if (key.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(key.toLowerCase())) return code;
+    }
+    return '0';
+  }
+
+  private getCodeNationalite(nationaliteStr: string | undefined): string {
+    if (!nationaliteStr) return '';
+    const n = String(nationaliteStr).trim();
+    if (/^[123]$/.test(n)) return n;
+    for (const pf of PAYS_FRANCE) {
+      if (n.toLowerCase().includes(pf.toLowerCase())) return '1';
+    }
+    for (const pu of PAYS_UE) {
+      if (n.toLowerCase().includes(pu.toLowerCase())) return '2';
+    }
+    return '3';
+  }
+
+  private getCodeRegimeSocial(regimeStr: string | undefined): string {
+    if (!regimeStr) return '2';
+    const r = String(regimeStr).trim();
+    if (/^[12]$/.test(r)) return r;
+    for (const [key, code] of Object.entries(CODES_REGIME_SOCIAL)) {
+      if (r.toLowerCase().includes(key.toLowerCase())) return code;
+    }
+    return '2';
+  }
+
+  private getCodeDiplomeMaitre(diplomeStr: string | undefined): string {
+    if (!diplomeStr) return '';
+    const d = String(diplomeStr).trim();
+    if (/^\d{2}$/.test(d)) return d;
+    if (CODES_DIPLOMES_MAITRE[d]) return CODES_DIPLOMES_MAITRE[d];
+    for (const [key, code] of Object.entries(CODES_DIPLOMES_MAITRE)) {
+      if (key.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(key.toLowerCase())) return code;
+    }
+    return d;
+  }
+
+  private getFormationData(formationStr: string | undefined): Record<string, string> {
+    if (!formationStr) return {};
+    const f = String(formationStr).trim();
+    if (FORMATIONS_MAPPING[f]) return FORMATIONS_MAPPING[f];
+    for (const [key, data] of Object.entries(FORMATIONS_MAPPING)) {
+      if (key.toLowerCase().includes(f.toLowerCase()) || f.toLowerCase().includes(key.toLowerCase())) return data;
+    }
+    return {};
+  }
+
+  private isEmployeurPrive(typeEmployeur: string | undefined): boolean {
+    if (!typeEmployeur) return true;
+    const t = String(typeEmployeur).trim();
+    for (const tp of TYPES_EMPLOYEUR_PRIVE) {
+      if (tp.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(tp.toLowerCase())) return true;
+    }
+    return false;
+  }
+
+  private isEmployeurPublic(typeEmployeur: string | undefined): boolean {
+    if (!typeEmployeur) return false;
+    const t = String(typeEmployeur).trim();
+    for (const tp of TYPES_EMPLOYEUR_PUBLIC) {
+      if (tp.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(tp.toLowerCase())) return true;
+    }
+    return false;
+  }
+
+  // =====================================================
+  // GET FIELD VALUE
+  // =====================================================
+
+  private getFieldValue(
     source: string,
     key: string,
-    candidatData: Partial<CandidatFields>,
-    entrepriseData: Partial<EntrepriseFields>,
-    formationData: Record<string, string>
+    candidatData: Record<string, any>,
+    entrepriseData: Record<string, any>
   ): string {
-    let value: unknown;
-    
-    if (source === 'candidat') {
-      value = candidatData[key as keyof CandidatFields];
-    } else if (source === 'entreprise') {
-      value = entrepriseData[key as keyof EntrepriseFields];
-    } else if (source === 'formation') {
-      value = formationData[key] || CFA_RUSH_SCHOOL[key];
+    // ADRESSE DE L'APPRENTI - PARSING AUTOMATIQUE
+    const addressKeys = ['Numéro de voie', 'Nom de la rue', 'Ville', 'Complement adresse', 'Code postal'];
+    if (addressKeys.includes(key)) {
+      let adresseComplete = candidatData['Adresse lieu dexécution du contrat'] || '';
+      if (!adresseComplete) adresseComplete = candidatData['Adresse complète étudiant'] || '';
+      if (!adresseComplete) adresseComplete = candidatData['Adresse'] || '';
+      const parsed = this.parseAddress(adresseComplete);
+      if (key === 'Numéro de voie') return parsed.numero;
+      if (key === 'Nom de la rue') return parsed.voie;
+      if (key === 'Ville') return parsed.commune;
+      if (key === 'Complement adresse') return parsed.complement;
+      if (key === 'Code postal') return parsed.code_postal;
     }
-    
-    if (value === undefined || value === null) return '';
-    return String(value);
+
+    // FORMATION - GESTION SPECIALE
+    const formationKeys = ['Formation', 'Formation choisie', 'Code diplôme', 'Code RNCP', 'Nombre heure formation'];
+    if (formationKeys.includes(key)) {
+      const formationName = candidatData['Formation'] || '';
+      const formationData = this.getFormationData(formationName);
+      if (key === 'Formation') return formationData.code_diplome || '';
+      if (key === 'Formation choisie') {
+        const intitule = formationData.intitule || '';
+        return intitule || candidatData['Formation choisie'] || '';
+      }
+      if (key === 'Code diplôme') return formationData.code_formation || '';
+      if (key === 'Code RNCP') return formationData.code_rncp || '';
+      if (key === 'Nombre heure formation') {
+        const heures = formationData.heures || '';
+        return heures ? String(heures) : (candidatData['Nombre heure formation'] || '');
+      }
+    }
+
+    // CFA RESPONSABLE vs LIEU PRINCIPAL - EXCLUSION MUTUELLE
+    const CFA_RESPONSABLE_KEYS = [
+      'Dénomination CFA', 'N° UAI du CFA', 'N° SIRET CFA',
+      'N° Adresse CFA', 'Voie Adresse CFA', 'Code postal CFA', 'Commune CFA', 'Complement adresse CFA'
+    ];
+    const LIEU_PRINCIPAL_KEYS = [
+      'Dénomination du CFA responsable', 'Numéro UAI du CFA', 'Numéro SIRET du CFA',
+      'Adresse du CFA', 'Complément adresse CFA', 'Code postal CFA', 'Commune CFA'
+    ];
+
+    const cfaResponsableRempli = !!(
+      (entrepriseData['Dénomination CFA'] || CFA_RUSH_SCHOOL['Dénomination CFA']) ||
+      (entrepriseData['N° UAI du CFA'] || CFA_RUSH_SCHOOL['N° UAI du CFA']) ||
+      (entrepriseData['N° SIRET CFA'] || CFA_RUSH_SCHOOL['N° SIRET CFA'])
+    );
+
+    const lieuPrincipalRempli = !!(
+      entrepriseData['Dénomination du CFA responsable'] ||
+      entrepriseData['Numéro UAI du CFA'] ||
+      entrepriseData['Numéro SIRET du CFA'] ||
+      entrepriseData['Adresse du CFA']
+    );
+
+    if (CFA_RESPONSABLE_KEYS.includes(key) && lieuPrincipalRempli) return '';
+    if (LIEU_PRINCIPAL_KEYS.includes(key) && cfaResponsableRempli && !lieuPrincipalRempli) return '';
+
+    // RECUPERATION STANDARD
+    let value: any = '';
+    if (source === 'candidat') {
+      value = candidatData[key] || '';
+    } else if (source === 'entreprise') {
+      value = entrepriseData[key] || '';
+    } else if (source === 'formation') {
+      const airtableValue = entrepriseData[key] || '';
+      if (!airtableValue && CFA_RUSH_SCHOOL[key] !== undefined) return CFA_RUSH_SCHOOL[key];
+      if (airtableValue) {
+        value = airtableValue;
+      } else if (candidatData[key] !== undefined) {
+        value = candidatData[key] || '';
+      } else if (CFA_RUSH_SCHOOL[key] !== undefined) {
+        return CFA_RUSH_SCHOOL[key];
+      }
+    }
+
+    if (!value) return '';
+    const valueStr = String(value);
+
+    // CONVERSIONS AUTOMATIQUES
+    if (key === 'Type demployeur' || key === "Type d'employeur") return this.getCodeTypeEmployeur(valueStr);
+    if (key === 'Type de contrat') return this.getCodeTypeContrat(valueStr);
+    if (key === 'Type de dérogation') return this.getCodeTypeDerogation(valueStr);
+    if (key === 'Employeur specifique') return this.getCodeEmployeurSpecifique(valueStr);
+    if (key === 'Dernier diplôme ou titre préparé') return this.getCodeDiplome(valueStr);
+    if (key === 'Dernière classe / année suivie') return this.getCodeClasse(valueStr);
+    if (key === 'Diplôme Maître apprentissage' || key === 'Diplôme Maître apprentissage 2') return this.getCodeDiplomeMaitre(valueStr);
+    if (key === 'Nationalité') return this.getCodeNationalite(valueStr);
+    if (key === 'Régime social') return this.getCodeRegimeSocial(valueStr);
+    if (key === 'Mode contractuel de lapprentissage') return '1';
+    if (key === 'Heures formation à distance') return '0';
+    if (key === 'Salaire brut mensuel 1') return valueStr;
+
+    return valueStr;
   }
 
-  /**
-   * Génère le PDF CERFA
-   */
-  async generateCerfa(
-    candidatData: Partial<CandidatFields>,
-    entrepriseData: Partial<EntrepriseFields>
-  ): Promise<CerfaGenerationResult> {
-    this.warnings = [];
-    
-    try {
-      // Vérifie le template
-      if (!fs.existsSync(this.templatePath)) {
-        throw new Error(`Template CERFA non trouvé: ${this.templatePath}`);
+  // =====================================================
+  // SHOULD CHECK
+  // =====================================================
+
+  private shouldCheck(
+    checkboxConfig: [string, string, string],
+    candidatData: Record<string, any>,
+    entrepriseData: Record<string, any>
+  ): boolean {
+    const [source, key, expectedValue] = checkboxConfig;
+
+    // Secteur: determine depuis le type d'employeur
+    if (key === 'Secteur') {
+      const typeEmployeur = entrepriseData["Type d'employeur"] || entrepriseData['Type demployeur'] || '';
+      if (expectedValue === 'Privé') return this.isEmployeurPrive(typeEmployeur);
+      if (expectedValue === 'Public') return this.isEmployeurPublic(typeEmployeur);
+    }
+
+    // CFA est lieu principal: coche si pas de CFA responsable rempli
+    if (key === 'CFA est lieu principal' && expectedValue === 'Oui') {
+      const champsPrincipaux = [
+        entrepriseData['Dénomination CFA'] || '',
+        entrepriseData['N° UAI du CFA'] || '',
+        entrepriseData['N° SIRET CFA'] || ''
+      ];
+      return !champsPrincipaux.some((c: any) => String(c).trim());
+    }
+
+    // Sexe: matching flexible
+    if (key === 'Sexe') {
+      const sexeValue = String(candidatData['Sexe'] || '').toLowerCase().trim();
+      const expectedLower = expectedValue.toLowerCase();
+      if (['masculin', 'm', 'homme', 'male'].includes(expectedLower)) {
+        return ['masculin', 'm', 'homme', 'male', 'h'].includes(sexeValue);
       }
-
-      // Charge le PDF
-      const existingPdfBytes = fs.readFileSync(this.templatePath);
-      const pdfDoc = await PDFDocument.load(existingPdfBytes);
-      const form = pdfDoc.getForm();
-
-      // Prépare les données de formation
-      const formationName = candidatData['Formation choisie'] || candidatData['Formation'];
-      const formationInfo = this.getFormationInfo(formationName as string);
-      
-      const formationData: Record<string, string> = {
-        ...CFA_RUSH_SCHOOL,
-      };
-      
-      if (formationInfo) {
-        formationData['Code diplôme'] = formationInfo.code_diplome;
-        formationData['Code RNCP'] = formationInfo.code_rncp;
-        formationData['Nombre heure formation'] = formationInfo.heures.toString();
+      if (['feminin', 'féminin', 'f', 'femme', 'female'].includes(expectedLower)) {
+        return ['feminin', 'féminin', 'f', 'femme', 'female'].includes(sexeValue);
       }
+      return false;
+    }
 
-      // Remplit les champs texte
-      for (const [fieldName, [source, key]] of Object.entries(CERFA_TEXT_FIELDS)) {
-        try {
-          const field = form.getTextField(fieldName);
-          if (!field) continue;
+    // Valeurs par defaut pour certains champs
+    const defaultValues: Record<string, string> = {
+      'Équivalence jeunes RQTH': 'Non',
+      'Extension BOE': 'Non',
+      'CFA entreprise': 'Non',
+      'Pièces justificatives': 'Oui',
+    };
 
-          let value = this.getValue(source, key, candidatData, entrepriseData, formationData);
-          
-          // Conversions spéciales
-          if (key === 'Type demployeur') {
-            value = this.getCodeTypeEmployeur(value);
-          } else if (key === 'Type de contrat') {
-            value = this.getCodeTypeContrat(value);
-          } else if (key === 'Type de dérogation') {
-            value = this.getCodeTypeDerogation(value);
-          } else if (key === 'Dernier diplôme ou titre préparé') {
-            value = this.getCodeDiplome(value);
-          }
-          
-          if (value) {
-            field.setText(value);
-            logger.debug(`CERFA: ${fieldName} = ${value}`);
-          }
-        } catch (error) {
-          logger.warn(`CERFA: Champ ${fieldName} non accessible`);
-        }
+    let actualValue = '';
+    if (source === 'candidat') {
+      actualValue = candidatData[key] || '';
+      if (!actualValue && defaultValues[key]) actualValue = defaultValues[key];
+      actualValue = String(actualValue).toLowerCase().trim();
+    } else if (source === 'entreprise') {
+      actualValue = entrepriseData[key] || '';
+      if (!actualValue && defaultValues[key]) actualValue = defaultValues[key];
+      actualValue = String(actualValue).toLowerCase().trim();
+    } else if (source === 'formation') {
+      const airtableValue = entrepriseData[key] || '';
+      if (airtableValue) {
+        actualValue = String(airtableValue).toLowerCase().trim();
+      } else if (defaultValues[key]) {
+        actualValue = defaultValues[key].toLowerCase();
+      } else if (CFA_RUSH_SCHOOL[key]) {
+        actualValue = CFA_RUSH_SCHOOL[key].toLowerCase();
       }
+    }
 
-      // Remplit les champs de date
-      for (const [, dateConfig] of Object.entries(CERFA_DATE_FIELDS)) {
-        try {
-          const [source, key] = dateConfig.source;
-          const value = this.getValue(source, key, candidatData, entrepriseData, formationData);
-          const parsedDate = this.parseDate(value);
-          
-          if (parsedDate) {
-            const jourField = form.getTextField(dateConfig.jour);
-            const moisField = form.getTextField(dateConfig.mois);
-            const anneeField = form.getTextField(dateConfig.annee);
-            
-            if (jourField) jourField.setText(parsedDate.jour);
-            if (moisField) moisField.setText(parsedDate.mois);
-            if (anneeField) anneeField.setText(parsedDate.annee);
-            
-            logger.debug(`CERFA Date: ${key} = ${parsedDate.jour}/${parsedDate.mois}/${parsedDate.annee}`);
-          }
-        } catch (error) {
-          logger.warn(`CERFA: Erreur remplissage date`);
-        }
-      }
+    const expectedLower = expectedValue.toLowerCase().trim();
+    if (actualValue === expectedLower) return true;
+    if (actualValue.includes(expectedLower)) return true;
+    if (expectedLower === 'oui' && ['oui', 'yes', 'true', '1', 'o'].includes(actualValue)) return true;
+    if (expectedLower === 'non' && ['non', 'no', 'false', '0', 'n'].includes(actualValue)) return true;
 
-      // Remplit les cases à cocher
-      for (const [fieldName, checkConfig] of Object.entries(CERFA_CHECKBOXES)) {
-        try {
-          const checkbox = form.getCheckBox(fieldName);
-          if (!checkbox) continue;
-          
-          let value: unknown;
-          if (checkConfig.source === 'candidat') {
-            value = candidatData[checkConfig.key as keyof CandidatFields];
-          } else if (checkConfig.source === 'entreprise') {
-            value = entrepriseData[checkConfig.key as keyof EntrepriseFields];
-          }
-          
-          const valueStr = String(value || '');
-          const conditions = Array.isArray(checkConfig.condition) 
-            ? checkConfig.condition 
-            : [checkConfig.condition];
-          
-          if (conditions.some(c => valueStr.toLowerCase() === c.toLowerCase())) {
-            checkbox.check();
-            logger.debug(`CERFA: Checkbox ${fieldName} cochée`);
-          }
-        } catch (error) {
-          logger.warn(`CERFA: Checkbox ${fieldName} non accessible`);
-        }
-      }
+    return false;
+  }
 
-      // Traitement spécial CFA responsable / Lieu principal (mutuellement exclusif)
+  // =====================================================
+  // DECODE PDF FIELD NAME
+  // =====================================================
+
+  private decodePdfFieldName(name: string): string {
+    let result = name;
+    // Decode hex sequences like #C3#A9 -> e (e with accent)
+    while (result.includes('#')) {
+      const match = result.match(/((?:#[0-9A-Fa-f]{2})+)/);
+      if (!match || match.index === undefined) break;
+      const hexSeq = match[1];
+      const hexValues = hexSeq.replace(/#/g, '');
       try {
-        const cfaResponsable = entrepriseData['CFA responsable du suivi'];
-        const lieuPrincipal = entrepriseData['Lieu principal de réalisation'];
-        
-        // Si CFA responsable est renseigné, on le remplit
-        if (cfaResponsable && !lieuPrincipal) {
-          // Remplit les champs CFA responsable
-          const cfaFields = [
-            ['Zone de texte 8_83', 'CFA responsable du suivi'],
-          ];
-          // Ajoutez les champs supplémentaires si nécessaire
-        }
-        // Sinon si lieu principal est renseigné
-        else if (lieuPrincipal && !cfaResponsable) {
-          // Remplit les champs lieu principal
-          // Ajoutez les champs supplémentaires si nécessaire
-        }
-      } catch (error) {
-        logger.warn('CERFA: Erreur traitement CFA/Lieu principal');
+        const bytes = Buffer.from(hexValues, 'hex');
+        const decoded = bytes.toString('utf8');
+        result = result.substring(0, match.index) + decoded + result.substring(match.index + hexSeq.length);
+      } catch {
+        break;
+      }
+    }
+    return result;
+  }
+
+  private sanitizeFilename(text: string | undefined): string {
+    if (!text) return 'inconnu';
+    return String(text).replace(/[^\w\d-]/g, '_');
+  }
+
+  // =====================================================
+  // GENERATE CERFA - METHODE PRINCIPALE
+  // =====================================================
+
+  async generateCerfa(
+    candidatData: Record<string, any>,
+    entrepriseData: Record<string, any>
+  ): Promise<CerfaGenerationResult> {
+    try {
+      if (!fs.existsSync(this.templatePath)) {
+        throw new Error('Template CERFA non trouve: ' + this.templatePath);
       }
 
-      // Aplatit le formulaire
-      form.flatten();
+      logger.info('Debut generation CERFA...');
+      logger.info('Donnees candidat: ' + Object.keys(candidatData).length + ' champs');
+      logger.info('Donnees entreprise: ' + Object.keys(entrepriseData).length + ' champs');
 
-      // Génère le PDF
+      // Charger le template PDF
+      const templateBytes = fs.readFileSync(this.templatePath);
+      const pdfDoc = await PDFDocument.load(templateBytes, { ignoreEncryption: true });
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+      let fieldsFilled = 0;
+      let checkboxesFilled = 0;
+
+      const pages = pdfDoc.getPages();
+
+      for (const page of pages) {
+        // Lire les annotations de la page
+        const annots = page.node.lookup(PDFName.of('Annots'), PDFArray);
+        if (!annots) continue;
+
+        for (let i = 0; i < annots.size(); i++) {
+          try {
+            const annotObj = annots.get(i);
+            let annot: any;
+
+            // L'annotation peut etre une reference indirecte (PDFRef) ou un dict inline (PDFDict)
+            if (annotObj instanceof PDFRef) {
+              annot = pdfDoc.context.lookup(annotObj);
+            } else if (annotObj instanceof PDFDict) {
+              annot = annotObj;
+            } else {
+              continue;
+            }
+            if (!annot) continue;
+
+            // Lire le nom du champ (T = titre)
+            const tValue = annot.get(PDFName.of('T'));
+            if (!tValue) continue;
+
+            let rawFieldName = '';
+            if (tValue instanceof PDFString) {
+              rawFieldName = tValue.decodeText();
+            } else if (tValue instanceof PDFHexString) {
+              rawFieldName = tValue.decodeText();
+            } else {
+              continue;
+            }
+
+            const fieldName = this.decodePdfFieldName(rawFieldName);
+
+            // Construire le nom complet du champ (parent.child hierarchy)
+            let fullFieldName = fieldName;
+            const parentValue = annot.get(PDFName.of('Parent'));
+            if (parentValue) {
+              try {
+                let parentDict: any = parentValue;
+                if (parentValue instanceof PDFRef) {
+                  parentDict = pdfDoc.context.lookup(parentValue);
+                }
+                if (parentDict) {
+                  const parentT = parentDict.get(PDFName.of('T'));
+                  if (parentT) {
+                    let parentName = '';
+                    if (parentT instanceof PDFString) parentName = parentT.decodeText();
+                    else if (parentT instanceof PDFHexString) parentName = parentT.decodeText();
+                    if (parentName) {
+                      parentName = this.decodePdfFieldName(parentName);
+                      fullFieldName = parentName + ' ' + fieldName;
+                    }
+                  }
+                }
+              } catch {
+                // Ignorer erreur de lecture du parent
+              }
+            }
+
+            // Utiliser fullFieldName pour le matching
+            const matchName = fullFieldName;
+
+            // Lire les coordonnees du champ (Rect = rectangle)
+            const rectValue = annot.get(PDFName.of('Rect'));
+            if (!rectValue || !(rectValue instanceof PDFArray)) continue;
+
+            const x0 = (rectValue.get(0) as any)?.asNumber?.() || 0;
+            const y0 = (rectValue.get(1) as any)?.asNumber?.() || 0;
+
+            // ---- CHAMPS DE TEXTE STANDARD ----
+            if (CERFA_TEXT_FIELDS[matchName]) {
+              const [source, key] = CERFA_TEXT_FIELDS[matchName];
+              let value = this.getFieldValue(source, key, candidatData, entrepriseData);
+
+              // Gestion speciale salaire: partie entiere et centimes
+              if (matchName === 'Zone de texte 8_72' && key === 'Salaire brut mensuel 1') {
+                const salaireComplet = entrepriseData['Salaire brut mensuel 1'] || '';
+                const [entier] = this.splitPrice(salaireComplet);
+                value = entier;
+              } else if (matchName === 'Zone de texte 21_73' && key === 'Salaire brut mensuel 1') {
+                const salaireComplet = entrepriseData['Salaire brut mensuel 1'] || '';
+                const [, centimes] = this.splitPrice(salaireComplet);
+                value = centimes;
+              }
+
+              if (value && value !== 'None' && value !== 'undefined') {
+                let fontSize = 7;
+                let maxLength = 80;
+                if (EXTRA_SMALL_FONT_FIELDS.has(matchName)) {
+                  fontSize = 5;
+                  maxLength = 120;
+                } else if (SMALL_FONT_FIELDS.has(matchName)) {
+                  fontSize = 6;
+                  maxLength = 100;
+                }
+
+                page.drawText(String(value).substring(0, maxLength), {
+                  x: x0 + 2,
+                  y: y0 + 4,
+                  size: fontSize,
+                  font,
+                  color: rgb(0, 0, 0),
+                });
+                fieldsFilled++;
+              }
+            }
+
+            // ---- CASES A COCHER ----
+            else if (CERFA_CHECKBOXES[matchName]) {
+              if (this.shouldCheck(CERFA_CHECKBOXES[matchName], candidatData, entrepriseData)) {
+                page.drawText('X', {
+                  x: x0 + 2,
+                  y: y0 + 2,
+                  size: 7,
+                  font,
+                  color: rgb(0, 0, 0),
+                });
+                checkboxesFilled++;
+              }
+            }
+
+            // ---- CHAMPS DE DATE ----
+            for (const [, dateConfig] of Object.entries(CERFA_DATE_FIELDS)) {
+              try {
+                let matched = false;
+
+                if (matchName === dateConfig.jour) {
+                  const [src, airtableKey] = dateConfig.source;
+                  let dateValue = this.getFieldValue(src, airtableKey, candidatData, entrepriseData);
+
+                  // Si pas de valeur et que c'est une date de formation, chercher dans les formations
+                  if (!dateValue && airtableKey.includes('formation')) {
+                    const formationName = candidatData['Formation'] || '';
+                    const fData = this.getFormationData(formationName);
+                    if (airtableKey.includes('debut') && fData.date_debut_formation_cfa) {
+                      dateValue = fData.date_debut_formation_cfa;
+                    }
+                    if (airtableKey.includes('epreuves') && fData.date_fin_epreuves) {
+                      dateValue = fData.date_fin_epreuves;
+                    }
+                  }
+
+                  const parsed = this.parseDate(dateValue);
+                  if (parsed && parsed.jour) {
+                    page.drawText(parsed.jour, { x: x0 + 2, y: y0 + 4, size: 7, font, color: rgb(0, 0, 0) });
+                    fieldsFilled++;
+                    matched = true;
+                  }
+                } else if (matchName === dateConfig.mois) {
+                  const [src, airtableKey] = dateConfig.source;
+                  let dateValue = this.getFieldValue(src, airtableKey, candidatData, entrepriseData);
+
+                  if (!dateValue && airtableKey.includes('formation')) {
+                    const formationName = candidatData['Formation'] || '';
+                    const fData = this.getFormationData(formationName);
+                    if (airtableKey.includes('debut') && fData.date_debut_formation_cfa) {
+                      dateValue = fData.date_debut_formation_cfa;
+                    }
+                    if (airtableKey.includes('epreuves') && fData.date_fin_epreuves) {
+                      dateValue = fData.date_fin_epreuves;
+                    }
+                  }
+
+                  const parsed = this.parseDate(dateValue);
+                  if (parsed && parsed.mois) {
+                    page.drawText(parsed.mois, { x: x0 + 2, y: y0 + 4, size: 7, font, color: rgb(0, 0, 0) });
+                    fieldsFilled++;
+                    matched = true;
+                  }
+                } else if (matchName === dateConfig.annee) {
+                  const [src, airtableKey] = dateConfig.source;
+                  let dateValue = this.getFieldValue(src, airtableKey, candidatData, entrepriseData);
+
+                  if (!dateValue && airtableKey.includes('formation')) {
+                    const formationName = candidatData['Formation'] || '';
+                    const fData = this.getFormationData(formationName);
+                    if (airtableKey.includes('debut') && fData.date_debut_formation_cfa) {
+                      dateValue = fData.date_debut_formation_cfa;
+                    }
+                    if (airtableKey.includes('epreuves') && fData.date_fin_epreuves) {
+                      dateValue = fData.date_fin_epreuves;
+                    }
+                  }
+
+                  const parsed = this.parseDate(dateValue);
+                  if (parsed && parsed.annee) {
+                    page.drawText(parsed.annee, { x: x0 + 2, y: y0 + 4, size: 7, font, color: rgb(0, 0, 0) });
+                    fieldsFilled++;
+                    matched = true;
+                  }
+                }
+
+                if (matched) break;
+              } catch {
+                continue;
+              }
+            }
+          } catch {
+            continue;
+          }
+        }
+      }
+
+      logger.info(fieldsFilled + ' champs texte remplis');
+      logger.info(checkboxesFilled + ' cases cochees');
+
+      // Supprimer les champs de formulaire pour eviter les doublons visuels
+      // On supprime l'AcroForm et les annotations de chaque page directement
+      try {
+        // Supprimer le dictionnaire AcroForm du catalogue
+        pdfDoc.catalog.delete(PDFName.of('AcroForm'));
+
+        // Supprimer les annotations de chaque page
+        for (const page of pages) {
+          try {
+            page.node.delete(PDFName.of('Annots'));
+          } catch {
+            // Ignorer
+          }
+        }
+      } catch (e) {
+        logger.warn('Impossible de supprimer les champs formulaire: ' + String(e));
+      }
+
       const pdfBytes = await pdfDoc.save();
+      const nom = this.sanitizeFilename(candidatData['NOM de naissance'] || candidatData['NOM']);
+      const prenom = this.sanitizeFilename(candidatData['Prenom']);
+
+      logger.info('CERFA genere avec succes pour ' + prenom + ' ' + nom);
 
       return {
         success: true,
         pdfBuffer: Buffer.from(pdfBytes),
-        warnings: this.warnings.length > 0 ? this.warnings : undefined
+        nom,
+        prenom,
+        fieldsCount: fieldsFilled,
+        checkboxesCount: checkboxesFilled,
       };
 
-    } catch (error) {
+    } catch (error: any) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(`Erreur génération CERFA: ${errorMessage}`);
+      logger.error('Erreur generation CERFA: ' + errorMessage);
       return {
         success: false,
         error: errorMessage,
-        warnings: this.warnings.length > 0 ? this.warnings : undefined
       };
-    }
-  }
-
-  /**
-   * Liste tous les champs du PDF CERFA
-   */
-  async listCerfaFields(): Promise<{ textFields: string[]; checkboxes: string[] }> {
-    try {
-      const pdfBytes = fs.readFileSync(this.templatePath);
-      const pdfDoc = await PDFDocument.load(pdfBytes);
-      const form = pdfDoc.getForm();
-      
-      const textFields: string[] = [];
-      const checkboxes: string[] = [];
-      
-      for (const field of form.getFields()) {
-        const name = field.getName();
-        const type = field.constructor.name;
-        
-        if (type === 'PDFTextField') {
-          textFields.push(name);
-        } else if (type === 'PDFCheckBox') {
-          checkboxes.push(name);
-        }
-      }
-      
-      return { textFields, checkboxes };
-    } catch (error) {
-      logger.error(`Erreur listage champs CERFA: ${error}`);
-      return { textFields: [], checkboxes: [] };
     }
   }
 }
