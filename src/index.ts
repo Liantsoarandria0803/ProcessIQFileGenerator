@@ -72,7 +72,10 @@ app.get('/', (req: Request, res: Response) => {
       candidats: '/api/admission/candidats',
       entreprises: '/api/admission/entreprises',
       ficheRenseignement: '/api/admission/candidats/:id/fiche-renseignement',
-      cerfa: '/api/admission/candidats/:id/cerfa'
+      cerfa: '/api/admission/candidats/:id/cerfa',
+      rhEtudiantsFiches: '/api/rh/etudiants-fiches',
+      rhEtudiantFiche: '/api/rh/etudiants-fiches/:record_id',
+      rhStatistiques: '/api/rh/statistiques'
     }
   });
 });
