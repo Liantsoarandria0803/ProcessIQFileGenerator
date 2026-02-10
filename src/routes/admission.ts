@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { CandidatRepository, EntrepriseRepository } from '../repositories';
-import { PdfGeneratorService, CerfaGeneratorService } from '../services';
+import { PdfGeneratorService, CerfaGeneratorService, AtreGeneratorService, CompteRenduGeneratorService } from '../services';
 import { AdmissionService } from '../services/admissionService';
 import logger from '../utils/logger';
 import { InformationsPersonnelles } from '../types/admission';
@@ -15,6 +15,8 @@ const candidatRepo = new CandidatRepository();
 const entrepriseRepo = new EntrepriseRepository();
 const pdfService = new PdfGeneratorService();
 const cerfaService = new CerfaGeneratorService();
+const atreService = new AtreGeneratorService();
+const compteRenduService = new CompteRenduGeneratorService();
 const admissionService = new AdmissionService();
 
 // Configuration multer : stockage en mémoire (buffer)
@@ -1085,6 +1087,138 @@ router.post('/candidates/:record_id/documents/dernier-diplome', upload.single('f
       : error.message?.includes('trop volumineux') ? 413
       : error.message?.includes('non autorisé') ? 422 : 500;
     res.status(status).json({ success: false, error: error.message });
+  }
+});
+
+// =====================================================
+// POST /api/admission/candidats/:id/atre
+// =====================================================
+
+/**
+ * @swagger
+ * /api/admission/candidats/{id}/atre:
+ *   post:
+ *     summary: Génère la fiche de détection ATRE
+ *     tags: [PDF]
+ *     description: |
+ *       Génère la fiche de détection pour l'ATRE à partir des données Airtable
+ *       du candidat identifié par son record ID, puis uploade le PDF
+ *       dans la colonne « Atre » de l'enregistrement.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID Airtable du candidat (idEtudiant)
+ *         example: rec1BBjsjxhdqEKuq
+ *     responses:
+ *       200:
+ *         description: Fiche ATRE générée et uploadée avec succès
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/candidats/:id/atre', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Génère et upload la fiche ATRE
+    const result = await atreService.generateAndUpload(id);
+
+    if (!result.success || !result.pdfBuffer) {
+      const status = result.error?.includes('non trouvé') ? 404 : 500;
+      return res.status(status).json({
+        success: false,
+        error: result.error || 'Erreur génération fiche ATRE',
+      });
+    }
+
+    // Envoie le PDF en réponse
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(result.filename!)}"`
+    );
+    res.send(result.pdfBuffer);
+  } catch (error) {
+    logger.error('Erreur génération fiche ATRE:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la génération de la fiche ATRE',
+    });
+  }
+});
+
+// =====================================================
+// POST /api/admission/candidats/:id/compte-rendu
+// =====================================================
+
+/**
+ * @swagger
+ * /api/admission/candidats/{id}/compte-rendu:
+ *   post:
+ *     summary: Génère le Compte Rendu de Visite Entretien
+ *     tags: [PDF]
+ *     description: |
+ *       Génère le compte rendu de visite entretien à partir des données Airtable
+ *       du candidat identifié par son record ID, puis uploade le PDF
+ *       dans la colonne « Compte rendu de visite » de l'enregistrement.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID Airtable du candidat (idEtudiant)
+ *         example: rec1BBjsjxhdqEKuq
+ *     responses:
+ *       200:
+ *         description: Compte rendu généré et uploadé avec succès
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/candidats/:id/compte-rendu', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Génère et upload le compte rendu
+    const result = await compteRenduService.generateAndUpload(id);
+
+    if (!result.success || !result.pdfBuffer) {
+      const status = result.error?.includes('non trouvé') ? 404 : 500;
+      return res.status(status).json({
+        success: false,
+        error: result.error || 'Erreur génération Compte Rendu',
+      });
+    }
+
+    // Envoie le PDF en réponse
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(result.filename!)}"`
+    );
+    res.send(result.pdfBuffer);
+  } catch (error) {
+    logger.error('Erreur génération Compte Rendu:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la génération du Compte Rendu',
+    });
   }
 });
 

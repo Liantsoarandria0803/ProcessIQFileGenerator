@@ -73,6 +73,8 @@ app.get('/', (req: Request, res: Response) => {
       entreprises: '/api/admission/entreprises',
       ficheRenseignement: '/api/admission/candidats/:id/fiche-renseignement',
       cerfa: '/api/admission/candidats/:id/cerfa',
+      atre: '/api/admission/candidats/:id/atre',
+      compteRendu: '/api/admission/candidats/:id/compte-rendu',
       rhEtudiantsFiches: '/api/rh/etudiants-fiches',
       rhEtudiantFiche: '/api/rh/etudiants-fiches/:record_id',
       rhStatistiques: '/api/rh/statistiques'
