@@ -241,6 +241,25 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
         error: result.error || 'Erreur génération PDF'
       });
     }
+
+    // Upload vers Airtable dans la colonne "Fiche entreprise"
+    try {
+      const os = require('os');
+      const fs = require('fs');
+      const path = require('path');
+      const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
+      const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
+      const tmpPath = path.join(os.tmpdir(), `fiche_renseignement_${nom}_${prenom}_${Date.now()}.pdf`);
+      fs.writeFileSync(tmpPath, result.pdfBuffer);
+      
+      await candidatRepo.uploadDocument(id, 'Fiche entreprise', tmpPath);
+      logger.info('Fiche de renseignements uploadée vers Airtable pour ' + id);
+      
+      // Nettoyer le fichier temporaire
+      try { fs.unlinkSync(tmpPath); } catch {}
+    } catch (uploadError) {
+      logger.warn('Upload fiche renseignement vers Airtable échoué:', uploadError);
+    }
     
     // Envoie le PDF
     const fileName = `Fiche_Renseignement_${candidat.fields['NOM de naissance'] || 'candidat'}_${candidat.fields['Prénom'] || ''}.pdf`;
