@@ -154,3 +154,8 @@ export interface PdfGenerationResult {
 // EXPORTS DES TYPES ENTREPRISE
 // =====================================================
 export * from './ficheEntreprise';
+
+// =====================================================
+// EXPORTS DES TYPES RH
+// =====================================================
+export * from './rh';
