@@ -28,4 +28,4 @@ export const COMPTE_RENDU_TEXT_FIELDS: Record<string, string> = {
 /**
  * Nom de la colonne Airtable dans laquelle le PDF sera uploadé.
  */
-export const COMPTE_RENDU_AIRTABLE_COLUMN = 'Compte rendu de visite';
+export const COMPTE_RENDU_AIRTABLE_COLUMN = 'compte rendu de visite';

@@ -3,9 +3,13 @@ import logger from '../utils/logger';
 import airtableClient from '../utils/airtableClient';
 import { Candidat, CandidatFields } from '../types';
 import axios from 'axios';
+import dns from 'dns';
 import fs from 'fs';
 import path from 'path';
 import FormData from 'form-data';
+
+// Force IPv4 pour les appels directs axios (tmpfiles.org)
+dns.setDefaultResultOrder('ipv4first');
 
 export class CandidatRepository {
   private tableName: string;
