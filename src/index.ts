@@ -75,6 +75,7 @@ app.get('/', (req: Request, res: Response) => {
       cerfa: '/api/admission/candidats/:id/cerfa',
       atre: '/api/admission/candidats/:id/atre',
       compteRendu: '/api/admission/candidats/:id/compte-rendu',
+      reglementInterieur: '/api/admission/candidats/:id/reglement-interieur',
       rhEtudiantsFiches: '/api/rh/etudiants-fiches',
       rhEtudiantFiche: '/api/rh/etudiants-fiches/:record_id',
       rhStatistiques: '/api/rh/statistiques'

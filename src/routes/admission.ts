@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { CandidatRepository, EntrepriseRepository } from '../repositories';
-import { PdfGeneratorService, CerfaGeneratorService, AtreGeneratorService, CompteRenduGeneratorService } from '../services';
+import { PdfGeneratorService, CerfaGeneratorService, AtreGeneratorService, CompteRenduGeneratorService, ReglementGeneratorService } from '../services';
 import { AdmissionService } from '../services/admissionService';
 import logger from '../utils/logger';
 import { InformationsPersonnelles } from '../types/admission';
@@ -17,6 +17,7 @@ const pdfService = new PdfGeneratorService();
 const cerfaService = new CerfaGeneratorService();
 const atreService = new AtreGeneratorService();
 const compteRenduService = new CompteRenduGeneratorService();
+const reglementService = new ReglementGeneratorService();
 const admissionService = new AdmissionService();
 
 // Configuration multer : stockage en mémoire (buffer)
@@ -1218,6 +1219,63 @@ router.post('/candidats/:id/compte-rendu', async (req: Request, res: Response) =
     res.status(500).json({
       success: false,
       error: 'Erreur lors de la génération du Compte Rendu',
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admission/candidats/{id}/reglement-interieur:
+ *   post:
+ *     summary: Génère le Règlement Intérieur pour un candidat
+ *     tags: [Admission]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID Airtable du candidat
+ *     responses:
+ *       200:
+ *         description: PDF généré avec succès
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/candidats/:id/reglement-interieur', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Génère et upload le règlement intérieur
+    const result = await reglementService.generateAndUpload(id);
+
+    if (!result.success || !result.pdfBuffer) {
+      const status = result.error?.includes('non trouvé') ? 404 : 500;
+      return res.status(status).json({
+        success: false,
+        error: result.error || 'Erreur génération Règlement Intérieur',
+      });
+    }
+
+    // Envoie le PDF en réponse
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(result.filename!)}"`
+    );
+    res.send(result.pdfBuffer);
+  } catch (error) {
+    logger.error('Erreur génération Règlement Intérieur:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la génération du Règlement Intérieur',
     });
   }
 });
