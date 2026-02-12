@@ -10,22 +10,22 @@ export const connectDB = async (): Promise<void> => {
       dbName: process.env.MONGODB_DATABASE || 'processiq',
     });
     
-    console.log('✅ MongoDB connecté avec succès');
-    console.log(`📊 Base de données: ${mongoose.connection.db?.databaseName}`);
+    console.log(' MongoDB connecté avec succès');
+    console.log(` Base de données: ${mongoose.connection.db?.databaseName}`);
     
   } catch (error) {
-    console.error('❌ Erreur de connexion MongoDB:', error);
+    console.error(' Erreur de connexion MongoDB:', error);
     process.exit(1);
   }
 };
 
 // Gestion des événements de connexion
 mongoose.connection.on('error', (err) => {
-  console.error('❌ Erreur MongoDB:', err);
+  console.error(' Erreur MongoDB:', err);
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.log('⚠️  MongoDB déconnecté');
+  console.log('  MongoDB déconnecté');
 });
 
 export const disconnectDB = async (): Promise<void> => {
