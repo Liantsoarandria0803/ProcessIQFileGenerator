@@ -73,11 +73,17 @@ app.get('/', (req: Request, res: Response) => {
     documentation: '/api-docs',
     endpoints: {
       health: '/api/health',
+      students: '/api/students',
+      attendances: '/api/attendances',
+      grades: '/api/grades',
+      events: '/api/events',
+      appointments: '/api/appointments',
+      documents: '/api/documents',
+      candidatesMongo: '/api/candidates',
       candidats: '/api/admission/candidats',
       entreprises: '/api/admission/entreprises',
       ficheRenseignement: '/api/admission/candidats/:id/fiche-renseignement',
-      cerfa: '/api/admission/candidats/:id/cerfa',
-      
+      cerfa: '/api/admission/candidats/:id/cerfa'
     }
   });
 });
