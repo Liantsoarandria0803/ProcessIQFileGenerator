@@ -1,7 +1,13 @@
 import { Router } from 'express';
 import admissionRoutes from './admission';
+import candidateRoutes from './candidate.routes'; 
+
 
 const router = Router();
+
+// Routes étudiants
+// Expose '/api/candidates' when this router is mounted under '/api'
+router.use('/candidates', candidateRoutes);
 
 // Routes d'admission (candidats, entreprises, génération PDF)
 router.use('/admission', admissionRoutes);

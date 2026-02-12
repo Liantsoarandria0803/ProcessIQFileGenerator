@@ -46,6 +46,11 @@ const swaggerDefinition: SwaggerDefinition = {
     {
       name: 'Documents',
       description: 'Upload de documents (CV, CIN, lettre de motivation, etc.)'
+    },
+    // ✅ NOUVEAU TAG ÉTUDIANTS
+    {
+      name: 'Étudiants',
+      description: 'Gestion des étudiants/élèves'
     }
   ],
   components: {
@@ -363,6 +368,291 @@ const swaggerDefinition: SwaggerDefinition = {
           file_size: { type: 'number', example: 204800 },
           airtable_record_id: { type: 'string', example: 'rec1BBjsjxhdqEKuq' }
         }
+      },
+
+      // ========================================
+      // ✅ NOUVEAUX SCHÉMAS ÉTUDIANTS (AJOUTS)
+      // ========================================
+      Student: {
+        type: 'object',
+        properties: {
+          id: { 
+            type: 'string', 
+            description: 'ID Airtable de l\'étudiant',
+            example: 'rec123456789' 
+          },
+          studentId: { 
+            type: 'string', 
+            description: 'Numéro étudiant unique',
+            example: 'STU202412345' 
+          },
+          firstName: { 
+            type: 'string', 
+            description: 'Prénom de l\'étudiant',
+            example: 'Jean' 
+          },
+          lastName: { 
+            type: 'string', 
+            description: 'Nom de l\'étudiant',
+            example: 'Dupont' 
+          },
+          birthDate: { 
+            type: 'string', 
+            format: 'date',
+            description: 'Date de naissance (YYYY-MM-DD)',
+            example: '2000-05-15' 
+          },
+          birthPlace: { 
+            type: 'string', 
+            description: 'Lieu de naissance',
+            example: 'Paris' 
+          },
+          email: { 
+            type: 'string', 
+            format: 'email',
+            description: 'Email de l\'étudiant',
+            example: 'jean.dupont@example.com' 
+          },
+          phone: { 
+            type: 'string', 
+            description: 'Numéro de téléphone',
+            example: '+33612345678' 
+          },
+          address: { 
+            type: 'string', 
+            description: 'Adresse complète',
+            example: '10 Rue de la République' 
+          },
+          postalCode: { 
+            type: 'string', 
+            description: 'Code postal',
+            example: '75001' 
+          },
+          city: { 
+            type: 'string', 
+            description: 'Ville',
+            example: 'Paris' 
+          },
+          country: { 
+            type: 'string', 
+            description: 'Pays',
+            example: 'France' 
+          },
+          program: { 
+            type: 'string', 
+            description: 'Programme d\'études',
+            example: 'BTS MCO' 
+          },
+          enrollmentYear: { 
+            type: 'integer', 
+            description: 'Année d\'inscription',
+            example: 2024 
+          },
+          currentYear: { 
+            type: 'integer', 
+            description: 'Année en cours',
+            example: 1 
+          },
+          status: { 
+            type: 'string', 
+            enum: ['active', 'inactive', 'graduated', 'suspended'],
+            description: 'Statut de l\'étudiant',
+            example: 'active' 
+          },
+          enrollmentDate: { 
+            type: 'string', 
+            format: 'date',
+            description: 'Date d\'inscription',
+            example: '2024-09-01' 
+          },
+          createdAt: { 
+            type: 'string', 
+            format: 'date-time',
+            description: 'Date de création',
+            example: '2024-01-15T10:30:00Z' 
+          },
+          updatedAt: { 
+            type: 'string', 
+            format: 'date-time',
+            description: 'Date de mise à jour',
+            example: '2024-01-15T10:30:00Z' 
+          }
+        }
+      },
+      StudentCreate: {
+        type: 'object',
+        required: ['firstName', 'lastName', 'email', 'program'],
+        properties: {
+          firstName: { 
+            type: 'string', 
+            description: 'Prénom de l\'étudiant',
+            example: 'Jean' 
+          },
+          lastName: { 
+            type: 'string', 
+            description: 'Nom de l\'étudiant',
+            example: 'Dupont' 
+          },
+          birthDate: { 
+            type: 'string', 
+            format: 'date',
+            description: 'Date de naissance (YYYY-MM-DD)',
+            example: '2000-05-15' 
+          },
+          birthPlace: { 
+            type: 'string', 
+            description: 'Lieu de naissance',
+            example: 'Paris' 
+          },
+          email: { 
+            type: 'string', 
+            format: 'email',
+            description: 'Email de l\'étudiant',
+            example: 'jean.dupont@example.com' 
+          },
+          phone: { 
+            type: 'string', 
+            description: 'Numéro de téléphone',
+            example: '+33612345678' 
+          },
+          address: { 
+            type: 'string', 
+            description: 'Adresse complète',
+            example: '10 Rue de la République' 
+          },
+          postalCode: { 
+            type: 'string', 
+            description: 'Code postal',
+            example: '75001' 
+          },
+          city: { 
+            type: 'string', 
+            description: 'Ville',
+            example: 'Paris' 
+          },
+          country: { 
+            type: 'string', 
+            description: 'Pays',
+            example: 'France' 
+          },
+          program: { 
+            type: 'string', 
+            description: 'Programme d\'études',
+            example: 'BTS MCO' 
+          },
+          enrollmentYear: { 
+            type: 'integer', 
+            description: 'Année d\'inscription',
+            example: 2024 
+          }
+        }
+      },
+      StudentUpdate: {
+        type: 'object',
+        properties: {
+          firstName: { 
+            type: 'string', 
+            description: 'Prénom de l\'étudiant',
+            example: 'Jean' 
+          },
+          lastName: { 
+            type: 'string', 
+            description: 'Nom de l\'étudiant',
+            example: 'Dupont' 
+          },
+          email: { 
+            type: 'string', 
+            format: 'email',
+            description: 'Email de l\'étudiant',
+            example: 'jean.dupont@example.com' 
+          },
+          phone: { 
+            type: 'string', 
+            description: 'Numéro de téléphone',
+            example: '+33612345678' 
+          },
+          address: { 
+            type: 'string', 
+            description: 'Adresse complète',
+            example: '10 Rue de la République' 
+          },
+          postalCode: { 
+            type: 'string', 
+            description: 'Code postal',
+            example: '75001' 
+          },
+          city: { 
+            type: 'string', 
+            description: 'Ville',
+            example: 'Paris' 
+          },
+          status: { 
+            type: 'string', 
+            enum: ['active', 'inactive', 'graduated', 'suspended'],
+            description: 'Statut de l\'étudiant',
+            example: 'active' 
+          }
+        }
+      },
+      StudentResponse: {
+        type: 'object',
+        properties: {
+          success: { 
+            type: 'boolean', 
+            description: 'Statut de la requête',
+            example: true 
+          },
+          data: {
+            type: 'object',
+            description: 'Données de l\'étudiant',
+            additionalProperties: true
+          },
+          message: { 
+            type: 'string', 
+            description: 'Message d\'information',
+            example: 'Étudiant créé avec succès' 
+          },
+          error: { 
+            type: 'string', 
+            description: 'Message d\'erreur si applicable' 
+          }
+        }
+      },
+      StudentStats: {
+        type: 'object',
+        properties: {
+          total: { 
+            type: 'integer', 
+            description: 'Nombre total d\'étudiants',
+            example: 150 
+          },
+          byStatus: {
+            type: 'object',
+            additionalProperties: { type: 'integer' },
+            description: 'Nombre d\'étudiants par statut',
+            example: { active: 120, inactive: 20, graduated: 10 }
+          },
+          byProgram: {
+            type: 'object',
+            additionalProperties: { type: 'integer' },
+            description: 'Nombre d\'étudiants par programme',
+            example: { 'BTS MCO': 80, 'BTS NDRC': 70 }
+          },
+          latestEnrollments: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                name: { type: 'string' },
+                program: { type: 'string' },
+                enrollmentDate: { type: 'string' },
+                status: { type: 'string' }
+              }
+            },
+            description: 'Dernières inscriptions'
+          }
+        }
       }
     },
     responses: {
@@ -398,9 +688,430 @@ const swaggerDefinition: SwaggerDefinition = {
   }
 };
 
+// ✅ AJOUT DES PATHS ÉTUDIANTS DANS LA CONFIGURATION
+const studentPaths = {
+  '/api/students': {
+    get: {
+      tags: ['Étudiants'],
+      summary: 'Lister tous les étudiants',
+      description: 'Récupère la liste des étudiants avec filtres optionnels',
+      parameters: [
+        {
+          name: 'program',
+          in: 'query',
+          description: 'Filtrer par programme',
+          schema: { type: 'string' }
+        },
+        {
+          name: 'enrollmentYear',
+          in: 'query',
+          description: 'Filtrer par année d\'inscription',
+          schema: { type: 'integer' }
+        },
+        {
+          name: 'status',
+          in: 'query',
+          description: 'Filtrer par statut',
+          schema: { 
+            type: 'string',
+            enum: ['active', 'inactive', 'graduated', 'suspended']
+          }
+        },
+        {
+          name: 'search',
+          in: 'query',
+          description: 'Recherche dans nom/prénom/email',
+          schema: { type: 'string' }
+        }
+      ],
+      responses: {
+        200: {
+          description: 'Liste des étudiants',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  data: { 
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/Student' }
+                  }
+                }
+              }
+            }
+          }
+        },
+        500: {
+          description: 'Erreur serveur',
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/Error'
+              }
+            }
+          }
+        }
+      }
+    },
+    post: {
+      tags: ['Étudiants'],
+      summary: 'Créer un nouvel étudiant',
+      description: 'Ajoute un nouvel étudiant à la base',
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              $ref: '#/components/schemas/StudentCreate'
+            }
+          }
+        }
+      },
+      responses: {
+        201: {
+          description: 'Étudiant créé avec succès',
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/StudentResponse'
+              },
+              example: {
+                success: true,
+                message: 'Étudiant créé avec succès',
+                data: {
+                  id: 'rec123456789',
+                  studentId: 'STU202412345',
+                  firstName: 'Jean',
+                  lastName: 'Dupont',
+                  email: 'jean.dupont@example.com',
+                  program: 'BTS MCO'
+                }
+              }
+            }
+          }
+        },
+        400: {
+          description: 'Données invalides',
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/Error'
+              },
+              example: {
+                success: false,
+                error: 'Email invalide'
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/api/students/{id}': {
+    get: {
+      tags: ['Étudiants'],
+      summary: 'Récupérer un étudiant',
+      description: 'Récupère les détails d\'un étudiant par son ID',
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          description: 'ID de l\'étudiant',
+          schema: { type: 'string' }
+        }
+      ],
+      responses: {
+        200: {
+          description: 'Détails de l\'étudiant',
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/StudentResponse'
+              },
+              example: {
+                success: true,
+                data: {
+                  id: 'rec123456789',
+                  studentId: 'STU202412345',
+                  firstName: 'Jean',
+                  lastName: 'Dupont',
+                  email: 'jean.dupont@example.com',
+                  program: 'BTS MCO',
+                  status: 'active'
+                }
+              }
+            }
+          }
+        },
+        404: {
+          description: 'Étudiant non trouvé',
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/Error'
+              },
+              example: {
+                success: false,
+                error: 'Étudiant non trouvé'
+              }
+            }
+          }
+        }
+      }
+    },
+    put: {
+      tags: ['Étudiants'],
+      summary: 'Mettre à jour un étudiant',
+      description: 'Met à jour les informations d\'un étudiant',
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          description: 'ID de l\'étudiant',
+          schema: { type: 'string' }
+        }
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              $ref: '#/components/schemas/StudentUpdate'
+            }
+          }
+        }
+      },
+      responses: {
+        200: {
+          description: 'Étudiant mis à jour',
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/StudentResponse'
+              },
+              example: {
+                success: true,
+                message: 'Étudiant mis à jour avec succès',
+                data: {
+                  id: 'rec123456789',
+                  studentId: 'STU202412345',
+                  firstName: 'Jean',
+                  lastName: 'Dupont-Modifié',
+                  status: 'active'
+                }
+              }
+            }
+          }
+        },
+        404: {
+          description: 'Étudiant non trouvé',
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/Error'
+              },
+              example: {
+                success: false,
+                error: 'Étudiant non trouvé'
+              }
+            }
+          }
+        }
+      }
+    },
+    delete: {
+      tags: ['Étudiants'],
+      summary: 'Supprimer un étudiant',
+      description: 'Désactive un étudiant (soft delete)',
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          description: 'ID de l\'étudiant',
+          schema: { type: 'string' }
+        }
+      ],
+      responses: {
+        200: {
+          description: 'Étudiant désactivé',
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/StudentResponse'
+              },
+              example: {
+                success: true,
+                message: 'Étudiant désactivé avec succès',
+                data: {
+                  id: 'rec123456789',
+                  status: 'inactive'
+                }
+              }
+            }
+          }
+        },
+        404: {
+          description: 'Étudiant non trouvé',
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/Error'
+              },
+              example: {
+                success: false,
+                error: 'Étudiant non trouvé'
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/api/students/dashboard/stats': {
+    get: {
+      tags: ['Étudiants'],
+      summary: 'Statistiques des étudiants',
+      description: 'Récupère les statistiques des étudiants',
+      responses: {
+        200: {
+          description: 'Statistiques',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  data: { $ref: '#/components/schemas/StudentStats' }
+                }
+              },
+              example: {
+                success: true,
+                data: {
+                  total: 150,
+                  byStatus: { active: 120, inactive: 20, graduated: 10 },
+                  byProgram: { 'BTS MCO': 80, 'BTS NDRC': 70 },
+                  latestEnrollments: [
+                    {
+                      id: 'rec123456789',
+                      name: 'Jean Dupont',
+                      program: 'BTS MCO',
+                      enrollmentDate: '2024-01-15',
+                      status: 'active'
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        500: {
+          description: 'Erreur serveur',
+          content: {
+            'application/json': {
+              schema: {
+                $ref: '#/components/schemas/Error'
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  '/api/students/search/filter': {
+    get: {
+      tags: ['Étudiants'],
+      summary: 'Rechercher des étudiants',
+      description: 'Recherche des étudiants avec filtres',
+      parameters: [
+        {
+          name: 'program',
+          in: 'query',
+          description: 'Filtrer par programme',
+          schema: { type: 'string' }
+        },
+        {
+          name: 'status',
+          in: 'query',
+          description: 'Filtrer par statut',
+          schema: { 
+            type: 'string',
+            enum: ['active', 'inactive', 'graduated', 'suspended']
+          }
+        },
+        {
+          name: 'search',
+          in: 'query',
+          description: 'Recherche dans nom/prénom/email',
+          schema: { type: 'string' }
+        }
+      ],
+      responses: {
+        200: {
+          description: 'Étudiants trouvés',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  data: { 
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/Student' }
+                  }
+                }
+              },
+              example: {
+                success: true,
+                data: [
+                  {
+                    id: 'rec123456789',
+                    studentId: 'STU202412345',
+                    firstName: 'Jean',
+                    lastName: 'Dupont',
+                    email: 'jean.dupont@example.com',
+                    program: 'BTS MCO',
+                    status: 'active'
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+// ✅ AJOUT DES PATHS ÉTUDIANTS À LA DÉFINITION EXISTANTE
+swaggerDefinition.paths = {
+  // Les paths existants seront automatiquement ajoutés par swagger-jsdoc
+  // Les paths étudiants seront ajoutés par le fichier de routes
+};
+
 const options = {
   swaggerDefinition,
-  apis: ['./src/routes/*.ts', './src/index.ts']
+  apis: [
+    './src/routes/*.ts',      // Routes existantes
+    './src/routes/student.routes.ts', // ✅ Ajoute les routes étudiants
+    './src/index.ts'          // Documentation générale
+  ]
 };
 
 export const swaggerSpec = swaggerJsdoc(options);
+
+// ✅ AJOUT MANUEL DES PATHS ÉTUDIANTS À LA SPÉCIFICATION GÉNÉRÉE
+// (Cette partie est exécutée après l'export pour s'assurer que tout est inclus)
+const originalSwaggerSpec = swaggerJsdoc(options);
+
+// Fusionne les paths étudiants avec les paths existants
+export const swaggerSpec = {
+  ...originalSwaggerSpec,
+  paths: {
+    ...originalSwaggerSpec.paths,
+    ...studentPaths
+  }
+};
