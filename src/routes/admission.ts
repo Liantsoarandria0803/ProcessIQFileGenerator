@@ -194,7 +194,7 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
  *   post:
  *     summary: Génère la fiche de renseignement PDF
  *     tags: [PDF]
- *     description: Génère et télécharge la fiche de renseignement pour un candidat
+ *     description: Génère la fiche de renseignement pour un candidat et l'upload vers Airtable
  *     parameters:
  *       - in: path
  *         name: id
@@ -205,12 +205,34 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
- *         description: PDF généré avec succès
+ *         description: PDF généré et uploadé avec succès
  *         content:
- *           application/pdf:
+ *           application/json:
  *             schema:
- *               type: string
- *               format: binary
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Fiche de renseignement générée avec succès"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     candidatId:
+ *                       type: string
+ *                       example: "rec1BBjsjxhdqEKuq"
+ *                     fileName:
+ *                       type: string
+ *                       example: "Fiche_Renseignement_Dupont_Jean.pdf"
+ *                     uploadedToAirtable:
+ *                       type: boolean
+ *                       example: true
+ *                     airtableUrl:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "https://dl.airtable.com/.attachments/..."
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       500:
@@ -246,17 +268,29 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
     }
 
     // Upload vers Airtable dans la colonne "Fiche entreprise"
+    const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
+    const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
+    const fileName = `Fiche_Renseignement_${nom}_${prenom}.pdf`;
+    let uploadedToAirtable = false;
+    let airtableUrl: string | null = null;
+
     try {
-      const os = require('os');
-      const fs = require('fs');
-      const path = require('path');
-      const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
-      const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
       const tmpPath = path.join(os.tmpdir(), `fiche_renseignement_${nom}_${prenom}_${Date.now()}.pdf`);
       fs.writeFileSync(tmpPath, result.pdfBuffer);
       
-      await candidatRepo.uploadDocument(id, 'Fiche entreprise', tmpPath);
-      logger.info('Fiche de renseignements uploadée vers Airtable pour ' + id);
+      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'Fiche entreprise', tmpPath);
+      
+      if (uploadedToAirtable) {
+        logger.info('✅ Fiche de renseignements uploadée vers Airtable pour ' + id);
+        // Récupérer l'URL du fichier uploadé
+        try {
+          const updatedRecord = await candidatRepo.getById(id);
+          const ficheData = updatedRecord?.fields?.['Fiche entreprise'] as any[] | undefined;
+          airtableUrl = ficheData?.[0]?.url || null;
+        } catch (e) {
+          // Pas grave si on n'arrive pas à récupérer l'URL
+        }
+      }
       
       // Nettoyer le fichier temporaire
       try { fs.unlinkSync(tmpPath); } catch {}
@@ -264,12 +298,17 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
       logger.warn('Upload fiche renseignement vers Airtable échoué:', uploadError);
     }
     
-    // Envoie le PDF
-    const fileName = `Fiche_Renseignement_${candidat.fields['NOM de naissance'] || 'candidat'}_${candidat.fields['Prénom'] || ''}.pdf`;
-    
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
-    res.send(result.pdfBuffer);
+    // Retourne un JSON de succès
+    res.json({
+      success: true,
+      message: 'Fiche de renseignement générée avec succès',
+      data: {
+        candidatId: id,
+        fileName,
+        uploadedToAirtable,
+        airtableUrl
+      }
+    });
     
   } catch (error) {
     logger.error('Erreur génération fiche renseignement:', error);
@@ -286,7 +325,7 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
  *   post:
  *     summary: Génère le CERFA FA13
  *     tags: [PDF]
- *     description: Génère et télécharge le formulaire CERFA FA13 pour un candidat
+ *     description: Génère le formulaire CERFA FA13 pour un candidat et l'upload vers Airtable
  *     parameters:
  *       - in: path
  *         name: id
@@ -297,12 +336,34 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
- *         description: CERFA généré avec succès
+ *         description: CERFA généré et uploadé avec succès
  *         content:
- *           application/pdf:
+ *           application/json:
  *             schema:
- *               type: string
- *               format: binary
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "CERFA FA13 généré avec succès"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     candidatId:
+ *                       type: string
+ *                       example: "rec1BBjsjxhdqEKuq"
+ *                     fileName:
+ *                       type: string
+ *                       example: "CERFA_FA13_Dupont_Jean.pdf"
+ *                     uploadedToAirtable:
+ *                       type: boolean
+ *                       example: true
+ *                     airtableUrl:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "https://dl.airtable.com/.attachments/..."
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       500:
@@ -344,17 +405,21 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
     }
     
     // Upload vers Airtable dans la colonne "cerfa"
-    const fileName = `CERFA_FA13_${candidat.fields['NOM de naissance'] || 'candidat'}_${candidat.fields['Prénom'] || ''}.pdf`;
+    const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
+    const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
+    const fileName = `CERFA_FA13_${nom}_${prenom}.pdf`;
+    let uploadedToAirtable = false;
     let cerfaUrl: string | null = null;
+
     try {
       // Sauvegarder le buffer dans un fichier temporaire pour l'upload
       const tmpFilePath = path.join(os.tmpdir(), `cerfa_${id}_${Date.now()}.pdf`);
       fs.writeFileSync(tmpFilePath, result.pdfBuffer);
       
       // Upload vers Airtable
-      const uploadSuccess = await candidatRepo.uploadDocument(id, 'cerfa', tmpFilePath);
+      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'cerfa', tmpFilePath);
       
-      if (uploadSuccess) {
+      if (uploadedToAirtable) {
         logger.info(`✅ CERFA uploadé vers Airtable pour ${id}`);
         // Récupérer l'URL du fichier uploadé
         try {
@@ -372,14 +437,19 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
       try { fs.unlinkSync(tmpFilePath); } catch (e) { /* ignore */ }
     } catch (uploadError: any) {
       logger.warn(`⚠️ Erreur upload CERFA vers Airtable: ${uploadError.message}`);
-      // On continue quand même, le PDF sera retourné en réponse
     }
     
-    // Envoie le PDF
-    
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
-    res.send(result.pdfBuffer);
+    // Retourne un JSON de succès
+    res.json({
+      success: true,
+      message: 'CERFA FA13 généré avec succès',
+      data: {
+        candidatId: id,
+        fileName,
+        uploadedToAirtable,
+        airtableUrl: cerfaUrl
+      }
+    });
     
   } catch (error) {
     logger.error('Erreur génération CERFA:', error);
