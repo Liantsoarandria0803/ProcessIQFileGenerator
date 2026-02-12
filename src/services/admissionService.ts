@@ -62,11 +62,12 @@ export class AdmissionService {
   }
 
   /**
-   * Met à jour les informations personnelles d'un candidat
+   * Met à jour partiellement les informations personnelles d'un candidat (PATCH)
+   * Seuls les champs fournis sont validés et mis à jour
    */
   async updateCandidateInfo(
     recordId: string,
-    informations: InformationsPersonnelles
+    informations: Partial<InformationsPersonnelles>
   ): Promise<InformationsPersonnellesResponse> {
     try {
       // Vérifier que le candidat existe
@@ -75,11 +76,16 @@ export class AdmissionService {
         throw new Error(`Candidat avec l'ID ${recordId} non trouvé`);
       }
 
-      // Valider les nouvelles informations
-      this.validateInformationsPersonnelles(informations);
+      // Vérifier qu'il y a des données à mettre à jour
+      if (!informations || Object.keys(informations).length === 0) {
+        throw new Error('Aucune donnée à mettre à jour');
+      }
 
-      // Préparer les données pour Airtable
-      const airtableData = this.mapInformationsToAirtable(informations);
+      // Valider uniquement les champs fournis
+      this.validatePartialInformations(informations);
+
+      // Préparer les données pour Airtable (uniquement les champs fournis)
+      const airtableData = this.mapPartialInformationsToAirtable(informations);
 
       // Mettre à jour dans Airtable
       await this.candidatRepo.update(recordId, airtableData);
@@ -88,9 +94,9 @@ export class AdmissionService {
       const updatedCandidat = await this.candidatRepo.getById(recordId);
       const updatedInfo = updatedCandidat
         ? this.parseInformationsFromAirtable(updatedCandidat.fields)
-        : informations;
+        : informations as InformationsPersonnelles;
 
-      logger.info(`✅ Candidat mis à jour: ${recordId}`);
+      logger.info(`✅ Candidat mis à jour partiellement: ${recordId}`);
 
       return {
         success: true,
@@ -199,6 +205,119 @@ export class AdmissionService {
     if (dateNaissance > minAgeDate) {
       throw new Error('Le candidat doit avoir au moins 8 ans');
     }
+  }
+
+  /**
+   * Valide partiellement les informations (uniquement les champs fournis)
+   * Utilisé pour les mises à jour PATCH
+   */
+  private validatePartialInformations(informations: Partial<InformationsPersonnelles>): void {
+    // Validation email (uniquement si fourni)
+    if (informations.email !== undefined && !validateEmail(informations.email)) {
+      throw new Error("Format d'email invalide");
+    }
+
+    // Validation téléphone (uniquement si fourni)
+    if (informations.telephone !== undefined && !validateTelephone(informations.telephone)) {
+      throw new Error('Numéro de téléphone invalide');
+    }
+
+    // Validation âge minimum (uniquement si date_naissance fournie)
+    if (informations.date_naissance !== undefined) {
+      const dateNaissance = new Date(informations.date_naissance);
+      const today = new Date();
+      const minAgeDate = new Date();
+      minAgeDate.setFullYear(today.getFullYear() - 8);
+
+      if (dateNaissance > minAgeDate) {
+        throw new Error('Le candidat doit avoir au moins 8 ans');
+      }
+    }
+  }
+
+  /**
+   * Mappe partiellement les InformationsPersonnelles vers le format Airtable
+   * Seuls les champs fournis sont mappés (pour les mises à jour PATCH)
+   */
+  private mapPartialInformationsToAirtable(info: Partial<InformationsPersonnelles>): Partial<CandidatFields> {
+    const airtableData: Partial<CandidatFields> = {};
+
+    // Section 1: Informations personnelles de base
+    if (info.prenom !== undefined) airtableData['Prénom'] = info.prenom;
+    if (info.nom_naissance !== undefined) airtableData['NOM de naissance'] = info.nom_naissance;
+    if (info.nom_usage !== undefined) airtableData['NOM dusage'] = info.nom_usage;
+    if (info.sexe !== undefined) airtableData['Sexe'] = info.sexe;
+    if (info.date_naissance !== undefined) airtableData['Date de naissance'] = info.date_naissance;
+    if (info.nationalite !== undefined) airtableData['Nationalité'] = info.nationalite;
+    if (info.commune_naissance !== undefined) airtableData['Commune de naissance'] = info.commune_naissance;
+    if (info.departement !== undefined) airtableData['Département'] = info.departement;
+
+    // Section 2: Adresse et coordonnées
+    if (info.adresse_residence !== undefined || info.code_postal !== undefined || info.ville !== undefined) {
+      const adresse = info.adresse_residence || '';
+      const cp = info.code_postal || '';
+      const ville = info.ville || '';
+      if (adresse || cp || ville) {
+        airtableData['Adresse lieu dexécution du contrat'] = `${adresse}, ${cp}, ${ville}`;
+      }
+    }
+    if (info.code_postal !== undefined) airtableData['Code postal '] = parseFloat(String(info.code_postal));
+    if (info.ville !== undefined) airtableData['ville'] = info.ville;
+    if (info.email !== undefined) airtableData['E-mail'] = info.email;
+    if (info.telephone !== undefined) airtableData['Téléphone'] = info.telephone;
+
+    // Section 3: Représentant légal principal
+    if (info.nom_representant_legal !== undefined) airtableData['Nom Représentant légal principal'] = info.nom_representant_legal;
+    if (info.prenom_representant_legal !== undefined) airtableData['Prénom Représentant légal principal'] = info.prenom_representant_legal;
+    if (info.numero_legal !== undefined) airtableData['Numéro Représentant légal principal'] = info.numero_legal;
+    if (info.lien_parente_legal !== undefined) airtableData['Lien de parenté'] = info.lien_parente_legal;
+    if (info.numero_adress_legal !== undefined) airtableData['Numero adresse Représentant légal'] = info.numero_adress_legal;
+    if (info.voie_representant_legal !== undefined) airtableData['Voie Représentant légal Principal'] = info.voie_representant_legal;
+    if (info.complement_adresse_legal !== undefined) airtableData['Complémet Représentant légal Principal'] = info.complement_adresse_legal;
+    if (info.code_postal_legal !== undefined) airtableData['Code postal Représentant légal Principal'] = info.code_postal_legal;
+    if (info.commune_legal !== undefined) airtableData['Commune Représentant légal Principal'] = info.commune_legal;
+    if (info.courriel_legal !== undefined) airtableData['email Représentant légal principal'] = info.courriel_legal;
+
+    // Section 4: Représentant légal secondaire
+    if (info.nom_representant_legal2 !== undefined) airtableData['Nom Représentant légal secondaire'] = info.nom_representant_legal2;
+    if (info.prenom_representant_legal2 !== undefined) airtableData['Prénom Représentant légal secondaire'] = info.prenom_representant_legal2;
+    if (info.numero_legal2 !== undefined) airtableData['Numéro Représentant légal secondaire'] = info.numero_legal2;
+    if (info.lien_parente_legal2 !== undefined) airtableData['Lien de parenté Représentant légal secondaire'] = info.lien_parente_legal2;
+    if (info.numero_adress_legal2 !== undefined) airtableData['N° adresse Représentant légal secondaire'] = info.numero_adress_legal2;
+    if (info.voie_representant_legal2 !== undefined) airtableData['Voie Représentant légal secondaire'] = info.voie_representant_legal2;
+    if (info.complement_adresse_legal2 !== undefined) airtableData['Complément Représentant légal secondaire'] = info.complement_adresse_legal2;
+    if (info.code_postal_legal2 !== undefined) airtableData['Code postal Représentant légal secondaire'] = info.code_postal_legal2;
+    if (info.commune_legal2 !== undefined) airtableData['Commune Représentant légal secondaire'] = info.commune_legal2;
+    if (info.courriel_legal2 !== undefined) airtableData['email Représentant légal secondaire'] = info.courriel_legal2;
+
+    // Section 5: NIR
+    if (info.nir !== undefined) airtableData['NIR'] = info.nir;
+
+    // Section 6: Parcours scolaire
+    if (info.dernier_diplome_prepare !== undefined) airtableData['Dernier diplôme ou titre préparé'] = info.dernier_diplome_prepare;
+    if (info.derniere_classe !== undefined) airtableData['Dernière classe / année suivie'] = info.derniere_classe;
+    if (info.intitulePrecisDernierDiplome !== undefined) airtableData['Intitulé précis du dernier diplôme ou titre préparé'] = info.intitulePrecisDernierDiplome;
+    if (info.bac !== undefined) airtableData['BAC'] = info.bac;
+
+    // Section 7: Situations & déclarations
+    if (info.situation !== undefined) airtableData['Situation avant le contrat'] = info.situation;
+    if (info.regime_social !== undefined) airtableData['Régime social'] = info.regime_social;
+    if (info.declare_inscription_sportif_haut_niveau !== undefined) airtableData['Déclare être inscrits sur la liste des sportifs de haut niveau'] = info.declare_inscription_sportif_haut_niveau ? 'Oui' : 'Non';
+    if (info.declare_avoir_projet_creation_reprise_entreprise !== undefined) airtableData['Déclare avoir un projet de création ou de reprise dentreprise'] = info.declare_avoir_projet_creation_reprise_entreprise ? 'Oui' : 'Non';
+    if (info.declare_travailleur_handicape !== undefined) airtableData['Déclare bénéficier de la reconnaissance travailleur handicapé'] = info.declare_travailleur_handicape ? 'Oui' : 'Non';
+    if (info.alternance !== undefined) airtableData['alternance'] = info.alternance ? 'Oui' : 'Non';
+
+    // Section 8: Formation souhaitée
+    if (info.formation_souhaitee !== undefined) airtableData['Formation'] = info.formation_souhaitee;
+    if (info.date_de_visite !== undefined) airtableData['Date de visite'] = info.date_de_visite;
+    if (info.date_de_reglement !== undefined) airtableData['Date denvoi du réglement'] = info.date_de_reglement;
+    if (info.entreprise_d_accueil !== undefined) airtableData['Entreprise daccueil'] = info.entreprise_d_accueil;
+
+    // Section 9: Informations supplémentaires
+    if (info.connaissance_rush_how !== undefined) airtableData['connaissance rush'] = info.connaissance_rush_how;
+    if (info.motivation_projet_professionnel !== undefined) airtableData['motivation projet perso'] = info.motivation_projet_professionnel;
+
+    return airtableData;
   }
 
   /**

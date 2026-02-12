@@ -442,14 +442,14 @@ router.post('/entreprises', async (req: Request, res: Response) => {
 
 /**
  * @swagger
- * /api/admission/entreprises/{recordId}:
- *   put:
- *     summary: Met à jour une fiche entreprise existante
+ * /api/admission/entreprises/{id}:
+ *   patch:
+ *     summary: Met à jour partiellement une fiche entreprise existante
  *     tags: [Entreprises]
- *     description: Met à jour une fiche de renseignement entreprise dans Airtable
+ *     description: Met à jour partiellement une fiche de renseignement entreprise dans Airtable (seuls les champs fournis sont modifiés)
  *     parameters:
  *       - in: path
- *         name: recordId
+ *         name: id
  *         required: true
  *         schema:
  *           type: string
@@ -482,7 +482,7 @@ router.post('/entreprises', async (req: Request, res: Response) => {
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-router.put('/entreprises/:id', async (req: Request, res: Response) => {
+router.patch('/entreprises/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const fields = req.body;
@@ -614,10 +614,10 @@ router.post('/candidates', async (req: Request, res: Response) => {
 /**
  * @swagger
  * /api/admission/candidates/{recordId}:
- *   put:
- *     summary: Met à jour les informations personnelles d'un candidat
+ *   patch:
+ *     summary: Met à jour partiellement les informations personnelles d'un candidat
  *     tags: [Candidats]
- *     description: Met à jour toutes les informations personnelles d'un candidat existant
+ *     description: Met à jour partiellement les informations personnelles d'un candidat existant (seuls les champs fournis sont modifiés)
  *     parameters:
  *       - in: path
  *         name: recordId
@@ -643,7 +643,7 @@ router.post('/candidates', async (req: Request, res: Response) => {
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-router.put('/candidates/:recordId', async (req: Request, res: Response) => {
+router.patch('/candidates/:recordId', async (req: Request, res: Response) => {
   try {
     const { recordId } = req.params;
     const informations: InformationsPersonnelles = req.body;
