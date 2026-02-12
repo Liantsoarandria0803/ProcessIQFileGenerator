@@ -20,6 +20,7 @@ import {
   CODES_EMPLOYEUR_SPECIFIQUE,
   CODES_DIPLOMES_MAITRE,
   CODES_REGIME_SOCIAL,
+  CODES_SITUATION_AVANT_CONTRAT,
   PAYS_UE,
   PAYS_FRANCE,
   TYPES_EMPLOYEUR_PRIVE,
@@ -271,6 +272,21 @@ export class CerfaGeneratorService {
     return d;
   }
 
+  private getCodeSituationAvantContrat(situationStr: string | undefined): string {
+    if (!situationStr) return '';
+    const s = String(situationStr).trim();
+    // Si deja un code numerique (1-12)
+    if (/^(1[0-2]|[1-9])$/.test(s)) return s;
+    // Recherche exacte
+    if (CODES_SITUATION_AVANT_CONTRAT[s]) return CODES_SITUATION_AVANT_CONTRAT[s];
+    // Recherche partielle (insensible a la casse)
+    for (const [key, code] of Object.entries(CODES_SITUATION_AVANT_CONTRAT)) {
+      if (key.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(key.toLowerCase())) return code;
+    }
+    // Par defaut: 12 (Inactif/Autre)
+    return '12';
+  }
+
   private getFormationData(formationStr: string | undefined): Record<string, string> {
     if (!formationStr) return {};
     const f = String(formationStr).trim();
@@ -389,6 +405,7 @@ export class CerfaGeneratorService {
     if (key === 'Diplôme Maître apprentissage' || key === 'Diplôme Maître apprentissage 2') return this.getCodeDiplomeMaitre(valueStr);
     if (key === 'Nationalité') return this.getCodeNationalite(valueStr);
     if (key === 'Régime social') return this.getCodeRegimeSocial(valueStr);
+    if (key === 'Situation avant le contrat') return this.getCodeSituationAvantContrat(valueStr);
     if (key === 'Mode contractuel de lapprentissage') return '1';
     if (key === 'Heures formation à distance') return '0';
     if (key === 'Salaire brut mensuel 1') return valueStr;
@@ -687,7 +704,7 @@ export class CerfaGeneratorService {
             }
 
             // ---- CHAMPS DE DATE ----
-            for (const [, dateConfig] of Object.entries(CERFA_DATE_FIELDS)) {
+            for (const [dateKey, dateConfig] of Object.entries(CERFA_DATE_FIELDS)) {
               try {
                 let matched = false;
 
@@ -696,13 +713,14 @@ export class CerfaGeneratorService {
                   let dateValue = this.getFieldValue(src, airtableKey, candidatData, entrepriseData);
 
                   // Si pas de valeur et que c'est une date de formation, chercher dans les formations
-                  if (!dateValue && airtableKey.includes('formation')) {
+                  // Utiliser le nom de la clé de date (dateKey) pour savoir quelle date chercher
+                  if (!dateValue) {
                     const formationName = candidatData['Formation'] || '';
                     const fData = this.getFormationData(formationName);
-                    if (airtableKey.includes('debut') && fData.date_debut_formation_cfa) {
+                    if (dateKey === 'date_debut_formation_cfa' && fData.date_debut_formation_cfa) {
                       dateValue = fData.date_debut_formation_cfa;
                     }
-                    if (airtableKey.includes('epreuves') && fData.date_fin_epreuves) {
+                    if (dateKey === 'date_fin_epreuves' && fData.date_fin_epreuves) {
                       dateValue = fData.date_fin_epreuves;
                     }
                   }
@@ -717,13 +735,13 @@ export class CerfaGeneratorService {
                   const [src, airtableKey] = dateConfig.source;
                   let dateValue = this.getFieldValue(src, airtableKey, candidatData, entrepriseData);
 
-                  if (!dateValue && airtableKey.includes('formation')) {
+                  if (!dateValue) {
                     const formationName = candidatData['Formation'] || '';
                     const fData = this.getFormationData(formationName);
-                    if (airtableKey.includes('debut') && fData.date_debut_formation_cfa) {
+                    if (dateKey === 'date_debut_formation_cfa' && fData.date_debut_formation_cfa) {
                       dateValue = fData.date_debut_formation_cfa;
                     }
-                    if (airtableKey.includes('epreuves') && fData.date_fin_epreuves) {
+                    if (dateKey === 'date_fin_epreuves' && fData.date_fin_epreuves) {
                       dateValue = fData.date_fin_epreuves;
                     }
                   }
@@ -738,13 +756,13 @@ export class CerfaGeneratorService {
                   const [src, airtableKey] = dateConfig.source;
                   let dateValue = this.getFieldValue(src, airtableKey, candidatData, entrepriseData);
 
-                  if (!dateValue && airtableKey.includes('formation')) {
+                  if (!dateValue) {
                     const formationName = candidatData['Formation'] || '';
                     const fData = this.getFormationData(formationName);
-                    if (airtableKey.includes('debut') && fData.date_debut_formation_cfa) {
+                    if (dateKey === 'date_debut_formation_cfa' && fData.date_debut_formation_cfa) {
                       dateValue = fData.date_debut_formation_cfa;
                     }
-                    if (airtableKey.includes('epreuves') && fData.date_fin_epreuves) {
+                    if (dateKey === 'date_fin_epreuves' && fData.date_fin_epreuves) {
                       dateValue = fData.date_fin_epreuves;
                     }
                   }

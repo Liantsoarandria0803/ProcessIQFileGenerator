@@ -8,6 +8,49 @@
 // CODES DE REFERENCE CERFA
 // =====================================================
 
+// Codes situation avant le contrat - CERFA
+export const CODES_SITUATION_AVANT_CONTRAT: Record<string, string> = {
+  // Valeurs Airtable avec numéros -> Codes CERFA
+  "1 Scolaire": "1",
+  "2 Prépa apprentissage": "2",
+  "3 Etudiant": "3",
+  "4 Contrat d'apprentissage": "4",
+  "4 Contrat dapprentissage": "4",
+  "5 Contrat de professionnalisation": "5",
+  "6 Contrat aidé": "6",
+  "7 Formation au CFA sous statut de stagiaire": "7",
+  "8 Formation au CFA sans contrat après rupture": "8",
+  "9 Autres situations stagiaire formation professionnelle": "9",
+  "10 Salarié": "10",
+  "11 Personne à la recherche d'un emploi": "11",
+  "12 Inactif": "12",
+  // Valeurs Airtable legacy sans numéros
+  "Scolaire : (Bac / brevet...)": "1",
+  "Scolaire": "1",
+  "Prépa apprentissage": "2",
+  "Etudiant : (Etude supérieur)": "3",
+  "Etudiant": "3",
+  "Contrat dapprentissage": "4",
+  "Contrat d'apprentissage": "4",
+  "Contrat de professionnalisation": "5",
+  "Contrat pro": "5",
+  "Contrat aidé": "6",
+  "Formation CFA statut stagiaire avant contrat": "7",
+  "Formation CFA sans contrat après rupture": "8",
+  "Autres situations stagiaire formation professionnelle": "9",
+  "Salarié : (CDD/CDI)": "10",
+  "Salarié": "10",
+  "CDD": "10",
+  "CDI": "10",
+  "Personne à la recherche d'un emploi": "11",
+  "Demandeur d'emploi": "11",
+  "Chômeur": "11",
+  "Inactif": "12",
+  "Service civique": "12",
+  "Stage": "12",
+  "Autre": "12",
+};
+
 // Codes diplomes - EXACT Python
 export const CODES_DIPLOMES: Record<string, string> = {
   "Doctorat": "80",
