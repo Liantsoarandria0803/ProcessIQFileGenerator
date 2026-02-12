@@ -8,7 +8,7 @@
 // ========================================
 export interface IdentificationEntreprise {
   raison_sociale?: string;
-  siret?: number;
+  siret?: string;
   code_ape_naf?: string;
   type_employeur?: string;
   nombre_salaries?: number;

@@ -306,7 +306,7 @@ export class EntrepriseRepository {
           airtableData['Raison sociale'] = fiche.identification.raison_sociale;
         }
         if (fiche.identification.siret != null) {
-          airtableData['Numéro SIRET'] = Number(fiche.identification.siret);
+          airtableData['Numéro SIRET'] = fiche.identification.siret;
         }
         if (fiche.identification.code_ape_naf) {
           airtableData['Code APE/NAF'] = fiche.identification.code_ape_naf;
