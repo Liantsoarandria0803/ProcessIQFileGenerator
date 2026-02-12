@@ -602,18 +602,9 @@ export const CERFA_DATE_FIELDS: Record<string, {
     mois: "Zone de texte 21_29",
     annee: "Zone de texte 21_30",
   },
-  "date_signature_candidat": {
-    source: ["entreprise", "Date de conclusion"],
-    jour: "Zone de texte 21_31",
-    mois: "Zone de texte 21_32",
-    annee: "Zone de texte 21_33",
-  },
-  "date_signature_employeur": {
-    source: ["entreprise", "Date de conclusion"],
-    jour: "Zone de texte 21_34",
-    mois: "Zone de texte 21_35",
-    annee: "Zone de texte 21_36",
-  },
+  // NOTE: Les champs Zone de texte 21_31 à 21_36 correspondent à
+  // "Date de réception du dossier complet" et "Date de la décision" dans le CERFA
+  // Ces dates ne doivent PAS être remplies automatiquement (comme en Python)
 };
 
 // =====================================================

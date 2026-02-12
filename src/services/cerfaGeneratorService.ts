@@ -341,31 +341,22 @@ export class CerfaGeneratorService {
       }
     }
 
-    // CFA RESPONSABLE vs LIEU PRINCIPAL - EXCLUSION MUTUELLE
+    // CFA RESPONSABLE - Utiliser valeurs par defaut de CFA_RUSH_SCHOOL
+    // Si le CFA Rush School est le lieu principal, remplir ces champs avec les valeurs par defaut
     const CFA_RESPONSABLE_KEYS = [
       'Dénomination CFA', 'N° UAI du CFA', 'N° SIRET CFA',
       'N° Adresse CFA', 'Voie Adresse CFA', 'Code postal CFA', 'Commune CFA', 'Complement adresse CFA'
     ];
-    const LIEU_PRINCIPAL_KEYS = [
-      'Dénomination du CFA responsable', 'Numéro UAI du CFA', 'Numéro SIRET du CFA',
-      'Adresse du CFA', 'Complément adresse CFA', 'Code postal CFA', 'Commune CFA'
-    ];
-
-    const cfaResponsableRempli = !!(
-      (entrepriseData['Dénomination CFA'] || CFA_RUSH_SCHOOL['Dénomination CFA']) ||
-      (entrepriseData['N° UAI du CFA'] || CFA_RUSH_SCHOOL['N° UAI du CFA']) ||
-      (entrepriseData['N° SIRET CFA'] || CFA_RUSH_SCHOOL['N° SIRET CFA'])
-    );
-
-    const lieuPrincipalRempli = !!(
-      entrepriseData['Dénomination du CFA responsable'] ||
-      entrepriseData['Numéro UAI du CFA'] ||
-      entrepriseData['Numéro SIRET du CFA'] ||
-      entrepriseData['Adresse du CFA']
-    );
-
-    if (CFA_RESPONSABLE_KEYS.includes(key) && lieuPrincipalRempli) return '';
-    if (LIEU_PRINCIPAL_KEYS.includes(key) && cfaResponsableRempli && !lieuPrincipalRempli) return '';
+    
+    // Si on demande un champ CFA responsable, utiliser les valeurs par defaut
+    if (CFA_RESPONSABLE_KEYS.includes(key)) {
+      // D'abord chercher dans les donnees entreprise
+      const airtableValue = entrepriseData[key] || '';
+      if (airtableValue) return String(airtableValue);
+      // Sinon utiliser les valeurs par defaut de CFA_RUSH_SCHOOL
+      if (CFA_RUSH_SCHOOL[key] !== undefined) return CFA_RUSH_SCHOOL[key];
+      return '';
+    }
 
     // RECUPERATION STANDARD
     let value: any = '';
@@ -423,14 +414,19 @@ export class CerfaGeneratorService {
       if (expectedValue === 'Public') return this.isEmployeurPublic(typeEmployeur);
     }
 
-    // CFA est lieu principal: coche si pas de CFA responsable rempli
+    // CFA est lieu principal: TOUJOURS cocher si on utilise CFA Rush School (valeurs par defaut)
+    // Comme Python: "Oui" dans CFA_RUSH_SCHOOL["CFA est lieu principal"]
     if (key === 'CFA est lieu principal' && expectedValue === 'Oui') {
-      const champsPrincipaux = [
-        entrepriseData['Dénomination CFA'] || '',
-        entrepriseData['N° UAI du CFA'] || '',
-        entrepriseData['N° SIRET CFA'] || ''
-      ];
-      return !champsPrincipaux.some((c: any) => String(c).trim());
+      // Verifier si on utilise les valeurs par defaut de CFA_RUSH_SCHOOL (pas de CFA personnalise)
+      const cfaPersonnalise = !!(
+        entrepriseData['Dénomination CFA'] ||
+        entrepriseData['N° UAI du CFA'] ||
+        entrepriseData['N° SIRET CFA']
+      );
+      // Si pas de CFA personnalise, on utilise CFA Rush School qui est le lieu principal
+      if (!cfaPersonnalise) return true;
+      // Sinon verifier la valeur dans CFA_RUSH_SCHOOL
+      return CFA_RUSH_SCHOOL['CFA est lieu principal']?.toLowerCase() === 'oui';
     }
 
     // Sexe: matching flexible
@@ -612,6 +608,35 @@ export class CerfaGeneratorService {
             // ---- CHAMPS DE TEXTE STANDARD ----
             if (CERFA_TEXT_FIELDS[matchName]) {
               const [source, key] = CERFA_TEXT_FIELDS[matchName];
+              
+              // Zones "Lieu principal si different du CFA responsable"
+              // Ces zones ne doivent PAS etre remplies si le CFA responsable est le lieu principal
+              const LIEU_PRINCIPAL_ZONES = [
+                'Zone de texte 8_101', // Denomination du lieu de formation principal
+                'Zone de texte 8_84',  // N° UAI
+                'Zone de texte 8_83',  // N° SIRET
+                'Zone de texte 8_86',  // Adresse du CFA
+                'Zone de texte 8_88',  // Complement adresse CFA
+                'Zone de texte 8_89',  // Code postal CFA (lieu principal)
+                'Zone de texte 8_85',  // Commune CFA (lieu principal)
+              ];
+              
+              // Si c'est une zone "Lieu principal" et que le CFA responsable EST le lieu principal,
+              // ne pas remplir ces champs (comme en Python)
+              if (LIEU_PRINCIPAL_ZONES.includes(matchName)) {
+                // Verifier si le CFA responsable est le lieu principal (valeurs par defaut)
+                const cfaPersonnalise = !!(
+                  entrepriseData['Dénomination CFA'] ||
+                  entrepriseData['N° UAI du CFA'] ||
+                  entrepriseData['N° SIRET CFA']
+                );
+                // Si pas de CFA personnalise, on utilise CFA Rush School qui EST le lieu principal
+                // Donc on ne remplit pas les zones "Lieu principal si different"
+                if (!cfaPersonnalise) {
+                  continue; // Skip this field
+                }
+              }
+              
               let value = this.getFieldValue(source, key, candidatData, entrepriseData);
 
               // Gestion speciale salaire: partie entiere et centimes
