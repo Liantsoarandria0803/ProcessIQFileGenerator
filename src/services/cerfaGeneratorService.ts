@@ -21,6 +21,7 @@ import {
   CODES_DIPLOMES_MAITRE,
   CODES_REGIME_SOCIAL,
   CODES_SITUATION_AVANT_CONTRAT,
+  CODES_DEPARTEMENTS,
   PAYS_UE,
   PAYS_FRANCE,
   TYPES_EMPLOYEUR_PRIVE,
@@ -287,6 +288,35 @@ export class CerfaGeneratorService {
     return '12';
   }
 
+  private getCodeDepartement(departementStr: string | undefined): string {
+    if (!departementStr) return '';
+    const d = String(departementStr).trim();
+    
+    // Si c'est déjà un code numérique (01-99, 2A, 2B, 971-976)
+    if (/^(0[1-9]|[1-8][0-9]|9[0-5]|2[AB]|97[1-6]|99)$/i.test(d)) {
+      return d.toUpperCase();
+    }
+    
+    // Recherche exacte
+    if (CODES_DEPARTEMENTS[d]) return CODES_DEPARTEMENTS[d];
+    
+    // Recherche partielle (insensible à la casse et aux accents)
+    const dLower = d.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Enlever les accents
+    
+    for (const [key, code] of Object.entries(CODES_DEPARTEMENTS)) {
+      const keyLower = key.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (keyLower === dLower || keyLower.includes(dLower) || dLower.includes(keyLower)) {
+        return code;
+      }
+    }
+    
+    // Si pas trouvé dans les départements français, c'est un département étranger → code 99
+    // (ex: "Tizi Ouzou" en Algérie, etc.)
+    return '99';
+  }
+
   private getFormationData(formationStr: string | undefined): Record<string, string> {
     if (!formationStr) return {};
     const f = String(formationStr).trim();
@@ -406,6 +436,7 @@ export class CerfaGeneratorService {
     if (key === 'Nationalité') return this.getCodeNationalite(valueStr);
     if (key === 'Régime social') return this.getCodeRegimeSocial(valueStr);
     if (key === 'Situation avant le contrat') return this.getCodeSituationAvantContrat(valueStr);
+    if (key === 'Département') return this.getCodeDepartement(valueStr);
     if (key === 'Mode contractuel de lapprentissage') return '1';
     if (key === 'Heures formation à distance') return '0';
     if (key === 'Salaire brut mensuel 1') return valueStr;
