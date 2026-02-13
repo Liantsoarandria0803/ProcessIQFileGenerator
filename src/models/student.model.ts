@@ -35,6 +35,7 @@ export interface IStudent extends Document {
   studentNumber: string;
   firstName: string;
   lastName: string;
+  formation: 'bts_mco' | 'bts_ndrc' | 'bachelor_rdc' | 'tp_ntc';
   email: string;
   phone?: string;
   dob: Date;
@@ -102,6 +103,11 @@ const StudentSchema = new Schema<IStudent>({
     maxlength: 100,
     match: /.+\@.+\..+/,
     index: true 
+  },
+  formation: {
+    type: String,
+    enum: ['bts_mco', 'bts_ndrc', 'bachelor_rdc', 'tp_ntc'],
+    required: true
   },
   phone: { type: String, maxlength: 20 },
   dob: { type: Date, required: true },

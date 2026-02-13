@@ -7,6 +7,8 @@ import gradeRoutes from './grade.routes';
 import eventRoutes from './event.routes';
 import appointmentRoutes from './appointment.routes';
 import documentRoutes from './document.routes';
+import questionnaireRoutes from './questionnaire.routes';
+import authRoutes from './auth.routes';
 
 
 const router = Router();
@@ -20,6 +22,8 @@ router.use('/grades', gradeRoutes);
 router.use('/events', eventRoutes);
 router.use('/appointments', appointmentRoutes);
 router.use('/documents', documentRoutes);
+router.use('/questionnaires', questionnaireRoutes);
+router.use('/auth', authRoutes);
 
 // Routes d'admission (candidats, entreprises, génération PDF)
 router.use('/admission', admissionRoutes);

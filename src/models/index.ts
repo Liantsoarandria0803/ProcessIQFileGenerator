@@ -1,5 +1,6 @@
 // models/index.ts
 export * from './student.model';
+export * from './user.model';
 export * from './attendance.model';
 export * from './grade.model';
 export * from './event.model';
