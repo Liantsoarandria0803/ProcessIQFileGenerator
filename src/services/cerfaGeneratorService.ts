@@ -462,6 +462,17 @@ export class CerfaGeneratorService {
       if (expectedValue === 'Public') return this.isEmployeurPublic(typeEmployeur);
     }
 
+    // Mode contractuel de l'apprentissage: TOUJOURS cocher
+    if (key === 'Mode contractuel apprentissage') {
+      return true;
+    }
+
+    // Attestation maitre apprentissage: cocher si au moins un maitre d'apprentissage existe
+    if (key === 'Attestation maitre apprentissage') {
+      const nomMaitre = entrepriseData['Nom Maître apprentissage'] || entrepriseData['Nom Maitre apprentissage'] || '';
+      return !!nomMaitre.trim();
+    }
+
     // CFA est lieu principal: TOUJOURS cocher si on utilise CFA Rush School (valeurs par defaut)
     // Comme Python: "Oui" dans CFA_RUSH_SCHOOL["CFA est lieu principal"]
     if (key === 'CFA est lieu principal' && expectedValue === 'Oui') {

@@ -587,6 +587,7 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
 export const CERFA_CHECKBOXES: Record<string, [string, string, string]> = {
   "Case \u00e0 cocher 1": ["entreprise", "Secteur", "Priv\u00e9"],
   "Case \u00e0 cocher 2": ["entreprise", "Secteur", "Public"],
+  "Case \u00e0 cocher 2_2": ["entreprise", "Mode contractuel apprentissage", "Oui"],
   "Case \u00e0 cocher 3": ["candidat", "Sexe", "Masculin"],
   "Case \u00e0 cocher 4": ["candidat", "Sexe", "F\u00e9minin"],
   "Case \u00e0 cocher 5": ["candidat", "D\u00e9clare \u00eatre inscrits sur la liste des sportifs de haut niveau", "Oui"],
@@ -605,6 +606,7 @@ export const CERFA_CHECKBOXES: Record<string, [string, string, string]> = {
   "Case \u00e0 cocher 8": ["entreprise", "Pi\u00e8ces justificatives", "Oui"],
   "Case \u00e0 cocher 5_13": ["entreprise", "Travail sur machines dangereuses ou exposition \u00e0 des risques particuliers", "Oui"],
   "Case \u00e0 cocher 5_14": ["entreprise", "Travail sur machines dangereuses ou exposition \u00e0 des risques particuliers", "Non"],
+  "Case \u00e0 cocher 6": ["entreprise", "Attestation maitre apprentissage", "Oui"],
 };
 
 // =====================================================
