@@ -473,6 +473,10 @@ export class CerfaGeneratorService {
       }
     }
 
+    // VALEURS FORCEES - retourner TOUJOURS ces valeurs, meme si Airtable est vide
+    if (key === 'Mode contractuel de lapprentissage') return '1';
+    if (key === 'Heures formation à distance') return '0';
+
     if (!value) return '';
     const valueStr = String(value);
 
@@ -488,8 +492,6 @@ export class CerfaGeneratorService {
     if (key === 'Régime social') return this.getCodeRegimeSocial(valueStr);
     if (key === 'Situation avant le contrat') return this.getCodeSituationAvantContrat(valueStr);
     if (key === 'Département') return this.getCodeDepartement(valueStr);
-    if (key === 'Mode contractuel de lapprentissage') return '1';
-    if (key === 'Heures formation à distance') return '0';
     if (key === 'Salaire brut mensuel 1') return valueStr;
 
     // =====================================================
