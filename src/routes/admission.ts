@@ -461,8 +461,33 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/admission/entreprises
- * Liste toutes les fiches entreprises
+ * @swagger
+ * /api/admission/entreprises:
+ *   get:
+ *     summary: Liste toutes les fiches entreprises
+ *     tags: [Entreprises]
+ *     description: Récupère la liste de toutes les fiches entreprises depuis Airtable
+ *     responses:
+ *       200:
+ *         description: Liste des fiches entreprises
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Entreprise'
+ *                 count:
+ *                   type: integer
+ *                   description: Nombre total de fiches
+ *                   example: 10
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 router.get('/entreprises', async (req: Request, res: Response) => {
   try {
@@ -482,8 +507,94 @@ router.get('/entreprises', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/admission/entreprises
- * Crée une nouvelle fiche entreprise
+ * @swagger
+ * /api/admission/entreprises:
+ *   post:
+ *     summary: Crée une nouvelle fiche entreprise (champs bruts Airtable)
+ *     tags: [Entreprises]
+ *     description: |
+ *       Crée une nouvelle fiche entreprise en envoyant directement les champs Airtable bruts.
+ *       Contrairement à POST /api/admission/entreprise qui attend un objet structuré (FicheRenseignementEntreprise),
+ *       cette route accepte un objet plat avec les noms de colonnes Airtable.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             description: Champs Airtable bruts de la fiche entreprise
+ *             properties:
+ *               recordIdetudiant:
+ *                 type: string
+ *                 description: ID Airtable du candidat lié
+ *                 example: rec1BBjsjxhdqEKuq
+ *               Raison sociale:
+ *                 type: string
+ *                 example: ACME Corporation
+ *               Numéro SIRET:
+ *                 type: number
+ *                 example: 12345678901234
+ *               Code APE/NAF:
+ *                 type: string
+ *                 example: 6201Z
+ *               Type demployeur:
+ *                 type: string
+ *                 example: Entreprise privée
+ *               Convention collective:
+ *                 type: string
+ *                 example: SYNTEC
+ *               Numéro entreprise:
+ *                 type: string
+ *                 example: '12'
+ *               Voie entreprise:
+ *                 type: string
+ *                 example: Rue de la Paix
+ *               Code postal entreprise:
+ *                 type: number
+ *                 example: 75001
+ *               Ville entreprise:
+ *                 type: string
+ *                 example: Paris
+ *               Téléphone entreprise:
+ *                 type: string
+ *                 example: '0123456789'
+ *               Email entreprise:
+ *                 type: string
+ *                 example: contact@acme.com
+ *               Nom Maître apprentissage:
+ *                 type: string
+ *                 example: Dupont
+ *               Prénom Maître apprentissage:
+ *                 type: string
+ *                 example: Marie
+ *     responses:
+ *       201:
+ *         description: Fiche entreprise créée avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/Entreprise'
+ *       400:
+ *         description: Données entreprise manquantes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *                   example: Données entreprise requises
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 router.post('/entreprises', async (req: Request, res: Response) => {
   try {
@@ -836,15 +947,72 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/entreprise:
  *   post:
- *     summary: Crée une nouvelle fiche entreprise
+ *     summary: Crée une fiche de renseignement entreprise structurée
  *     tags: [Entreprises]
- *     description: Crée une nouvelle fiche de renseignement entreprise avec toutes les informations
+ *     description: |
+ *       Crée une nouvelle fiche de renseignement entreprise complète dans Airtable.
+ *       Le body est un objet structuré en sections (identification, adresse, maître d'apprentissage,
+ *       OPCO, contrat avec rémunération/périodes, formation et missions, CFA).
+ *       Les champs sont automatiquement mappés vers les colonnes Airtable correspondantes.
+ *       Un mécanisme de retry (3 tentatives) est inclus pour les erreurs réseau.
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/FicheRenseignementEntreprise'
+ *           example:
+ *             identification:
+ *               raison_sociale: ACME Corporation
+ *               siret: 12345678901234
+ *               code_ape_naf: 6201Z
+ *               type_employeur: Entreprise privée
+ *               nombre_salaries: 50
+ *               convention_collective: SYNTEC
+ *             adresse:
+ *               numero: '12'
+ *               voie: Rue de la Paix
+ *               complement: Bâtiment A
+ *               code_postal: 75001
+ *               ville: Paris
+ *               telephone: '0123456789'
+ *               email: contact@acme.com
+ *             maitre_apprentissage:
+ *               nom: Dupont
+ *               prenom: Marie
+ *               date_naissance: '1985-05-15'
+ *               fonction: Responsable Formation
+ *               diplome_plus_eleve: Master
+ *               annees_experience: 10
+ *               telephone: '0612345678'
+ *               email: marie.dupont@acme.com
+ *             opco:
+ *               nom_opco: OPCO Atlas
+ *             contrat:
+ *               type_contrat: Contrat d'apprentissage
+ *               type_derogation: Aucune
+ *               date_debut: '2026-09-01'
+ *               date_fin: '2028-08-31'
+ *               duree_hebdomadaire: '35h'
+ *               poste_occupe: Assistant commercial
+ *               lieu_execution: Paris 75001
+ *               pourcentage_smic1: 53
+ *               smic1: 966.21
+ *               montant_salaire_brut1: 966.21
+ *               date_conclusion: '2026-08-15'
+ *               date_debut_execution: '2026-09-01'
+ *               travail_machine_dangereuse: Non
+ *               caisse_retraite: AG2R
+ *             formation_missions:
+ *               formation_alternant: BTS MCO
+ *               formation_choisie: BTS MCO
+ *               code_rncp: RNCP38362
+ *               code_diplome: '54'
+ *               nombre_heures_formation: 675
+ *               jours_de_cours: 2
+ *               missions: Gestion clientèle et développement commercial
+ *               cfaEnterprise: false
+ *             record_id_etudiant: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
  *         description: Fiche entreprise créée avec succès
@@ -858,9 +1026,34 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
  *                   example: Fiche entreprise créée avec succès
  *                 record_id:
  *                   type: string
+ *                   description: ID Airtable de la fiche créée
  *                   example: recXXXXXXXXXXXXXX
+ *       400:
+ *         description: Données invalides ou manquantes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *                   example: Données invalides
  *       500:
- *         $ref: '#/components/responses/ServerError'
+ *         description: Erreur serveur (incluant les erreurs Airtable après 3 tentatives)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *                   example: Erreur lors de la création de la fiche entreprise
  */
 router.post('/entreprise', async (req: Request, res: Response) => {
   try {

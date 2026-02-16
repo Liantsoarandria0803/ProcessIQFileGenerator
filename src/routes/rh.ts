@@ -17,13 +17,16 @@ const rhService = new RhService();
  * @swagger
  * /api/rh/etudiants-fiches:
  *   get:
- *     summary: Liste tous les étudiants avec leurs fiches et CERFA
+ *     summary: Liste tous les étudiants avec leurs fiches et documents
  *     tags: [RH]
  *     description: |
  *       Récupère la liste de tous les étudiants avec :
  *       - Informations de base (nom, prénom, email, téléphone)
  *       - Fiche entreprise associée (PDF)
  *       - Fichier CERFA (PDF)
+ *       - Fiche de détection ATRE (PDF)
+ *       - Compte rendu de visite (PDF)
+ *       - Règlement intérieur (PDF)
  *       - Statut du dossier (complet ou non)
  *     parameters:
  *       - in: query
@@ -37,13 +40,28 @@ const rhService = new RhService();
  *           type: boolean
  *         description: Si true, retourne uniquement les étudiants ayant un CERFA
  *       - in: query
+ *         name: avec_atre_uniquement
+ *         schema:
+ *           type: boolean
+ *         description: Si true, retourne uniquement les étudiants ayant une fiche ATRE
+ *       - in: query
+ *         name: avec_compte_rendu_uniquement
+ *         schema:
+ *           type: boolean
+ *         description: Si true, retourne uniquement les étudiants ayant un compte rendu de visite
+ *       - in: query
+ *         name: avec_reglement_uniquement
+ *         schema:
+ *           type: boolean
+ *         description: Si true, retourne uniquement les étudiants ayant un règlement intérieur
+ *       - in: query
  *         name: dossier_complet_uniquement
  *         schema:
  *           type: boolean
- *         description: Si true, retourne uniquement les étudiants ayant fiche ET CERFA
+ *         description: Si true, retourne uniquement les étudiants ayant tous les documents (fiche + CERFA + ATRE + Compte rendu + Règlement)
  *     responses:
  *       200:
- *         description: Liste des étudiants avec leurs fiches
+ *         description: Liste des étudiants avec leurs fiches et documents
  *         content:
  *           application/json:
  *             schema:
@@ -56,6 +74,9 @@ router.get('/etudiants-fiches', async (req: Request, res: Response) => {
     const filters = {
       avec_fiche_uniquement: req.query.avec_fiche_uniquement === 'true',
       avec_cerfa_uniquement: req.query.avec_cerfa_uniquement === 'true',
+      avec_atre_uniquement: req.query.avec_atre_uniquement === 'true',
+      avec_compte_rendu_uniquement: req.query.avec_compte_rendu_uniquement === 'true',
+      avec_reglement_uniquement: req.query.avec_reglement_uniquement === 'true',
       dossier_complet_uniquement: req.query.dossier_complet_uniquement === 'true',
     };
 
@@ -79,9 +100,15 @@ router.get('/etudiants-fiches', async (req: Request, res: Response) => {
  * @swagger
  * /api/rh/etudiants-fiches/{record_id}:
  *   get:
- *     summary: Détails d'un étudiant avec sa fiche et CERFA
+ *     summary: Détails d'un étudiant avec tous ses documents
  *     tags: [RH]
- *     description: Récupère les détails complets d'un étudiant spécifique avec sa fiche de renseignement et CERFA
+ *     description: |
+ *       Récupère les détails complets d'un étudiant spécifique avec :
+ *       - Fiche de renseignement (PDF)
+ *       - CERFA (PDF)
+ *       - Fiche de détection ATRE (PDF)
+ *       - Compte rendu de visite (PDF)
+ *       - Règlement intérieur (PDF)
  *     parameters:
  *       - in: path
  *         name: record_id
@@ -137,12 +164,15 @@ router.get('/etudiants-fiches/:record_id', async (req: Request, res: Response) =
  *     summary: Statistiques globales RH
  *     tags: [RH]
  *     description: |
- *       Calcule les statistiques sur les étudiants, fiches de renseignement et CERFA:
+ *       Calcule les statistiques sur les étudiants et leurs documents :
  *       - Nombre total d'étudiants
  *       - Étudiants avec fiche PDF
  *       - Étudiants avec CERFA
- *       - Dossiers complets (fiche + CERFA)
- *       - Taux de complétion
+ *       - Étudiants avec fiche ATRE
+ *       - Étudiants avec compte rendu de visite
+ *       - Étudiants avec règlement intérieur
+ *       - Dossiers complets (tous les documents)
+ *       - Taux de complétion par type de document
  *     responses:
  *       200:
  *         description: Statistiques RH

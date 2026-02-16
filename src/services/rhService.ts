@@ -44,6 +44,9 @@ export class RhService {
     const etudiants: EtudiantFicheRenseignement[] = [];
     let etudiantsAvecFiche = 0;
     let etudiantsAvecCerfa = 0;
+    let etudiantsAvecAtre = 0;
+    let etudiantsAvecCompteRendu = 0;
+    let etudiantsAvecReglement = 0;
     let etudiantsDossierComplet = 0;
     let etudiantsSansDocuments = 0;
 
@@ -54,12 +57,18 @@ export class RhService {
       // Compteurs globaux (avant filtrage)
       if (etudiant.has_fiche_renseignement) etudiantsAvecFiche++;
       if (etudiant.has_cerfa) etudiantsAvecCerfa++;
+      if (etudiant.has_atre) etudiantsAvecAtre++;
+      if (etudiant.has_compte_rendu_visite) etudiantsAvecCompteRendu++;
+      if (etudiant.has_reglement_interieur) etudiantsAvecReglement++;
       if (etudiant.dossier_complet) etudiantsDossierComplet++;
-      if (!etudiant.has_fiche_renseignement && !etudiant.has_cerfa) etudiantsSansDocuments++;
+      if (!etudiant.has_fiche_renseignement && !etudiant.has_cerfa && !etudiant.has_atre && !etudiant.has_compte_rendu_visite && !etudiant.has_reglement_interieur) etudiantsSansDocuments++;
 
       // Appliquer les filtres
       if (filters.avec_fiche_uniquement && !etudiant.has_fiche_renseignement) continue;
       if (filters.avec_cerfa_uniquement && !etudiant.has_cerfa) continue;
+      if (filters.avec_atre_uniquement && !etudiant.has_atre) continue;
+      if (filters.avec_compte_rendu_uniquement && !etudiant.has_compte_rendu_visite) continue;
+      if (filters.avec_reglement_uniquement && !etudiant.has_reglement_interieur) continue;
       if (filters.dossier_complet_uniquement && !etudiant.dossier_complet) continue;
 
       etudiants.push(etudiant);
@@ -69,6 +78,9 @@ export class RhService {
       total: candidats.length,
       etudiants_avec_fiche: etudiantsAvecFiche,
       etudiants_avec_cerfa: etudiantsAvecCerfa,
+      etudiants_avec_atre: etudiantsAvecAtre,
+      etudiants_avec_compte_rendu: etudiantsAvecCompteRendu,
+      etudiants_avec_reglement: etudiantsAvecReglement,
       etudiants_dossier_complet: etudiantsDossierComplet,
       etudiants_sans_documents: etudiantsSansDocuments,
       etudiants,
@@ -105,6 +117,9 @@ export class RhService {
     const totalEtudiants = candidats.length;
     let etudiantsAvecFichePdf = 0;
     let etudiantsAvecCerfa = 0;
+    let etudiantsAvecAtre = 0;
+    let etudiantsAvecCompteRendu = 0;
+    let etudiantsAvecReglement = 0;
     let etudiantsDossierComplet = 0;
     let etudiantsSansDocuments = 0;
 
@@ -112,11 +127,17 @@ export class RhService {
       const fields = candidat.fields || {};
       const hasFiche = this.hasAttachment(fields['Fiche entreprise']);
       const hasCerfa = this.hasAttachment(fields['cerfa']);
+      const hasAtre = this.hasAttachment(fields['Atre']);
+      const hasCompteRendu = this.hasAttachment(fields['compte rendu de visite']);
+      const hasReglement = this.hasAttachment(fields['Reglement interieur']);
 
       if (hasFiche) etudiantsAvecFichePdf++;
       if (hasCerfa) etudiantsAvecCerfa++;
-      if (hasFiche && hasCerfa) etudiantsDossierComplet++;
-      if (!hasFiche && !hasCerfa) etudiantsSansDocuments++;
+      if (hasAtre) etudiantsAvecAtre++;
+      if (hasCompteRendu) etudiantsAvecCompteRendu++;
+      if (hasReglement) etudiantsAvecReglement++;
+      if (hasFiche && hasCerfa && hasAtre && hasCompteRendu && hasReglement) etudiantsDossierComplet++;
+      if (!hasFiche && !hasCerfa && !hasAtre && !hasCompteRendu && !hasReglement) etudiantsSansDocuments++;
     }
 
     return {
@@ -126,6 +147,12 @@ export class RhService {
       taux_fiche_renseignement: this.computeRate(etudiantsAvecFichePdf, totalEtudiants),
       etudiants_avec_cerfa: etudiantsAvecCerfa,
       taux_cerfa: this.computeRate(etudiantsAvecCerfa, totalEtudiants),
+      etudiants_avec_atre: etudiantsAvecAtre,
+      taux_atre: this.computeRate(etudiantsAvecAtre, totalEtudiants),
+      etudiants_avec_compte_rendu: etudiantsAvecCompteRendu,
+      taux_compte_rendu: this.computeRate(etudiantsAvecCompteRendu, totalEtudiants),
+      etudiants_avec_reglement: etudiantsAvecReglement,
+      taux_reglement: this.computeRate(etudiantsAvecReglement, totalEtudiants),
       etudiants_dossier_complet: etudiantsDossierComplet,
       taux_dossier_complet: this.computeRate(etudiantsDossierComplet, totalEtudiants),
       etudiants_sans_documents: etudiantsSansDocuments,
@@ -186,6 +213,9 @@ export class RhService {
   ): EtudiantFicheRenseignement {
     const hasFiche = this.hasAttachment(fields['Fiche entreprise']);
     const hasCerfa = this.hasAttachment(fields['cerfa']);
+    const hasAtre = this.hasAttachment(fields['Atre']);
+    const hasCompteRendu = this.hasAttachment(fields['compte rendu de visite']);
+    const hasReglement = this.hasAttachment(fields['Reglement interieur']);
 
     return {
       record_id: recordId,
@@ -199,7 +229,13 @@ export class RhService {
       has_fiche_renseignement: hasFiche,
       cerfa: hasCerfa ? this.extractFicheInfo(fields['cerfa']) : null,
       has_cerfa: hasCerfa,
-      dossier_complet: hasFiche && hasCerfa,
+      atre: hasAtre ? this.extractFicheInfo(fields['Atre']) : null,
+      has_atre: hasAtre,
+      compte_rendu_visite: hasCompteRendu ? this.extractFicheInfo(fields['compte rendu de visite']) : null,
+      has_compte_rendu_visite: hasCompteRendu,
+      reglement_interieur: hasReglement ? this.extractFicheInfo(fields['Reglement interieur']) : null,
+      has_reglement_interieur: hasReglement,
+      dossier_complet: hasFiche && hasCerfa && hasAtre && hasCompteRendu && hasReglement,
       alternance: ['Oui', 'Non'].includes(fields['alternance']) ? fields['alternance'] : null,
     };
   }
