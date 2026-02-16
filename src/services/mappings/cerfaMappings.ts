@@ -530,19 +530,31 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
 
   // =====================================================
   // RÉMUNÉRATION
+  // Layout PDF: chaque ligne = 1 année, 2 périodes par ligne
+  // 1ère année (y=669): 8_95/8_96 (période 1) + 8_97/8_98 (période 2)
+  // 2ème année (y=655): 8_56/8_57 (période 1) + 8_58/8_59 (période 2)
+  // 3ème année (y=641): 8_60/8_61 (période 1) + 8_62/8_63 (période 2)
+  // 4ème année (y=627): 8_64/8_65 (période 1) + 8_66/8_67 (période 2)
   // =====================================================
+  // 1ère année - 1ère période
   "Zone de texte 8_95": ["entreprise", "Pourcentage du SMIC 1"],
   "Zone de texte 8_96": ["entreprise", "SMIC 1"],
-  "Zone de texte 8_58": ["entreprise", "Pourcentage du SMIC 1"],
-  "Zone de texte 8_57": ["entreprise", "SMIC 1"],
+  // 2ème année - 1ère période
   "Zone de texte 8_56": ["entreprise", "Pourcentage smic 2"],
+  "Zone de texte 8_57": ["entreprise", "smic 2"],
+  // 2ème année - 2ème période
+  "Zone de texte 8_58": ["entreprise", "Pourcentage smic 2"],
   "Zone de texte 8_59": ["entreprise", "smic 2"],
-  "Zone de texte 8_60": ["entreprise", "Pourcentage smic 2"],
-  "Zone de texte 8_61": ["entreprise", "smic 2"],
+  // 3ème année - 1ère période
+  "Zone de texte 8_60": ["entreprise", "Pourcentage smic 3"],
+  "Zone de texte 8_61": ["entreprise", "smic 3"],
+  // 3ème année - 2ème période
   "Zone de texte 8_62": ["entreprise", "Pourcentage smic 3"],
   "Zone de texte 8_63": ["entreprise", "smic 3"],
-  "Zone de texte 8_64": ["entreprise", "Pourcentage smic 3"],
-  "Zone de texte 8_65": ["entreprise", "smic 3"],
+  // 4ème année - 1ère période
+  "Zone de texte 8_64": ["entreprise", "Pourcentage smic 4"],
+  "Zone de texte 8_65": ["entreprise", "smic 4"],
+  // 4ème année - 2ème période
   "Zone de texte 8_66": ["entreprise", "Pourcentage smic 4"],
   "Zone de texte 8_67": ["entreprise", "smic 4"],
   "Zone de texte 8_72": ["entreprise", "Salaire brut mensuel 1"],

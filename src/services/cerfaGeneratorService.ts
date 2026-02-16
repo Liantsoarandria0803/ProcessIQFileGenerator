@@ -456,18 +456,20 @@ export class CerfaGeneratorService {
     }
 
     // RECUPERATION STANDARD
+    // Use nullish coalescing / explicit undefined checks so that numeric 0 is preserved
     let value: any = '';
     if (source === 'candidat') {
-      value = candidatData[key] || '';
+      value = candidatData[key] ?? '';
     } else if (source === 'entreprise') {
-      value = entrepriseData[key] || '';
+      value = entrepriseData[key] ?? '';
     } else if (source === 'formation') {
-      const airtableValue = entrepriseData[key] || '';
-      if (!airtableValue && CFA_RUSH_SCHOOL[key] !== undefined) return CFA_RUSH_SCHOOL[key];
-      if (airtableValue) {
+      const airtableValue = entrepriseData[key] ?? undefined;
+      // if airtableValue is undefined or empty string, fallback to CFA_RUSH_SCHOOL when available
+      if ((airtableValue === undefined || airtableValue === '') && CFA_RUSH_SCHOOL[key] !== undefined) return CFA_RUSH_SCHOOL[key];
+      if (airtableValue !== undefined && airtableValue !== '') {
         value = airtableValue;
       } else if (candidatData[key] !== undefined) {
-        value = candidatData[key] || '';
+        value = candidatData[key] ?? '';
       } else if (CFA_RUSH_SCHOOL[key] !== undefined) {
         return CFA_RUSH_SCHOOL[key];
       }
@@ -476,6 +478,19 @@ export class CerfaGeneratorService {
     // VALEURS FORCEES - retourner TOUJOURS ces valeurs, meme si Airtable est vide
     if (key === 'Mode contractuel de lapprentissage') return '1';
     if (key === 'Heures formation à distance') return '0';
+
+    // SMIC/SMC: ne pas afficher si le pourcentage correspondant est 0 ou vide
+    const smicToPercentageMap: Record<string, string> = {
+      'SMIC 1': 'Pourcentage du SMIC 1',
+      'smic 2': 'Pourcentage smic 2',
+      'smic 3': 'Pourcentage smic 3',
+      'smic 4': 'Pourcentage smic 4',
+    };
+    if (smicToPercentageMap[key]) {
+      const percentKey = smicToPercentageMap[key];
+      const percentValue = Number(entrepriseData[percentKey] || 0);
+      if (!percentValue) return '';
+    }
 
     if (!value) return '';
     const valueStr = String(value);
@@ -775,7 +790,9 @@ export class CerfaGeneratorService {
                 value = centimes;
               }
 
-              if (value && value !== 'None' && value !== 'undefined') {
+              // Draw field if value is present. Treat empty string/undefined/'None'/'undefined' as missing.
+              // Keep numeric 0 and string '0'.
+              if ((value !== '' && value !== undefined) && value !== 'None' && value !== 'undefined') {
                 let fontSize = 7;
                 let maxLength = 80;
                 if (EXTRA_SMALL_FONT_FIELDS.has(matchName)) {
