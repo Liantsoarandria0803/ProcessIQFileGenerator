@@ -533,9 +533,9 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
   // =====================================================
   "Zone de texte 8_95": ["entreprise", "Pourcentage du SMIC 1"],
   "Zone de texte 8_96": ["entreprise", "SMIC 1"],
-  "Zone de texte 8_56": ["entreprise", "Pourcentage du SMIC 1"],
+  "Zone de texte 8_58": ["entreprise", "Pourcentage du SMIC 1"],
   "Zone de texte 8_57": ["entreprise", "SMIC 1"],
-  "Zone de texte 8_58": ["entreprise", "Pourcentage smic 2"],
+  "Zone de texte 8_56": ["entreprise", "Pourcentage smic 2"],
   "Zone de texte 8_59": ["entreprise", "smic 2"],
   "Zone de texte 8_60": ["entreprise", "Pourcentage smic 2"],
   "Zone de texte 8_61": ["entreprise", "smic 2"],
