@@ -170,6 +170,57 @@ export class CerfaGeneratorService {
   }
 
   // =====================================================
+  // FORMATAGE HELPERS - AJOUT DES NOUVELLES FONCTIONS
+  // =====================================================
+
+  /**
+   * Formate un numéro de téléphone au format XX XX XX XX XX
+   */
+  private formatPhoneNumber(phoneStr: string | undefined | null): string {
+    if (!phoneStr) return '';
+    try {
+      // Enlever tous les caractères non numériques
+      const digits = String(phoneStr).replace(/\D/g, '');
+      
+      // Si moins de 10 chiffres, retourner tel quel
+      if (digits.length < 10) return phoneStr;
+      
+      // Formater: XX XX XX XX XX
+      const formatted = digits.substring(0, 10).match(/.{1,2}/g);
+      return formatted ? formatted.join(' ') : phoneStr;
+    } catch (e) {
+      return String(phoneStr);
+    }
+  }
+
+  /**
+   * Formate un NIR (numéro de sécurité sociale) au format X XX XX XX XXX XXX XX
+   */
+  private formatNIR(nirStr: string | undefined | null): string {
+    if (!nirStr) return '';
+    try {
+      // Enlever tous les caractères non numériques
+      const digits = String(nirStr).replace(/\D/g, '');
+      
+      // Si moins de 15 chiffres, retourner tel quel
+      if (digits.length < 15) return nirStr;
+      
+      // Formater: X XX XX XX XXX XXX XX
+      const sexe = digits.substring(0, 1);
+      const annee = digits.substring(1, 3);
+      const mois = digits.substring(3, 5);
+      const dept = digits.substring(5, 7);
+      const commune = digits.substring(7, 10);
+      const ordre = digits.substring(10, 13);
+      const cle = digits.substring(13, 15);
+      
+      return `${sexe} ${annee} ${mois} ${dept} ${commune} ${ordre} ${cle}`;
+    } catch (e) {
+      return String(nirStr);
+    }
+  }
+
+  // =====================================================
   // CODE LOOKUP HELPERS
   // =====================================================
 
@@ -441,6 +492,19 @@ export class CerfaGeneratorService {
     if (key === 'Heures formation à distance') return '0';
     if (key === 'Salaire brut mensuel 1') return valueStr;
 
+    // =====================================================
+    // NOUVELLES CONVERSIONS AJOUTÉES
+    // =====================================================
+    
+    // NOM DE NAISSANCE EN MAJUSCULES
+    if (key === 'NOM de naissance') return valueStr.toUpperCase();
+    
+    // NUMÉRO DE TÉLÉPHONE FORMATÉ
+    if (key === 'Téléphone') return this.formatPhoneNumber(valueStr);
+    
+    // NIR FORMATÉ
+    if (key === 'NIR') return this.formatNIR(valueStr);
+
     return valueStr;
   }
 
@@ -464,7 +528,7 @@ export class CerfaGeneratorService {
 
     // Mode contractuel de l'apprentissage: TOUJOURS cocher
     if (key === 'Mode contractuel apprentissage') {
-      return true;
+      return true; // Toujours cocher cette case (valeur par defaut = 1)
     }
 
     // Attestation maitre apprentissage: cocher si au moins un maitre d'apprentissage existe
