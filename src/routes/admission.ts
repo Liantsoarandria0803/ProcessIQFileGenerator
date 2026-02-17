@@ -325,7 +325,10 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
  *   post:
  *     summary: Génère le CERFA FA13
  *     tags: [PDF]
- *     description: Génère le formulaire CERFA FA13 pour un candidat et l'upload vers Airtable
+ *     description: |
+ *       Génère le formulaire CERFA FA13 pour un candidat et l'upload vers Airtable.
+ *       Si aucune fiche entreprise n'est associée au candidat, le PDF est quand même généré
+ *       avec les champs entreprise laissés vides.
  *     parameters:
  *       - in: path
  *         name: id
@@ -382,19 +385,16 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
       });
     }
     
-    // Récupère les données entreprise
+    // Récupère les données entreprise (peut être null → champs vides)
     const entreprise = await entrepriseRepo.getByEtudiantId(id);
     if (!entreprise) {
-      return res.status(404).json({
-        success: false,
-        error: 'Données entreprise non trouvées. Le CERFA nécessite les données entreprise.'
-      });
+      logger.warn(`⚠️ Pas de fiche entreprise pour ${id} — CERFA généré avec champs entreprise vides`);
     }
     
-    // Génère le CERFA
+    // Génère le CERFA (avec {} si pas d'entreprise)
     const result = await cerfaService.generateCerfa(
       candidat.fields,
-      entreprise.fields
+      entreprise?.fields || {}
     );
     
     if (!result.success || !result.pdfBuffer) {
