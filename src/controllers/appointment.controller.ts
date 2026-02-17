@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import { Appointment } from '../models/appointment.model';
+import { canAccessStudentId, getStudentScopeId } from '../utils/requestScope';
 
 export class AppointmentController {
   getAll = async (req: Request, res: Response): Promise<void> => {
@@ -13,10 +14,13 @@ export class AppointmentController {
       const type = req.query.type as string | undefined;
       const startDate = req.query.startDate as string | undefined;
       const endDate = req.query.endDate as string | undefined;
+      const scopedStudentId = getStudentScopeId(req);
 
       const filter: Record<string, any> = {};
 
-      if (studentId && mongoose.Types.ObjectId.isValid(studentId)) {
+      if (scopedStudentId) {
+        filter.studentId = scopedStudentId;
+      } else if (studentId && mongoose.Types.ObjectId.isValid(studentId)) {
         filter.studentId = studentId;
       }
       if (advisorId && mongoose.Types.ObjectId.isValid(advisorId)) {
@@ -75,6 +79,10 @@ export class AppointmentController {
         res.status(404).json({ success: false, error: 'Rendez-vous non trouve' });
         return;
       }
+      if (!canAccessStudentId(req, item.studentId)) {
+        res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
+        return;
+      }
 
       res.status(200).json({ success: true, data: item });
     } catch (error: any) {
@@ -84,7 +92,13 @@ export class AppointmentController {
 
   create = async (req: Request, res: Response): Promise<void> => {
     try {
-      const created = await Appointment.create(req.body);
+      const payload = { ...req.body };
+      const scopedStudentId = getStudentScopeId(req);
+      if (scopedStudentId) {
+        payload.studentId = scopedStudentId;
+      }
+
+      const created = await Appointment.create(payload);
       res.status(201).json({
         success: true,
         message: 'Rendez-vous cree avec succes',
@@ -104,15 +118,26 @@ export class AppointmentController {
         return;
       }
 
-      const updated = await Appointment.findByIdAndUpdate(id, req.body, {
-        new: true,
-        runValidators: true
-      });
-
-      if (!updated) {
+      const existing = await Appointment.findById(id);
+      if (!existing) {
         res.status(404).json({ success: false, error: 'Rendez-vous non trouve' });
         return;
       }
+      if (!canAccessStudentId(req, existing.studentId)) {
+        res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
+        return;
+      }
+
+      const payload = { ...req.body };
+      const scopedStudentId = getStudentScopeId(req);
+      if (scopedStudentId) {
+        payload.studentId = scopedStudentId;
+      }
+
+      const updated = await Appointment.findByIdAndUpdate(id, payload, {
+        new: true,
+        runValidators: true
+      });
 
       res.status(200).json({
         success: true,
@@ -133,12 +158,17 @@ export class AppointmentController {
         return;
       }
 
-      const deleted = await Appointment.findByIdAndDelete(id);
-
-      if (!deleted) {
+      const existing = await Appointment.findById(id);
+      if (!existing) {
         res.status(404).json({ success: false, error: 'Rendez-vous non trouve' });
         return;
       }
+      if (!canAccessStudentId(req, existing.studentId)) {
+        res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
+        return;
+      }
+
+      const deleted = await Appointment.findByIdAndDelete(id);
 
       res.status(200).json({
         success: true,

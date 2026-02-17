@@ -26,6 +26,7 @@ router.get(
     query('page').optional().isInt({ min: 1 }).toInt(),
     query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
     query('candidateId').optional().isMongoId(),
+    query('studentId').optional().isMongoId(),
     query('applicationId').optional().isMongoId(),
     query('statut').optional().isIn(['pending', 'in_progress', 'completed', 'expired']),
     query('formation').optional().isIn(['bts_mco', 'bts_ndrc', 'bachelor_rdc', 'tp_ntc'])

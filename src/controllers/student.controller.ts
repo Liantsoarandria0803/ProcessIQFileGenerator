@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import { Student } from '../models/student.model';
+import { canAccessStudentId, getStudentScopeId } from '../utils/requestScope';
 
 export class StudentController {
   getAll = async (req: Request, res: Response): Promise<void> => {
@@ -9,14 +10,18 @@ export class StudentController {
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
       const search = (req.query.search as string) || '';
       const status = req.query.status as string | undefined;
+      const scopedStudentId = getStudentScopeId(req);
 
       const filter: Record<string, any> = {};
+      if (scopedStudentId) {
+        filter._id = scopedStudentId;
+      }
 
       if (status) {
         filter['meta.status'] = status;
       }
 
-      if (search) {
+      if (search && !scopedStudentId) {
         filter.$or = [
           { firstName: { $regex: search, $options: 'i' } },
           { lastName: { $regex: search, $options: 'i' } },
@@ -62,6 +67,10 @@ export class StudentController {
         res.status(404).json({ success: false, error: 'Etudiant non trouve' });
         return;
       }
+      if (!canAccessStudentId(req, student._id)) {
+        res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
+        return;
+      }
 
       res.status(200).json({ success: true, data: student });
     } catch (error: any) {
@@ -87,6 +96,11 @@ export class StudentController {
 
   create = async (req: Request, res: Response): Promise<void> => {
     try {
+      if (getStudentScopeId(req)) {
+        res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
+        return;
+      }
+
       const created = await Student.create(req.body);
       res.status(201).json({
         success: true,
@@ -109,6 +123,10 @@ export class StudentController {
 
       if (!mongoose.Types.ObjectId.isValid(id)) {
         res.status(400).json({ success: false, error: 'ID invalide' });
+        return;
+      }
+      if (getStudentScopeId(req) && String(req.params.id) !== getStudentScopeId(req)) {
+        res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
         return;
       }
 
@@ -143,6 +161,10 @@ export class StudentController {
 
       if (!mongoose.Types.ObjectId.isValid(id)) {
         res.status(400).json({ success: false, error: 'ID invalide' });
+        return;
+      }
+      if (getStudentScopeId(req)) {
+        res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
         return;
       }
 

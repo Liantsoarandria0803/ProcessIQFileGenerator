@@ -10,9 +10,39 @@ import { Appointment } from '../models/appointment.model';
 import { DocumentModel } from '../models/document.etudiant.model';
 import { Test } from '../models/test.model';
 
-const STUDENT_EMAIL = 'jocelyn@gmail.com';
+type Formation = 'bts_mco' | 'bts_ndrc' | 'bachelor_rdc' | 'tp_ntc';
+
+const DEFAULT_STUDENT_EMAIL = 'jocelyn@gmail.com';
+const DEFAULT_STUDENT_PASSWORD = 'Student#2026';
 
 const toDate = (value: string): Date => new Date(value);
+
+const getCliArg = (name: string): string | undefined => {
+  const prefix = `--${name}=`;
+  const raw = process.argv.find((arg) => arg.startsWith(prefix));
+  return raw ? raw.slice(prefix.length) : undefined;
+};
+
+const normalizeSlug = (value: string): string => {
+  const normalized = value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  return normalized.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'student';
+};
+
+const STUDENT_EMAIL = (
+  getCliArg('email') ||
+  process.env.SEED_STUDENT_EMAIL ||
+  DEFAULT_STUDENT_EMAIL
+).trim().toLowerCase();
+
+const STUDENT_PASSWORD = (
+  getCliArg('password') ||
+  process.env.SEED_STUDENT_PASSWORD ||
+  DEFAULT_STUDENT_PASSWORD
+).trim();
 
 async function ensureAdvisorUser(): Promise<mongoose.Types.ObjectId> {
   const email = 'advisor.processiq@local.test';
@@ -27,6 +57,41 @@ async function ensureAdvisorUser(): Promise<mongoose.Types.ObjectId> {
   });
 
   return created._id as mongoose.Types.ObjectId;
+}
+
+async function seedStudentProfile(studentId: mongoose.Types.ObjectId): Promise<number> {
+  const now = new Date();
+  const skills = [
+    { name: 'Prospection', score: 15, maxScore: 20, percentage: 75, updatedAt: now },
+    { name: 'Negociation', score: 16, maxScore: 20, percentage: 80, updatedAt: now },
+    { name: 'CRM', score: 14, maxScore: 20, percentage: 70, updatedAt: now },
+    { name: 'Communication', score: 17, maxScore: 20, percentage: 85, updatedAt: now },
+    { name: 'Gestion de projet', score: 15, maxScore: 20, percentage: 75, updatedAt: now }
+  ];
+
+  await Student.updateOne(
+    { _id: studentId },
+    {
+      $set: {
+        tutor: {
+          name: 'Conseiller Pedagogique',
+          email: 'advisor.processiq@local.test',
+          phone: '0102030405'
+        },
+        skills,
+        derived: {
+          attendanceRate: 88,
+          overallAverage: 14.2,
+          absencesCount: 1
+        },
+        'meta.status': 'active',
+        'meta.source': 'manual',
+        'meta.updatedAt': now
+      }
+    }
+  );
+
+  return skills.length;
 }
 
 async function seedAttendances(studentId: mongoose.Types.ObjectId): Promise<number> {
@@ -70,7 +135,7 @@ async function seedGrades(studentId: mongoose.Types.ObjectId, createdBy: mongoos
   return rows.length;
 }
 
-async function seedEvents(studentId: mongoose.Types.ObjectId, ownerId: mongoose.Types.ObjectId): Promise<number> {
+async function seedEvents(studentId: mongoose.Types.ObjectId, ownerId: mongoose.Types.ObjectId, studentLabel: string): Promise<number> {
   const rows = [
     { title: 'Cours - Negociation commerciale', type: 'course', color: '#3B82F6', start: '2026-02-16T08:30:00.000Z', end: '2026-02-16T11:30:00.000Z', location: 'Salle A12', teacher: 'Mme Bernard' },
     { title: 'Entreprise - Journee en agence', type: 'company', color: '#10B981', start: '2026-02-17T08:00:00.000Z', end: '2026-02-17T16:00:00.000Z', location: 'Agence ComLine', teacher: 'Tuteur entreprise' },
@@ -81,7 +146,7 @@ async function seedEvents(studentId: mongoose.Types.ObjectId, ownerId: mongoose.
 
   for (const row of rows) {
     await Event.updateOne(
-      { title: row.title, start: toDate(row.start), ownerId, source: 'school' },
+      { title: row.title, start: toDate(row.start), ownerId, source: 'school', 'attendees.studentId': studentId },
       {
         $set: {
           title: row.title,
@@ -92,7 +157,7 @@ async function seedEvents(studentId: mongoose.Types.ObjectId, ownerId: mongoose.
           teacher: row.teacher,
           type: row.type,
           color: row.color,
-          description: 'Seed dashboard etudiant Jocelyn',
+          description: `Seed dashboard etudiant ${studentLabel}`,
           attendees: [{ studentId, status: 'confirmed' }],
           ownerId,
           ownerType: 'school',
@@ -122,22 +187,27 @@ async function seedAppointments(studentId: mongoose.Types.ObjectId, advisorId: m
   return rows.length;
 }
 
-async function seedDocuments(studentId: mongoose.Types.ObjectId, createdBy: mongoose.Types.ObjectId): Promise<number> {
+async function seedDocuments(
+  studentId: mongoose.Types.ObjectId,
+  createdBy: mongoose.Types.ObjectId,
+  studentSlug: string,
+  studentLabel: string
+): Promise<number> {
   const rows = [
-    { storageRef: 'seed/jocelyn/contract-v1.pdf', title: 'Contrat alternance', category: 'contract', status: 'to_sign', mimeType: 'application/pdf', size: 382145, date: '2026-02-03T09:00:00.000Z', signature: { status: 'pending' } },
-    { storageRef: 'seed/jocelyn/certificat-scolarite-2026.pdf', title: 'Certificat de scolarite 2026', category: 'certificate', status: 'valid', mimeType: 'application/pdf', size: 145210, date: '2026-01-15T09:00:00.000Z', signature: { status: 'not_required' } },
-    { storageRef: 'seed/jocelyn/releve-notes-s1.pdf', title: 'Releve de notes S1', category: 'transcript', status: 'valid', mimeType: 'application/pdf', size: 265401, date: '2026-01-31T09:00:00.000Z', signature: { status: 'not_required' } },
-    { storageRef: 'seed/jocelyn/piece-identite.pdf', title: 'Piece didentite', category: 'id', status: 'valid', mimeType: 'application/pdf', size: 198765, date: '2026-01-10T09:00:00.000Z', signature: { status: 'not_required' } }
-  ] as const;
+    { storageRef: `seed/${studentSlug}/contract-v1.pdf`, title: 'Contrat alternance', category: 'contract', status: 'to_sign', mimeType: 'application/pdf', size: 382145, date: '2026-02-03T09:00:00.000Z', signature: { status: 'pending' } },
+    { storageRef: `seed/${studentSlug}/certificat-scolarite-2026.pdf`, title: 'Certificat de scolarite 2026', category: 'certificate', status: 'valid', mimeType: 'application/pdf', size: 145210, date: '2026-01-15T09:00:00.000Z', signature: { status: 'not_required' } },
+    { storageRef: `seed/${studentSlug}/releve-notes-s1.pdf`, title: 'Releve de notes S1', category: 'transcript', status: 'valid', mimeType: 'application/pdf', size: 265401, date: '2026-01-31T09:00:00.000Z', signature: { status: 'not_required' } },
+    { storageRef: `seed/${studentSlug}/piece-identite.pdf`, title: 'Piece didentite', category: 'id', status: 'valid', mimeType: 'application/pdf', size: 198765, date: '2026-01-10T09:00:00.000Z', signature: { status: 'not_required' } }
+  ];
 
   for (const row of rows) {
     await DocumentModel.updateOne(
-      { storageRef: row.storageRef },
+      { studentId, storageRef: row.storageRef },
       {
         $set: {
           studentId,
           title: row.title,
-          description: 'Document de suivi etudiant Jocelyn',
+          description: `Document de suivi etudiant ${studentLabel}`,
           category: row.category,
           status: row.status,
           date: toDate(row.date),
@@ -156,12 +226,16 @@ async function seedDocuments(studentId: mongoose.Types.ObjectId, createdBy: mong
   return rows.length;
 }
 
-async function seedQuestionnaires(candidateId: mongoose.Types.ObjectId, createdBy: mongoose.Types.ObjectId): Promise<number> {
+async function seedQuestionnaires(
+  candidateId: mongoose.Types.ObjectId,
+  createdBy: mongoose.Types.ObjectId,
+  formation: Formation
+): Promise<number> {
   const applicationId = new mongoose.Types.ObjectId();
   const rows = [
-    { formation: 'bts_mco', statut: 'completed', duration: 20, maxScore: 20, score: 16, percentage: 80, startedAt: '2026-01-12T08:00:00.000Z', completedAt: '2026-01-12T08:18:00.000Z', testUrl: 'https://processiq.local/tests/mco-jan' },
-    { formation: 'bts_mco', statut: 'in_progress', duration: 15, maxScore: 20, score: 0, percentage: 0, startedAt: '2026-02-10T10:00:00.000Z', completedAt: null, testUrl: 'https://processiq.local/tests/mco-feb' },
-    { formation: 'bts_mco', statut: 'pending', duration: 10, maxScore: 20, score: 0, percentage: 0, startedAt: null, completedAt: null, testUrl: 'https://processiq.local/tests/mco-mars' }
+    { formation, statut: 'completed', duration: 20, maxScore: 20, score: 16, percentage: 80, startedAt: '2026-01-12T08:00:00.000Z', completedAt: '2026-01-12T08:18:00.000Z', testUrl: `https://processiq.local/tests/${formation}-jan` },
+    { formation, statut: 'in_progress', duration: 15, maxScore: 20, score: 0, percentage: 0, startedAt: '2026-02-10T10:00:00.000Z', completedAt: null, testUrl: `https://processiq.local/tests/${formation}-feb` },
+    { formation, statut: 'pending', duration: 10, maxScore: 20, score: 0, percentage: 0, startedAt: null, completedAt: null, testUrl: `https://processiq.local/tests/${formation}-mars` }
   ] as const;
 
   for (const row of rows) {
@@ -197,6 +271,13 @@ async function seedQuestionnaires(candidateId: mongoose.Types.ObjectId, createdB
 }
 
 async function main(): Promise<void> {
+  if (!STUDENT_EMAIL.includes('@')) {
+    throw new Error(`Email invalide: ${STUDENT_EMAIL}`);
+  }
+  if (!STUDENT_PASSWORD) {
+    throw new Error('Mot de passe vide. Passez --password=<motdepasse> ou SEED_STUDENT_PASSWORD');
+  }
+
   await connectDB();
 
   const student = await Student.findOne({ email: STUDENT_EMAIL }).select('_id firstName lastName email formation');
@@ -205,32 +286,50 @@ async function main(): Promise<void> {
   }
 
   const studentId = student._id as mongoose.Types.ObjectId;
+  const studentLabel = `${student.firstName || ''} ${student.lastName || ''}`.trim() || STUDENT_EMAIL.split('@')[0];
+  const studentSlug = normalizeSlug(studentLabel);
+  const studentFormation = (student.formation || 'tp_ntc') as Formation;
 
   let studentUser = await User.findOne({ studentId }).select('_id email role');
   if (!studentUser?._id) {
     studentUser = await User.create({
       email: STUDENT_EMAIL,
-      password: 'Jocelyn2000',
-      name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Jocelyn',
+      password: STUDENT_PASSWORD,
+      name: studentLabel,
       role: 'student',
       studentId
     });
+  } else {
+    await User.updateOne(
+      { _id: studentUser._id },
+      {
+        $set: {
+          email: STUDENT_EMAIL,
+          role: 'student',
+          studentId,
+          name: studentLabel
+        }
+      }
+    );
   }
 
   const advisorId = await ensureAdvisorUser();
   const createdBy = advisorId;
 
-  const [attCount, gradeCount, eventCount, appointmentCount, docCount, qCount] = await Promise.all([
+  const [skillCount, attCount, gradeCount, eventCount, appointmentCount, docCount, qCount] = await Promise.all([
+    seedStudentProfile(studentId),
     seedAttendances(studentId),
     seedGrades(studentId, createdBy),
-    seedEvents(studentId, advisorId),
+    seedEvents(studentId, advisorId, studentLabel),
     seedAppointments(studentId, advisorId),
-    seedDocuments(studentId, createdBy),
-    seedQuestionnaires(studentId, createdBy)
+    seedDocuments(studentId, createdBy, studentSlug, studentLabel),
+    seedQuestionnaires(studentId, createdBy, studentFormation)
   ]);
 
   console.log('Seed termine pour etudiant:');
   console.log(`- Student: ${student.firstName} ${student.lastName} (${student.email})`);
+  console.log(`- User login: ${STUDENT_EMAIL} / ${STUDENT_PASSWORD}`);
+  console.log(`- Skills: ${skillCount}`);
   console.log(`- Attendances: ${attCount}`);
   console.log(`- Grades: ${gradeCount}`);
   console.log(`- Events: ${eventCount}`);
@@ -248,4 +347,3 @@ main()
     await disconnectDB();
     process.exit(1);
   });
-

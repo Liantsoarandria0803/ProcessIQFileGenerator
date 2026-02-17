@@ -2,10 +2,10 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { User } from '../models/user.model';
 import { Student } from '../models/student.model';
+import { authenticateRequest, signToken } from '../middlewares/auth.middleware';
+import { AuthPayload } from '../types/auth';
 
 const router = Router();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_key';
 
 const hashPassword = (plain: string): string => {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -25,24 +25,6 @@ const verifyPassword = (plain: string, stored: string): boolean => {
   const actual = crypto.scryptSync(plain, salt, 64);
   if (expected.length !== actual.length) return false;
   return crypto.timingSafeEqual(expected, actual);
-};
-
-const base64Url = (value: string): string =>
-  Buffer.from(value, 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-
-const signToken = (payload: Record<string, any>): string => {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const headerPart = base64Url(JSON.stringify(header));
-  const payloadPart = base64Url(JSON.stringify(payload));
-  const data = `${headerPart}.${payloadPart}`;
-  const signature = crypto
-    .createHmac('sha256', JWT_SECRET)
-    .update(data)
-    .digest('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-  return `${data}.${signature}`;
 };
 
 router.post('/login', async (req, res) => {
@@ -67,7 +49,7 @@ router.post('/login', async (req, res) => {
       studentId: user.studentId ? String(user.studentId) : null,
       iat: now,
       exp: now + 60 * 60
-    });
+    } as AuthPayload);
 
     return res.status(200).json({ access_token: token });
   } catch (error: any) {
@@ -118,21 +100,40 @@ router.post('/register-student', async (req, res) => {
   }
 });
 
-router.get('/profile', async (req, res) => {
+router.get('/me', authenticateRequest, async (req, res) => {
   try {
-    const auth = String(req.headers.authorization || '');
-    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-    if (!token) return res.status(401).json({ message: 'Token manquant' });
+    const auth = req.auth;
+    if (!auth) return res.status(401).json({ message: 'Token invalide' });
 
-    const parts = token.split('.');
-    if (parts.length < 2) return res.status(401).json({ message: 'Token invalide' });
-    const payloadRaw = Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
-    const payload = JSON.parse(payloadRaw);
-    return res.status(200).json(payload);
+    const user = await User.findById(auth.sub).select('_id email name role studentId');
+    if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
+
+    const student = auth.studentId
+      ? await Student.findById(auth.studentId).select('_id studentNumber firstName lastName formation email')
+      : null;
+
+    return res.status(200).json({
+      user: {
+        id: String(user._id),
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        studentId: user.studentId ? String(user.studentId) : null
+      },
+      student
+    });
+  } catch (error: any) {
+    return res.status(500).json({ message: error.message || 'Erreur profile' });
+  }
+});
+
+router.get('/profile', authenticateRequest, async (req, res) => {
+  try {
+    if (!req.auth) return res.status(401).json({ message: 'Token invalide' });
+    return res.status(200).json(req.auth);
   } catch (error: any) {
     return res.status(401).json({ message: 'Token invalide' });
   }
 });
 
 export default router;
-

@@ -1,10 +1,27 @@
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
+import fs from 'fs';
+import path from 'path';
+import multer from 'multer';
 import { DocumentController } from '../controllers/document.controller';
 import { validateRequest } from '../middlewares/validation.middleware';
 
 const router = Router();
 const documentController = new DocumentController();
+const uploadRoot = path.resolve(process.cwd(), process.env.UPLOAD_DIR || 'uploads', 'documents');
+fs.mkdirSync(uploadRoot, { recursive: true });
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadRoot),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase();
+      const base = path.basename(file.originalname || 'document', ext).replace(/[^a-zA-Z0-9-_]/g, '-').slice(0, 80);
+      cb(null, `${Date.now()}-${base || 'document'}${ext}`);
+    }
+  }),
+  limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10) }
+});
 
 /**
  * @swagger
@@ -47,6 +64,13 @@ router.get(
   documentController.getById
 );
 
+router.get(
+  '/:id/download',
+  [param('id').isMongoId().withMessage('ID invalide')],
+  validateRequest,
+  documentController.download
+);
+
 /**
  * @swagger
  * /api/documents:
@@ -55,6 +79,8 @@ router.get(
  *     summary: Creer un document
  */
 router.post('/', documentController.create);
+
+router.post('/upload', upload.single('file'), documentController.upload);
 
 /**
  * @swagger

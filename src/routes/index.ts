@@ -9,20 +9,11 @@ import appointmentRoutes from './appointment.routes';
 import documentRoutes from './document.routes';
 import questionnaireRoutes from './questionnaire.routes';
 import authRoutes from './auth.routes';
+import { authenticateRequest } from '../middlewares/auth.middleware';
 
 
 const router = Router();
 
-// Routes étudiants
-// Expose '/api/candidates' when this router is mounted under '/api'
-router.use('/candidates', candidateRoutes);
-router.use('/students', studentRoutes);
-router.use('/attendances', attendanceRoutes);
-router.use('/grades', gradeRoutes);
-router.use('/events', eventRoutes);
-router.use('/appointments', appointmentRoutes);
-router.use('/documents', documentRoutes);
-router.use('/questionnaires', questionnaireRoutes);
 router.use('/auth', authRoutes);
 
 // Routes d'admission (candidats, entreprises, génération PDF)
@@ -36,5 +27,15 @@ router.get('/health', (req, res) => {
     version: '1.0.0'
   });
 });
+
+// Routes protégées (session requise)
+router.use('/candidates', authenticateRequest, candidateRoutes);
+router.use('/students', authenticateRequest, studentRoutes);
+router.use('/attendances', authenticateRequest, attendanceRoutes);
+router.use('/grades', authenticateRequest, gradeRoutes);
+router.use('/events', authenticateRequest, eventRoutes);
+router.use('/appointments', authenticateRequest, appointmentRoutes);
+router.use('/documents', authenticateRequest, documentRoutes);
+router.use('/questionnaires', authenticateRequest, questionnaireRoutes);
 
 export default router;

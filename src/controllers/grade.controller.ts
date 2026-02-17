@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import { Grade } from '../models/grade.model';
+import { canAccessStudentId, getStudentScopeId } from '../utils/requestScope';
 
 export class GradeController {
   getAll = async (req: Request, res: Response): Promise<void> => {
@@ -10,10 +11,13 @@ export class GradeController {
       const studentId = req.query.studentId as string | undefined;
       const subject = req.query.subject as string | undefined;
       const type = req.query.type as string | undefined;
+      const scopedStudentId = getStudentScopeId(req);
 
       const filter: Record<string, any> = {};
 
-      if (studentId && mongoose.Types.ObjectId.isValid(studentId)) {
+      if (scopedStudentId) {
+        filter.studentId = scopedStudentId;
+      } else if (studentId && mongoose.Types.ObjectId.isValid(studentId)) {
         filter.studentId = studentId;
       }
       if (subject) {
@@ -60,6 +64,10 @@ export class GradeController {
         res.status(404).json({ success: false, error: 'Note non trouvee' });
         return;
       }
+      if (!canAccessStudentId(req, item.studentId)) {
+        res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
+        return;
+      }
 
       res.status(200).json({ success: true, data: item });
     } catch (error: any) {
@@ -69,7 +77,14 @@ export class GradeController {
 
   create = async (req: Request, res: Response): Promise<void> => {
     try {
-      const created = await Grade.create(req.body);
+      const payload = { ...req.body };
+      const scopedStudentId = getStudentScopeId(req);
+      if (scopedStudentId) {
+        payload.studentId = scopedStudentId;
+        payload.createdBy = req.auth?.sub || payload.createdBy;
+      }
+
+      const created = await Grade.create(payload);
       res.status(201).json({
         success: true,
         message: 'Note creee avec succes',
@@ -89,15 +104,27 @@ export class GradeController {
         return;
       }
 
-      const updated = await Grade.findByIdAndUpdate(id, req.body, {
-        new: true,
-        runValidators: true
-      });
-
-      if (!updated) {
+      const existing = await Grade.findById(id);
+      if (!existing) {
         res.status(404).json({ success: false, error: 'Note non trouvee' });
         return;
       }
+      if (!canAccessStudentId(req, existing.studentId)) {
+        res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
+        return;
+      }
+
+      const payload = { ...req.body };
+      const scopedStudentId = getStudentScopeId(req);
+      if (scopedStudentId) {
+        payload.studentId = scopedStudentId;
+        payload.createdBy = req.auth?.sub || payload.createdBy;
+      }
+
+      const updated = await Grade.findByIdAndUpdate(id, payload, {
+        new: true,
+        runValidators: true
+      });
 
       res.status(200).json({
         success: true,
@@ -118,12 +145,17 @@ export class GradeController {
         return;
       }
 
-      const deleted = await Grade.findByIdAndDelete(id);
-
-      if (!deleted) {
+      const existing = await Grade.findById(id);
+      if (!existing) {
         res.status(404).json({ success: false, error: 'Note non trouvee' });
         return;
       }
+      if (!canAccessStudentId(req, existing.studentId)) {
+        res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
+        return;
+      }
+
+      const deleted = await Grade.findByIdAndDelete(id);
 
       res.status(200).json({
         success: true,

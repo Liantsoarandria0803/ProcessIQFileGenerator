@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import { Event } from '../models/event.model';
+import { getStudentScopeId } from '../utils/requestScope';
 
 export class EventController {
   getAll = async (req: Request, res: Response): Promise<void> => {
@@ -13,6 +14,7 @@ export class EventController {
       const studentId = req.query.studentId as string | undefined;
       const startDate = req.query.startDate as string | undefined;
       const endDate = req.query.endDate as string | undefined;
+      const scopedStudentId = getStudentScopeId(req);
 
       const filter: Record<string, any> = {};
 
@@ -25,7 +27,9 @@ export class EventController {
       if (ownerId && mongoose.Types.ObjectId.isValid(ownerId)) {
         filter.ownerId = ownerId;
       }
-      if (studentId && mongoose.Types.ObjectId.isValid(studentId)) {
+      if (scopedStudentId) {
+        filter['attendees.studentId'] = scopedStudentId;
+      } else if (studentId && mongoose.Types.ObjectId.isValid(studentId)) {
         filter['attendees.studentId'] = studentId;
       }
       if (startDate || endDate) {
@@ -76,6 +80,15 @@ export class EventController {
         return;
       }
 
+      const scopedStudentId = getStudentScopeId(req);
+      if (scopedStudentId) {
+        const allowed = (item.attendees || []).some((attendee: any) => String(attendee.studentId) === scopedStudentId);
+        if (!allowed) {
+          res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
+          return;
+        }
+      }
+
       res.status(200).json({ success: true, data: item });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
@@ -84,7 +97,16 @@ export class EventController {
 
   create = async (req: Request, res: Response): Promise<void> => {
     try {
-      const created = await Event.create(req.body);
+      const payload = { ...req.body };
+      const scopedStudentId = getStudentScopeId(req);
+      if (scopedStudentId) {
+        payload.attendees = [{ studentId: scopedStudentId, status: 'confirmed' }];
+        payload.ownerId = req.auth?.sub || payload.ownerId;
+        payload.ownerType = 'student';
+        payload.source = 'student';
+      }
+
+      const created = await Event.create(payload);
       res.status(201).json({
         success: true,
         message: 'Evenement cree avec succes',
@@ -104,15 +126,33 @@ export class EventController {
         return;
       }
 
-      const updated = await Event.findByIdAndUpdate(id, req.body, {
-        new: true,
-        runValidators: true
-      });
-
-      if (!updated) {
+      const existing = await Event.findById(id);
+      if (!existing) {
         res.status(404).json({ success: false, error: 'Evenement non trouve' });
         return;
       }
+
+      const scopedStudentId = getStudentScopeId(req);
+      if (scopedStudentId) {
+        const allowed = (existing.attendees || []).some((attendee: any) => String(attendee.studentId) === scopedStudentId);
+        if (!allowed) {
+          res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
+          return;
+        }
+      }
+
+      const payload = { ...req.body };
+      if (scopedStudentId) {
+        payload.attendees = [{ studentId: scopedStudentId, status: 'confirmed' }];
+        payload.ownerId = req.auth?.sub || existing.ownerId;
+        payload.ownerType = 'student';
+        payload.source = 'student';
+      }
+
+      const updated = await Event.findByIdAndUpdate(id, payload, {
+        new: true,
+        runValidators: true
+      });
 
       res.status(200).json({
         success: true,
@@ -133,12 +173,22 @@ export class EventController {
         return;
       }
 
-      const deleted = await Event.findByIdAndDelete(id);
-
-      if (!deleted) {
+      const existing = await Event.findById(id);
+      if (!existing) {
         res.status(404).json({ success: false, error: 'Evenement non trouve' });
         return;
       }
+
+      const scopedStudentId = getStudentScopeId(req);
+      if (scopedStudentId) {
+        const allowed = (existing.attendees || []).some((attendee: any) => String(attendee.studentId) === scopedStudentId);
+        if (!allowed) {
+          res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
+          return;
+        }
+      }
+
+      const deleted = await Event.findByIdAndDelete(id);
 
       res.status(200).json({
         success: true,
