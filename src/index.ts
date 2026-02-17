@@ -11,9 +11,12 @@ import config from './config';
 import routes from './routes';
 import logger from './utils/logger';
 import { swaggerSpec } from './config/swagger';
+import { connectDB } from './config/database';
+
 
 // Crée l'application Express
 const app: Express = express();
+
 
 // =====================================================
 // MIDDLEWARES
@@ -80,6 +83,7 @@ app.get('/api-docs.json', (req: Request, res: Response) => {
 // Routes API
 app.use('/api', routes);
 
+// src/index.ts - MODIFIE la route racine
 // Route racine
 app.get('/', (req: Request, res: Response) => {
   res.json({
@@ -89,6 +93,13 @@ app.get('/', (req: Request, res: Response) => {
     documentation: '/api-docs',
     endpoints: {
       health: '/api/health',
+      students: '/api/students',
+      attendances: '/api/attendances',
+      grades: '/api/grades',
+      events: '/api/events',
+      appointments: '/api/appointments',
+      documents: '/api/documents',
+      candidatesMongo: '/api/candidates',
       candidats: '/api/admission/candidats',
       entreprises: '/api/admission/entreprises',
       ficheRenseignement: '/api/admission/candidats/:id/fiche-renseignement',
@@ -135,11 +146,18 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 const PORT = config.port;
 
-app.listen(PORT, () => {
-  logger.info(`🚀 Serveur démarré sur le port ${PORT}`);
-  logger.info(`📍 URL: http://localhost:${PORT}`);
-  logger.info(`🔧 Environnement: ${config.nodeEnv}`);
-  logger.info(`📊 Airtable Base: ${config.airtable.baseId ? '✓ Configuré' : '✗ Non configuré'}`);
+// Connecter MongoDB avant de démarrer le serveur
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    logger.info(`Serveur démarré sur le port ${PORT}`);
+    logger.info(` URL: http://localhost:${PORT}`);
+    logger.info(` Environnement: ${config.nodeEnv}`);
+    logger.info(` MongoDB: ✓ Connecté`);
+    logger.info(`  Base: ${process.env.MONGODB_DATABASE || 'processiq'}`);
+  });
+}).catch((error) => {
+  logger.error(' Impossible de se connecter à MongoDB:', error);
+  process.exit(1);
 });
 
 export default app;

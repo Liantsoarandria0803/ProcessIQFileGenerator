@@ -7,13 +7,15 @@ export const config = {
     apiToken: process.env.AIRTABLE_API_TOKEN || '',
     baseId: process.env.AIRTABLE_BASE_ID || '',
     tables: {
+      etudiants: 'Étudiants',
       candidats: 'Liste des candidats',
       entreprise: 'Fiche entreprise'
     }
   },
   
   // Server
-  port: parseInt(process.env.PORT || '8000', 10),
+  // Default to 3001 to match frontend proxy during local development
+  port: parseInt(process.env.PORT || '8001', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   corsOrigin: process.env.CORS_ORIGIN || '*',
   

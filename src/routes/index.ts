@@ -1,16 +1,28 @@
 import { Router } from 'express';
 import admissionRoutes from './admission';
 import rhRoutes from './rh';
+import candidateRoutes from './candidate.routes';
+import studentRoutes from './student.routes';
+import attendanceRoutes from './attendance.routes';
+import gradeRoutes from './grade.routes';
+import eventRoutes from './event.routes';
+import appointmentRoutes from './appointment.routes';
+import documentRoutes from './document.routes';
+import questionnaireRoutes from './questionnaire.routes';
+import authRoutes from './auth.routes';
+import { authenticateRequest } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-// Routes d'admission (candidats, entreprises, génération PDF)
+router.use('/auth', authRoutes);
+
+// Routes d'admission (candidats, entreprises, generation PDF)
 router.use('/admission', admissionRoutes);
 
 // Routes RH (suivi fiches de renseignement et CERFA)
 router.use('/rh', rhRoutes);
 
-// Route de santé
+// Route de sante
 router.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -18,5 +30,15 @@ router.get('/health', (req, res) => {
     version: '1.0.0'
   });
 });
+
+// Routes protegees (session requise)
+router.use('/candidates', authenticateRequest, candidateRoutes);
+router.use('/students', authenticateRequest, studentRoutes);
+router.use('/attendances', authenticateRequest, attendanceRoutes);
+router.use('/grades', authenticateRequest, gradeRoutes);
+router.use('/events', authenticateRequest, eventRoutes);
+router.use('/appointments', authenticateRequest, appointmentRoutes);
+router.use('/documents', authenticateRequest, documentRoutes);
+router.use('/questionnaires', authenticateRequest, questionnaireRoutes);
 
 export default router;
