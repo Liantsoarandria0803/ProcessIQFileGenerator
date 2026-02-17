@@ -256,6 +256,88 @@ const swaggerDefinition: SwaggerDefinition = {
       FicheRenseignementEntreprise: {
         type: 'object',
         description: 'Fiche de renseignement entreprise complète, structurée en sections',
+        example: {
+          identification: {
+            raison_sociale: 'ACME Corporation',
+            siret: 12345678901234,
+            code_ape_naf: '6201Z',
+            type_employeur: 'Entreprise privée',
+            nombre_salaries: 50,
+            convention_collective: 'SYNTEC'
+          },
+          adresse: {
+            numero: '12',
+            voie: 'Rue de la Paix',
+            complement: 'Bâtiment A',
+            code_postal: 75001,
+            ville: 'Paris',
+            telephone: '0123456789',
+            email: 'contact@acme.com'
+          },
+          maitre_apprentissage: {
+            nom: 'Dupont',
+            prenom: 'Marie',
+            date_naissance: '1985-05-15',
+            fonction: 'Responsable Formation',
+            diplome_plus_eleve: 'Master',
+            annees_experience: 10,
+            telephone: '0612345678',
+            email: 'marie.dupont@acme.com'
+          },
+          opco: {
+            nom_opco: 'OPCO Atlas'
+          },
+          contrat: {
+            type_contrat: 'Contrat d\'apprentissage',
+            type_derogation: 'Aucune',
+            date_debut: '2026-09-01',
+            date_fin: '2030-08-31',
+            duree_hebdomadaire: '35h',
+            poste_occupe: 'Assistant commercial',
+            lieu_execution: 'Paris 75001',
+            pourcentage_smic1: 53,
+            smic1: 966.21,
+            montant_salaire_brut1: 966.21,
+            date_debut_2periode_1er_annee: '2027-01-01',
+            date_fin_2periode_1er_annee: '2027-08-31',
+            pourcentage_smic2: 61,
+            smic2: 1112.01,
+            montant_salaire_brut2: 1112.01,
+            date_debut_1periode_2eme_annee: '2027-09-01',
+            date_fin_1periode_2eme_annee: '2027-12-31',
+            date_debut_2periode_2eme_annee: '2028-01-01',
+            date_fin_2periode_2eme_annee: '2028-08-31',
+            pourcentage_smic3: 78,
+            smic3: 1421.97,
+            montant_salaire_brut3: 1421.97,
+            date_debut_1periode_3eme_annee: '2028-09-01',
+            date_fin_1periode_3eme_annee: '2028-12-31',
+            date_debut_2periode_3eme_annee: '2029-01-01',
+            date_fin_2periode_3eme_annee: '2029-08-31',
+            pourcentage_smic4: 100,
+            smic4: 1823.07,
+            montant_salaire_brut4: 1823.07,
+            date_debut_1periode_4eme_annee: '2029-09-01',
+            date_fin_1periode_4eme_annee: '2029-12-31',
+            date_debut_2periode_4eme_annee: '2030-01-01',
+            date_fin_2periode_4eme_annee: '2030-08-31',
+            date_conclusion: '2026-08-15',
+            date_debut_execution: '2026-09-01',
+            travail_machine_dangereuse: 'Non',
+            caisse_retraite: 'AG2R'
+          },
+          formation_missions: {
+            formation_alternant: 'BTS MCO',
+            formation_choisie: 'BTS MCO',
+            code_rncp: 'RNCP38362',
+            code_diplome: '54',
+            nombre_heures_formation: 675,
+            jours_de_cours: 2,
+            missions: 'Gestion clientèle et développement commercial',
+            cfaEnterprise: false
+          },
+          record_id_etudiant: 'rec1BBjsjxhdqEKuq'
+        },
         properties: {
           identification: {
             $ref: '#/components/schemas/IdentificationEntreprise'
@@ -330,7 +412,46 @@ const swaggerDefinition: SwaggerDefinition = {
       },
       InformationsContrat: {
         type: 'object',
-        description: 'Informations sur le contrat d\'apprentissage, rémunération et périodes',
+        description: 'Informations sur le contrat d\'apprentissage, rémunération et périodes. IMPORTANT : Les champs de rémunération (année 2, 3, 4) et dates de périodes sont OPTIONNELS et dépendent de la durée du contrat (1 à 4 ans). Fournir uniquement les champs correspondant aux années couvertes par le contrat.',
+        example: {
+          type_contrat: 'Contrat d\'apprentissage',
+          type_derogation: 'Aucune',
+          date_debut: '2026-09-01',
+          date_fin: '2030-08-31',
+          duree_hebdomadaire: '35h',
+          poste_occupe: 'Assistant commercial',
+          lieu_execution: 'Paris 75001',
+          pourcentage_smic1: 53,
+          smic1: 966.21,
+          montant_salaire_brut1: 966.21,
+          date_debut_2periode_1er_annee: '2027-01-01',
+          date_fin_2periode_1er_annee: '2027-08-31',
+          pourcentage_smic2: 61,
+          smic2: 1112.01,
+          montant_salaire_brut2: 1112.01,
+          date_debut_1periode_2eme_annee: '2027-09-01',
+          date_fin_1periode_2eme_annee: '2027-12-31',
+          date_debut_2periode_2eme_annee: '2028-01-01',
+          date_fin_2periode_2eme_annee: '2028-08-31',
+          pourcentage_smic3: 78,
+          smic3: 1421.97,
+          montant_salaire_brut3: 1421.97,
+          date_debut_1periode_3eme_annee: '2028-09-01',
+          date_fin_1periode_3eme_annee: '2028-12-31',
+          date_debut_2periode_3eme_annee: '2029-01-01',
+          date_fin_2periode_3eme_annee: '2029-08-31',
+          pourcentage_smic4: 100,
+          smic4: 1823.07,
+          montant_salaire_brut4: 1823.07,
+          date_debut_1periode_4eme_annee: '2029-09-01',
+          date_fin_1periode_4eme_annee: '2029-12-31',
+          date_debut_2periode_4eme_annee: '2030-01-01',
+          date_fin_2periode_4eme_annee: '2030-08-31',
+          date_conclusion: '2026-08-15',
+          date_debut_execution: '2026-09-01',
+          travail_machine_dangereuse: 'Non',
+          caisse_retraite: 'AG2R'
+        },
         properties: {
           type_contrat: { type: 'string', description: 'Type de contrat ou d\'avenant', example: 'Contrat d\'apprentissage' },
           type_derogation: { type: 'string', description: 'Type de dérogation si applicable', example: 'Aucune' },
@@ -339,40 +460,40 @@ const swaggerDefinition: SwaggerDefinition = {
           duree_hebdomadaire: { type: 'string', description: 'Durée hebdomadaire du travail', example: '35h' },
           poste_occupe: { type: 'string', description: 'Poste occupé par l\'apprenti', example: 'Assistant commercial' },
           lieu_execution: { type: 'string', description: 'Lieu d\'exécution si différent du siège', example: 'Paris 75001' },
-          // Rémunération - 1ère année
-          pourcentage_smic1: { type: 'number', description: 'Pourcentage du SMIC - 1ère année / 1ère période', example: 53 },
-          smic1: { type: 'number', description: 'Montant SMIC - 1ère année / 1ère période', example: 966.21 },
-          montant_salaire_brut1: { type: 'number', description: 'Salaire brut mensuel - 1ère année', example: 966.21 },
-          // Rémunération - 2ème année
-          pourcentage_smic2: { type: 'number', description: 'Pourcentage du SMIC - 2ème année / 1ère période', example: 61 },
-          smic2: { type: 'number', description: 'Montant SMIC - 2ème année / 1ère période', example: 1112.01 },
-          montant_salaire_brut2: { type: 'number', description: 'Salaire brut mensuel - 2ème année', example: 1112.01 },
-          // Rémunération - 3ème année
-          pourcentage_smic3: { type: 'number', description: 'Pourcentage du SMIC - 3ème année / 1ère période', example: 78 },
-          smic3: { type: 'number', description: 'Montant SMIC - 3ème année / 1ère période', example: 1421.97 },
-          montant_salaire_brut3: { type: 'number', description: 'Salaire brut mensuel - 3ème année', example: 1421.97 },
-          // Rémunération - 4ème année
-          pourcentage_smic4: { type: 'number', description: 'Pourcentage du SMIC - 4ème année / 1ère période', example: 100 },
-          smic4: { type: 'number', description: 'Montant SMIC - 4ème année / 1ère période', example: 1823.07 },
-          montant_salaire_brut4: { type: 'number', description: 'Salaire brut mensuel - 4ème année', example: 1823.07 },
-          // Dates des périodes - 1ère année (2ème période)
-          date_debut_2periode_1er_annee: { type: 'string', format: 'date', description: 'Début 2ème période 1ère année', example: '2027-01-01' },
-          date_fin_2periode_1er_annee: { type: 'string', format: 'date', description: 'Fin 2ème période 1ère année', example: '2027-08-31' },
-          // Dates des périodes - 2ème année
-          date_debut_1periode_2eme_annee: { type: 'string', format: 'date', description: 'Début 1ère période 2ème année', example: '2027-09-01' },
-          date_fin_1periode_2eme_annee: { type: 'string', format: 'date', description: 'Fin 1ère période 2ème année', example: '2027-12-31' },
-          date_debut_2periode_2eme_annee: { type: 'string', format: 'date', description: 'Début 2ème période 2ème année', example: '2028-01-01' },
-          date_fin_2periode_2eme_annee: { type: 'string', format: 'date', description: 'Fin 2ème période 2ème année', example: '2028-08-31' },
-          // Dates des périodes - 3ème année
-          date_debut_1periode_3eme_annee: { type: 'string', format: 'date', description: 'Début 1ère période 3ème année' },
-          date_fin_1periode_3eme_annee: { type: 'string', format: 'date', description: 'Fin 1ère période 3ème année' },
-          date_debut_2periode_3eme_annee: { type: 'string', format: 'date', description: 'Début 2ème période 3ème année' },
-          date_fin_2periode_3eme_annee: { type: 'string', format: 'date', description: 'Fin 2ème période 3ème année' },
-          // Dates des périodes - 4ème année
-          date_debut_1periode_4eme_annee: { type: 'string', format: 'date', description: 'Début 1ère période 4ème année' },
-          date_fin_1periode_4eme_annee: { type: 'string', format: 'date', description: 'Fin 1ère période 4ème année' },
-          date_debut_2periode_4eme_annee: { type: 'string', format: 'date', description: 'Début 2ème période 4ème année' },
-          date_fin_2periode_4eme_annee: { type: 'string', format: 'date', description: 'Fin 2ème période 4ème année' },
+          // Rémunération - 1ère année (OBLIGATOIRE pour tous les contrats)
+          pourcentage_smic1: { type: 'number', description: '[OBLIGATOIRE] Pourcentage du SMIC - 1ère année / 1ère période', example: 53 },
+          smic1: { type: 'number', description: '[OBLIGATOIRE] Montant SMIC - 1ère année / 1ère période', example: 966.21 },
+          montant_salaire_brut1: { type: 'number', description: '[OBLIGATOIRE] Salaire brut mensuel - 1ère année', example: 966.21 },
+          // Rémunération - 2ème année (OPTIONNEL - uniquement si contrat >= 2 ans)
+          pourcentage_smic2: { type: 'number', nullable: true, description: '[OPTIONNEL] Pourcentage du SMIC - 2ème année / 1ère période. Renseigner uniquement si le contrat dure 2 ans ou plus.', example: 61 },
+          smic2: { type: 'number', nullable: true, description: '[OPTIONNEL] Montant SMIC - 2ème année / 1ère période. Renseigner uniquement si le contrat dure 2 ans ou plus.', example: 1112.01 },
+          montant_salaire_brut2: { type: 'number', nullable: true, description: '[OPTIONNEL] Salaire brut mensuel - 2ème année. Renseigner uniquement si le contrat dure 2 ans ou plus.', example: 1112.01 },
+          // Rémunération - 3ème année (OPTIONNEL - uniquement si contrat >= 3 ans)
+          pourcentage_smic3: { type: 'number', nullable: true, description: '[OPTIONNEL] Pourcentage du SMIC - 3ème année / 1ère période. Renseigner uniquement si le contrat dure 3 ans ou plus.', example: 78 },
+          smic3: { type: 'number', nullable: true, description: '[OPTIONNEL] Montant SMIC - 3ème année / 1ère période. Renseigner uniquement si le contrat dure 3 ans ou plus.', example: 1421.97 },
+          montant_salaire_brut3: { type: 'number', nullable: true, description: '[OPTIONNEL] Salaire brut mensuel - 3ème année. Renseigner uniquement si le contrat dure 3 ans ou plus.', example: 1421.97 },
+          // Rémunération - 4ème année (OPTIONNEL - uniquement si contrat = 4 ans)
+          pourcentage_smic4: { type: 'number', nullable: true, description: '[OPTIONNEL] Pourcentage du SMIC - 4ème année / 1ère période. Renseigner uniquement si le contrat dure 4 ans.', example: 100 },
+          smic4: { type: 'number', nullable: true, description: '[OPTIONNEL] Montant SMIC - 4ème année / 1ère période. Renseigner uniquement si le contrat dure 4 ans.', example: 1823.07 },
+          montant_salaire_brut4: { type: 'number', nullable: true, description: '[OPTIONNEL] Salaire brut mensuel - 4ème année. Renseigner uniquement si le contrat dure 4 ans.', example: 1823.07 },
+          // Dates des périodes - 1ère année (2ème période) - OPTIONNEL
+          date_debut_2periode_1er_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Début 2ème période 1ère année. Renseigner si le contrat prévoit plusieurs périodes avec rémunérations différentes dans la même année.', example: '2027-01-01' },
+          date_fin_2periode_1er_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Fin 2ème période 1ère année. Renseigner si le contrat prévoit plusieurs périodes avec rémunérations différentes dans la même année.', example: '2027-08-31' },
+          // Dates des périodes - 2ème année - OPTIONNEL (uniquement si contrat >= 2 ans)
+          date_debut_1periode_2eme_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Début 1ère période 2ème année. Renseigner uniquement si le contrat dure 2 ans ou plus.', example: '2027-09-01' },
+          date_fin_1periode_2eme_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Fin 1ère période 2ème année. Renseigner uniquement si le contrat dure 2 ans ou plus.', example: '2027-12-31' },
+          date_debut_2periode_2eme_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Début 2ème période 2ème année. Renseigner si plusieurs périodes sont prévues en 2ème année.', example: '2028-01-01' },
+          date_fin_2periode_2eme_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Fin 2ème période 2ème année. Renseigner si plusieurs périodes sont prévues en 2ème année.', example: '2028-08-31' },
+          // Dates des périodes - 3ème année - OPTIONNEL (uniquement si contrat >= 3 ans)
+          date_debut_1periode_3eme_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Début 1ère période 3ème année. Renseigner uniquement si le contrat dure 3 ans ou plus.' },
+          date_fin_1periode_3eme_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Fin 1ère période 3ème année. Renseigner uniquement si le contrat dure 3 ans ou plus.' },
+          date_debut_2periode_3eme_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Début 2ème période 3ème année. Renseigner si plusieurs périodes sont prévues en 3ème année.' },
+          date_fin_2periode_3eme_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Fin 2ème période 3ème année. Renseigner si plusieurs périodes sont prévues en 3ème année.' },
+          // Dates des périodes - 4ème année - OPTIONNEL (uniquement si contrat = 4 ans)
+          date_debut_1periode_4eme_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Début 1ère période 4ème année. Renseigner uniquement si le contrat dure 4 ans.' },
+          date_fin_1periode_4eme_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Fin 1ère période 4ème année. Renseigner uniquement si le contrat dure 4 ans.' },
+          date_debut_2periode_4eme_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Début 2ème période 4ème année. Renseigner si plusieurs périodes sont prévues en 4ème année.' },
+          date_fin_2periode_4eme_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Fin 2ème période 4ème année. Renseigner si plusieurs périodes sont prévues en 4ème année.' },
           // Autres informations contrat
           date_conclusion: { type: 'string', format: 'date', description: 'Date de conclusion (signatures)', example: '2026-08-15' },
           date_debut_execution: { type: 'string', format: 'date', description: 'Date de début d\'exécution du contrat', example: '2026-09-01' },

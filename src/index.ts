@@ -24,11 +24,13 @@ app.use(helmet({
   contentSecurityPolicy: false, // Désactive CSP pour Swagger UI
 }));
 
-// CORS
+// CORS - Configuration étendue pour ngrok et développement
 app.use(cors({
   origin: config.corsOrigin || '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning', 'User-Agent'],
+  credentials: true,
+  exposedHeaders: ['Content-Length', 'Content-Type']
 }));
 
 // Parsing JSON
@@ -44,16 +46,34 @@ if (config.nodeEnv !== 'production') {
 // ROUTES
 // =====================================================
 
+// Middleware pour ajouter les headers nécessaires à ngrok
+app.use('/api-docs*', (req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, ngrok-skip-browser-warning');
+  next();
+});
+
 // Documentation Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   explorer: true,
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Process IQ Rush School API Documentation'
+  customSiteTitle: 'Process IQ Rush School API Documentation',
+  swaggerOptions: {
+    requestInterceptor: (req: any) => {
+      // Ajouter le header ngrok-skip-browser-warning pour éviter l'écran d'avertissement
+      req.headers['ngrok-skip-browser-warning'] = 'true';
+      return req;
+    }
+  }
 }));
 
 // Route JSON pour la spec OpenAPI
 app.get('/api-docs.json', (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, ngrok-skip-browser-warning');
   res.send(swaggerSpec);
 });
 

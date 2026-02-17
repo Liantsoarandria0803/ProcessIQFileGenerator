@@ -144,3 +144,53 @@ node-api/
 Placez les templates PDF dans `assets/templates_pdf/` :
 - `Fiche de renseignements.pdf`
 - `Cerfa FA13_remplissable.pdf`
+
+---
+
+## 🚀 Déploiement sur Render
+
+### Déploiement rapide
+
+```bash
+# Lancer le script de déploiement automatique
+./deploy-to-render.sh
+```
+
+### Configuration manuelle
+
+1. **Préparer le projet**
+   ```bash
+   npm run build  # Vérifier que le build fonctionne
+   git add .
+   git commit -m "Deploy to Render"
+   git push origin main
+   ```
+
+2. **Créer le service sur Render**
+   - Aller sur https://dashboard.render.com
+   - New → Blueprint (ou Web Service)
+   - Connecter le repository GitHub
+   - Configurer les variables d'environnement :
+     - `AIRTABLE_API_TOKEN`
+     - `AIRTABLE_BASE_ID`
+     - `NODE_ENV=production`
+
+3. **Vérifier le déploiement**
+   ```bash
+   curl https://votre-app.onrender.com/health
+   ```
+
+### Documentation complète
+
+- 📖 **Guide rapide** : [RENDER_QUICK_START.md](./RENDER_QUICK_START.md)
+- 📚 **Guide détaillé** : [DEPLOYMENT_RENDER.md](./DEPLOYMENT_RENDER.md)
+- 📋 **Récapitulatif** : [DEPLOY_SUMMARY.md](./DEPLOY_SUMMARY.md)
+
+### Fichiers de configuration Render
+
+- `render.yaml` - Configuration Blueprint
+- `Procfile` - Process web
+- `prepare-deploy.sh` - Script de vérification
+- `deploy-to-render.sh` - Déploiement automatique
+
+---

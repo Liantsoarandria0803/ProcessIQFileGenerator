@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: process-iq-rush-school-api
+    env: node
+    region: frankfurt  # ou oregon, singapore selon votre préférence
+    plan: free  # ou starter pour des performances supérieures
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8001
+      - key: AIRTABLE_API_KEY
+        sync: false  # À configurer manuellement dans Render Dashboard
+      - key: AIRTABLE_BASE_ID
+        sync: false
+      - key: PYTHON_API_URL
+        value: http://localhost:8000  # Mettre à jour si vous avez un serveur Python séparé
+    healthCheckPath: /health
