@@ -530,7 +530,7 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
 
   // =====================================================
   // RÉMUNÉRATION
-  // Layout PDF: chaque ligne = 1 année, 2 périodes par ligne
+  // Layout PDF vérifié par coordonnées:
   // 1ère année (y=669): 8_95/8_96 (période 1) + 8_97/8_98 (période 2)
   // 2ème année (y=655): 8_56/8_57 (période 1) + 8_58/8_59 (période 2)
   // 3ème année (y=641): 8_60/8_61 (période 1) + 8_62/8_63 (période 2)
@@ -539,24 +539,27 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
   // 1ère année - 1ère période
   "Zone de texte 8_95": ["entreprise", "Pourcentage du SMIC 1"],
   "Zone de texte 8_96": ["entreprise", "SMIC 1"],
+  // 1ère année - 2ème période
+  "Zone de texte 8_97": ["entreprise", "Pourcentage du SMIC 1 periode 2"],
+  "Zone de texte 8_98": ["entreprise", "SMIC 1 periode 2"],
   // 2ème année - 1ère période
   "Zone de texte 8_56": ["entreprise", "Pourcentage smic 2"],
   "Zone de texte 8_57": ["entreprise", "smic 2"],
   // 2ème année - 2ème période
-  "Zone de texte 8_58": ["entreprise", "Pourcentage smic 2"],
-  "Zone de texte 8_59": ["entreprise", "smic 2"],
+  "Zone de texte 8_58": ["entreprise", "Pourcentage smic 2 periode 2"],
+  "Zone de texte 8_59": ["entreprise", "smic 2 periode 2"],
   // 3ème année - 1ère période
   "Zone de texte 8_60": ["entreprise", "Pourcentage smic 3"],
   "Zone de texte 8_61": ["entreprise", "smic 3"],
   // 3ème année - 2ème période
-  "Zone de texte 8_62": ["entreprise", "Pourcentage smic 3"],
-  "Zone de texte 8_63": ["entreprise", "smic 3"],
+  "Zone de texte 8_62": ["entreprise", "Pourcentage smic 3 periode 2"],
+  "Zone de texte 8_63": ["entreprise", "smic 3 periode 2"],
   // 4ème année - 1ère période
   "Zone de texte 8_64": ["entreprise", "Pourcentage smic 4"],
   "Zone de texte 8_65": ["entreprise", "smic 4"],
   // 4ème année - 2ème période
-  "Zone de texte 8_66": ["entreprise", "Pourcentage smic 4"],
-  "Zone de texte 8_67": ["entreprise", "smic 4"],
+  "Zone de texte 8_66": ["entreprise", "Pourcentage smic 4 periode 2"],
+  "Zone de texte 8_67": ["entreprise", "smic 4 periode 2"],
   "Zone de texte 8_72": ["entreprise", "Salaire brut mensuel 1"],
   "Zone de texte 21_73": ["entreprise", "Salaire brut mensuel 1"],
   "Zone de texte 21_74": ["entreprise", "Caisse de retraite"],
@@ -692,74 +695,93 @@ export const CERFA_DATE_FIELDS: Record<string, {
     mois: "Zone de texte 21_85",
     annee: "Zone de texte 21_86",
   },
+  // --- 1ère année - 2ème période (y=669, droite: 21_87→21_92) ---
   "date_debut_remuneration_1_2": {
     source: ["entreprise", "date_debut_2periode_1er_annee"],
+    jour: "Zone de texte 21_87",
+    mois: "Zone de texte 21_88",
+    annee: "Zone de texte 21_89",
+  },
+  "date_fin_remuneration_1_2": {
+    source: ["entreprise", "date_fin_2periode_1er_annee"],
+    jour: "Zone de texte 21_90",
+    mois: "Zone de texte 21_91",
+    annee: "Zone de texte 21_92",
+  },
+  // --- 2ème année - 1ère période (y=655, gauche: 21_37→21_42) ---
+  "date_debut_remuneration_2_1": {
+    source: ["entreprise", "date_debut_1periode_2eme_annee"],
     jour: "Zone de texte 21_37",
     mois: "Zone de texte 21_38",
     annee: "Zone de texte 21_39",
   },
-  "date_fin_remuneration_1_2": {
-    source: ["entreprise", "date_fin_2periode_1er_annee"],
+  "date_fin_remuneration_2_1": {
+    source: ["entreprise", "date_fin_1periode_2eme_annee"],
     jour: "Zone de texte 21_40",
     mois: "Zone de texte 21_41",
     annee: "Zone de texte 21_42",
   },
-  "date_debut_remuneration_2_1": {
-    source: ["entreprise", "date_debut_1periode_2eme_annee"],
+  // --- 2ème année - 2ème période (y=655, droite: 21_43→21_48) ---
+  "date_debut_remuneration_2_2": {
+    source: ["entreprise", "date_debut_2periode_2eme_annee"],
     jour: "Zone de texte 21_43",
     mois: "Zone de texte 21_44",
     annee: "Zone de texte 21_45",
   },
-  "date_fin_remuneration_2_1": {
-    source: ["entreprise", "date_fin_1periode_2eme_annee"],
+  "date_fin_remuneration_2_2": {
+    source: ["entreprise", "date_fin_2periode_2eme_annee"],
     jour: "Zone de texte 21_46",
     mois: "Zone de texte 21_47",
     annee: "Zone de texte 21_48",
   },
-  "date_debut_remuneration_2_2": {
-    source: ["entreprise", "date_debut_2periode_2eme_annee"],
+  // --- 3ème année - 1ère période (y=641, gauche: 21_49→21_54) ---
+  "date_debut_remuneration_3_1": {
+    source: ["entreprise", "date_debut_1periode_3eme_annee"],
     jour: "Zone de texte 21_49",
     mois: "Zone de texte 21_50",
     annee: "Zone de texte 21_51",
   },
-  "date_fin_remuneration_2_2": {
-    source: ["entreprise", "date_fin_2periode_2eme_annee"],
+  "date_fin_remuneration_3_1": {
+    source: ["entreprise", "date_fin_1periode_3eme_annee"],
     jour: "Zone de texte 21_52",
     mois: "Zone de texte 21_53",
     annee: "Zone de texte 21_54",
   },
-  "date_debut_remuneration_3_1": {
-    source: ["entreprise", "date_debut_1periode_3eme_annee"],
+  // --- 3ème année - 2ème période (y=641, droite: 21_55→21_60) ---
+  "date_debut_remuneration_3_2": {
+    source: ["entreprise", "date_debut_2periode_3eme_annee"],
     jour: "Zone de texte 21_55",
     mois: "Zone de texte 21_56",
     annee: "Zone de texte 21_57",
   },
-  "date_fin_remuneration_3_1": {
-    source: ["entreprise", "date_fin_1periode_3eme_annee"],
+  "date_fin_remuneration_3_2": {
+    source: ["entreprise", "date_fin_2periode_3eme_annee"],
     jour: "Zone de texte 21_58",
     mois: "Zone de texte 21_59",
     annee: "Zone de texte 21_60",
   },
-  "date_debut_remuneration_3_2": {
-    source: ["entreprise", "date_debut_2periode_3eme_annee"],
+  // --- 4ème année - 1ère période (y=627, gauche: 21_61→21_66) ---
+  "date_debut_remuneration_4_1": {
+    source: ["entreprise", "date_debut_1periode_4eme_annee"],
     jour: "Zone de texte 21_61",
     mois: "Zone de texte 21_62",
     annee: "Zone de texte 21_63",
   },
-  "date_fin_remuneration_3_2": {
-    source: ["entreprise", "date_fin_2periode_3eme_annee"],
+  "date_fin_remuneration_4_1": {
+    source: ["entreprise", "date_fin_1periode_4eme_annee"],
     jour: "Zone de texte 21_64",
     mois: "Zone de texte 21_65",
     annee: "Zone de texte 21_66",
   },
-  "date_debut_remuneration_4": {
-    source: ["entreprise", "date_debut_1periode_4eme_annee"],
+  // --- 4ème année - 2ème période (y=627, droite: 21_67→21_72) ---
+  "date_debut_remuneration_4_2": {
+    source: ["entreprise", "date_debut_2periode_4eme_annee"],
     jour: "Zone de texte 21_67",
     mois: "Zone de texte 21_68",
     annee: "Zone de texte 21_69",
   },
-  "date_fin_remuneration_4": {
-    source: ["entreprise", "date_fin_1periode_4eme_annee"],
+  "date_fin_remuneration_4_2": {
+    source: ["entreprise", "date_fin_2periode_4eme_annee"],
     jour: "Zone de texte 21_70",
     mois: "Zone de texte 21_71",
     annee: "Zone de texte 21_72",
