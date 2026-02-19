@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { CandidatRepository, EntrepriseRepository } from '../repositories';
-import { PdfGeneratorService, CerfaGeneratorService, AtreGeneratorService, CompteRenduGeneratorService, ReglementGeneratorService } from '../services';
+import { PdfGeneratorService, CerfaGeneratorService, AtreGeneratorService, CompteRenduGeneratorService, ReglementGeneratorService, LivretApprentissageService } from '../services';
 import { AdmissionService } from '../services/admissionService';
 import logger from '../utils/logger';
 import { InformationsPersonnelles } from '../types/admission';
@@ -18,6 +18,7 @@ const cerfaService = new CerfaGeneratorService();
 const atreService = new AtreGeneratorService();
 const compteRenduService = new CompteRenduGeneratorService();
 const reglementService = new ReglementGeneratorService();
+const livretService = new LivretApprentissageService();
 const admissionService = new AdmissionService();
 
 // Configuration multer : stockage en mémoire (buffer)
@@ -1539,6 +1540,97 @@ router.post('/candidats/:id/reglement-interieur', async (req: Request, res: Resp
     res.status(500).json({
       success: false,
       error: 'Erreur lors de la génération du Règlement Intérieur',
+    });
+  }
+});
+
+// =====================================================
+// LIVRET D'APPRENTISSAGE
+// =====================================================
+
+/**
+ * @swagger
+ * /api/admission/candidats/{id}/livret-apprentissage:
+ *   post:
+ *     summary: Génère le livret d'apprentissage selon la formation de l'étudiant
+ *     tags: [Candidats]
+ *     description: |
+ *       Détecte la formation de l'étudiant et sélectionne le bon template PDF :
+ *       - Formation contient **MCO** → Livret d'Apprentissage MCO
+ *       - Formation contient **Bachelor** → Livret d'Apprentissage Bachelor
+ *       - Formation contient **NDRC** → Livret d'apprentissage NDRC
+ *       - Formation contient **TP NTC** → Livret d'Apprentissage TP NTC
+ *       
+ *       Le PDF est ensuite uploadé sur Airtable dans la colonne "livret dapprentissage".
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID Airtable de l'étudiant (ex recXXXXXXXXXXXXXX)
+ *     responses:
+ *       200:
+ *         description: Livret d'apprentissage généré et uploadé avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Livret d'apprentissage généré et uploadé avec succès"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     formation:
+ *                       type: string
+ *                       example: "BTS MCO"
+ *                     templateUsed:
+ *                       type: string
+ *                       example: "Livret d'Apprentissage MCO.pdf"
+ *                     filename:
+ *                       type: string
+ *                       example: "Livret_Apprentissage_MCO_DUPONT_Jean.pdf"
+ *       400:
+ *         description: Formation non trouvée ou non supportée
+ *       404:
+ *         description: Candidat non trouvé
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    logger.info(`[Route] POST /candidats/${id}/livret-apprentissage`);
+
+    const result = await livretService.generateAndUpload(id);
+
+    if (!result.success) {
+      const statusCode = result.error?.includes('non trouvé') ? 404 : 400;
+      return res.status(statusCode).json({
+        success: false,
+        error: result.error,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Livret d'apprentissage généré et uploadé avec succès",
+      data: {
+        formation: result.formation,
+        templateUsed: result.templateUsed,
+        filename: result.filename,
+      },
+    });
+  } catch (error) {
+    logger.error("Erreur génération Livret d'Apprentissage:", error);
+    res.status(500).json({
+      success: false,
+      error: "Erreur lors de la génération du Livret d'Apprentissage",
     });
   }
 });
