@@ -80,6 +80,9 @@ export class EntrepriseRepository {
         if (fiche.identification.type_employeur) {
           airtableData['Type demployeur'] = fiche.identification.type_employeur;
         }
+        if (fiche.identification.employeur_specifique){
+          airtableData['Employeur specifique'] = fiche.identification.employeur_specifique;
+        }
         if (fiche.identification.nombre_salaries != null) {
           airtableData["Effectif salarié de l'entreprise"] = Number(fiche.identification.nombre_salaries);
         }
