@@ -314,14 +314,18 @@ export class CerfaGeneratorService {
   }
 
   private getCodeDiplomeMaitre(diplomeStr: string | undefined): string {
-    if (!diplomeStr) return '';
+    if (!diplomeStr) return '0';
     const d = String(diplomeStr).trim();
-    if (/^\d{2}$/.test(d)) return d;
+    // Si déjà un code chiffre valide (0, 3, 4, 5, 6, 7, 8)
+    if (/^[03-8]$/.test(d)) return d;
+    // Recherche exacte dans la table
     if (CODES_DIPLOMES_MAITRE[d]) return CODES_DIPLOMES_MAITRE[d];
+    // Recherche partielle insensible à la casse
     for (const [key, code] of Object.entries(CODES_DIPLOMES_MAITRE)) {
       if (key.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(key.toLowerCase())) return code;
     }
-    return d;
+    // Aucune correspondance → 0 (aucun diplôme)
+    return '0';
   }
 
   private getCodeSituationAvantContrat(situationStr: string | undefined): string {

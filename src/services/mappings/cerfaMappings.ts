@@ -263,16 +263,52 @@ export const CODES_TYPE_EMPLOYEUR: Record<string, string> = {
 
 // Codes diplome maitre apprentissage - EXACT Python
 export const CODES_DIPLOMES_MAITRE: Record<string, string> = {
-  "Aucun diplôme": "13",
-  "CAP, BEP": "34",
-  "Baccalauréat": "41",
-  "DEUG, BTS, DUT, DEUST": "54",
-  "Licence, Licence professionnelle, BUT, Maîtrise": "64",
-  "Master, Diplôme d'études approfondies, Diplôme d'études spécialisées, Diplôme d'ingénieur": "73",
-  "Master, Diplôme d'études approfondies, Diplôme d études spécialisées, Diplôme d ingénieur": "73",
-  "Master": "73",
-  "Doctorat, Habilitation à diriger des recherches": "80",
-  "Doctorat": "80",
+  // Sans diplôme → 0
+  "Aucun diplôme": "0",
+  "Aucun": "0",
+  "": "0",
+  // Niveau 3 : CAP, BEP
+  "3 CAP, BEP": "3",
+  "CAP, BEP": "3",
+  "CAP": "3",
+  "BEP": "3",
+  // Niveau 4 : Baccalauréat
+  "4 Baccalauréat": "4",
+  "Baccalauréat": "4",
+  "Bac": "4",
+  // Niveau 5 : DEUG, BTS, DUT, DEUST
+  "5 DEUG, BTS, DUT, DEUST": "5",
+  "DEUG, BTS, DUT, DEUST": "5",
+  "BTS": "5",
+  "DUT": "5",
+  "DEUG": "5",
+  "DEUST": "5",
+  // Niveau 6 : Licence, licence professionnelle, BUT, Maîtrise
+  "6 Licence, licence professionnelle, BUT, Maîtrise": "6",
+  "Licence, licence professionnelle, BUT, Maîtrise": "6",
+  "Licence, Licence professionnelle, BUT, Maîtrise": "6",
+  "Licence": "6",
+  "Licence professionnelle": "6",
+  "BUT": "6",
+  "Maîtrise": "6",
+  // Niveau 7 : Master, DEA, DESS, diplôme d'ingénieur
+  "7 Master, diplôme d'études approfondies, diplôme d'études supérieures spécialisées, diplôme d'ingénieur": "7",
+  "Master, diplôme d'études approfondies, diplôme d'études supérieures spécialisées, diplôme d'ingénieur": "7",
+  "Master, Diplôme d'études approfondies, Diplôme d'études spécialisées, Diplôme d'ingénieur": "7",
+  "Master, Diplôme d'études approfondies, Diplôme d études spécialisées, Diplôme d ingénieur": "7",
+  "Master": "7",
+  "MBA": "7",
+  "DEA": "7",
+  "DESS": "7",
+  "Diplôme d'ingénieur": "7",
+  "Ingénieur": "7",
+  // Niveau 8 : Doctorat, habilitation à diriger des recherches
+  "8 Doctorat, habilitation à diriger des recherches": "8",
+  "Doctorat, habilitation à diriger des recherches": "8",
+  "Doctorat, Habilitation à diriger des recherches": "8",
+  "Doctorat": "8",
+  "HDR": "8",
+  "PhD": "8",
 };
 
 // Codes employeur specifique - EXACT Python
@@ -335,7 +371,7 @@ export const CODES_REGIME_SOCIAL: Record<string, string> = {
 
 export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
   "BTS MCO A": {
-    code_diplome: "54",
+    code_diplome: "543",
     intitule: "BTS Management Commercial Opérationnel",
     code_formation: "32031213",
     code_rncp: "38362",
@@ -344,7 +380,7 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     heures: "1680",
   },
   "BTS MCO 2": {
-    code_diplome: "54",
+    code_diplome: "543",
     intitule: "BTS Management Commercial Opérationnel",
     code_formation: "32031213",
     code_rncp: "38362",
@@ -353,7 +389,7 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     heures: "1680",
   },
   "BTS NDRC 1": {
-    code_diplome: "54",
+    code_diplome: "543",
     intitule: "BTS Négociation et Digitalisation de la Relation Client",
     code_formation: "32031212",
     code_rncp: "38368",
@@ -362,7 +398,7 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     heures: "1740",
   },
   "BTS COM": {
-    code_diplome: "54",
+    code_diplome: "543",
     intitule: "BTS - Communication",
     code_formation: "32032002",
     code_rncp: "37198",
@@ -371,16 +407,7 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     heures: "1680",
   },
   "Titre Pro NTC": {
-    code_diplome: "58",
-    intitule: "Négociateur technico-commercial",
-    code_formation: "36T3120",
-    code_rncp: "39063",
-    date_debut_formation_cfa: "07/01/2026",
-    date_fin_epreuves: "11/07/2026",
-    heures: "450",
-  },
-  "Titre Pro NTC B (rentrée decalée)": {
-    code_diplome: "58",
+    code_diplome: "583",
     intitule: "Négociateur technico-commercial",
     code_formation: "36T3120",
     code_rncp: "39063",
@@ -507,8 +534,8 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
   "Zone de texte 8_43": ["entreprise", "Prénom Maître apprentissage"],
   "Zone de texte 8_44": ["entreprise", "Email Maître apprentissage"],
   "Zone de texte 8_45": ["entreprise", "Fonction Maître apprentissage"],
-  "Zone de texte 8_50": ["entreprise", "Diplôme Maître apprentissage"],
-  "Zone de texte 8_52": ["entreprise", "Diplôme Maître apprentissage"],
+  "Zone de texte 8_50": ["entreprise", "Diplôme Maître apprentissage intitulé"], // grand champ (width=264) → intitulé en lettres brutes
+  "Zone de texte 8_52": ["entreprise", "Diplôme Maître apprentissage"],           // petit champ (width=37) → code chiffre (0/3/4/5/6/7/8)
 
   // =====================================================
   // LE MAÎTRE D'APPRENTISSAGE N°2 (optionnel)
@@ -517,8 +544,8 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
   "Zone de texte 8_47": ["entreprise", "Prénom Maître apprentissage 2"],
   "Zone de texte 8_48": ["entreprise", "Email Maître apprentissage 2"],
   "Zone de texte 8_49": ["entreprise", "Fonction Maître apprentissage 2"],
-  "Zone de texte 8_51": ["entreprise", "Diplôme Maître apprentissage 2"],
-  "Zone de texte 8_53": ["entreprise", "Diplôme Maître apprentissage 2"],
+  "Zone de texte 8_51": ["entreprise", "Diplôme Maître apprentissage 2 intitulé"], // grand champ (width=280) → intitulé en lettres brutes
+  "Zone de texte 8_53": ["entreprise", "Diplôme Maître apprentissage 2"],          // petit champ (width=53) → code chiffre (0/3/4/5/6/7/8)
 
   // =====================================================
   // LE CONTRAT
