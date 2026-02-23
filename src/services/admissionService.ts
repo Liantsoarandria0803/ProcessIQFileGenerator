@@ -294,9 +294,13 @@ export class AdmissionService {
     if (info.nir !== undefined) airtableData['NIR'] = info.nir;
 
     // Section 6: Parcours scolaire
-    if (info.dernier_diplome_prepare !== undefined) airtableData['Dernier diplôme ou titre préparé'] = info.dernier_diplome_prepare;
+    if (info.dernier_diplome_prepare !== undefined) {
+        const valeur = info.dernier_diplome_prepare;
+        airtableData['Dernier diplôme ou titre préparé'] = valeur;
+        airtableData['Intitulé précis du dernier diplôme ou titre préparé'] = valeur;
+        }
     if (info.derniere_classe !== undefined) airtableData['Dernière classe / année suivie'] = info.derniere_classe;
-    if (info.intitulePrecisDernierDiplome !== undefined) airtableData['Intitulé précis du dernier diplôme ou titre préparé'] = info.intitulePrecisDernierDiplome;
+
     if (info.bac !== undefined) airtableData['BAC'] = info.bac;
 
     // Section 7: Situations & déclarations
