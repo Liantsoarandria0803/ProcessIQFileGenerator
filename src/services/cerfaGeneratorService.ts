@@ -482,9 +482,13 @@ export class CerfaGeneratorService {
     // SMIC/SMC: ne pas afficher si le pourcentage correspondant est 0 ou vide
     const smicToPercentageMap: Record<string, string> = {
       'SMIC 1': 'Pourcentage du SMIC 1',
+      'SMIC 1 periode 2': 'Pourcentage du SMIC 1 periode 2',
       'smic 2': 'Pourcentage smic 2',
+      'smic 2 periode 2': 'Pourcentage smic 2 periode 2',
       'smic 3': 'Pourcentage smic 3',
+      'smic 3 periode 2': 'Pourcentage smic 3 periode 2',
       'smic 4': 'Pourcentage smic 4',
+      'smic 4 periode 2': 'Pourcentage smic 4 periode 2',
     };
     if (smicToPercentageMap[key]) {
       const percentKey = smicToPercentageMap[key];

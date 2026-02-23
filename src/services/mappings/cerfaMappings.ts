@@ -24,31 +24,31 @@ export const CODES_SITUATION_AVANT_CONTRAT: Record<string, string> = {
   "10 Salarié": "10",
   "11 Personne à la recherche d'un emploi": "11",
   "12 Inactif": "12",
-  // Valeurs Airtable legacy sans numéros
-  "Scolaire : (Bac / brevet...)": "1",
-  "Scolaire": "1",
-  "Prépa apprentissage": "2",
-  "Etudiant : (Etude supérieur)": "3",
-  "Etudiant": "3",
-  "Contrat dapprentissage": "4",
-  "Contrat d'apprentissage": "4",
-  "Contrat de professionnalisation": "5",
-  "Contrat pro": "5",
-  "Contrat aidé": "6",
-  "Formation CFA statut stagiaire avant contrat": "7",
-  "Formation CFA sans contrat après rupture": "8",
-  "Autres situations stagiaire formation professionnelle": "9",
-  "Salarié : (CDD/CDI)": "10",
-  "Salarié": "10",
-  "CDD": "10",
-  "CDI": "10",
-  "Personne à la recherche d'un emploi": "11",
-  "Demandeur d'emploi": "11",
-  "Chômeur": "11",
-  "Inactif": "12",
-  "Service civique": "12",
-  "Stage": "12",
-  "Autre": "12",
+  // // Valeurs Airtable legacy sans numéros
+  // "Scolaire : (Bac / brevet...)": "1",
+  // "Scolaire": "1",
+  // "Prépa apprentissage": "2",
+  // "Etudiant : (Etude supérieur)": "3",
+  // "Etudiant": "3",
+  // "Contrat dapprentissage": "4",
+  // "Contrat d'apprentissage": "4",
+  // "Contrat de professionnalisation": "5",
+  // "Contrat pro": "5",
+  // "Contrat aidé": "6",
+  // "Formation CFA statut stagiaire avant contrat": "7",
+  // "Formation CFA sans contrat après rupture": "8",
+  // "Autres situations stagiaire formation professionnelle": "9",
+  // "Salarié : (CDD/CDI)": "10",
+  // "Salarié": "10",
+  // "CDD": "10",
+  // "CDI": "10",
+  // "Personne à la recherche d'un emploi": "11",
+  // "Demandeur d'emploi": "11",
+  // "Chômeur": "11",
+  // "Inactif": "12",
+  // "Service civique": "12",
+  // "Stage": "12",
+  // "Autre": "12",
 };
 
 // Codes départements français - CERFA
@@ -279,7 +279,7 @@ export const CODES_DIPLOMES_MAITRE: Record<string, string> = {
 export const CODES_EMPLOYEUR_SPECIFIQUE: Record<string, string> = {
   "Entreprise de travail temporaire": "1",
   "Travail temporaire": "1",
-  "Groupement d'employeurs": "2",
+  "Groupement demployeurs": "2",
   "Employeur saisonnier": "3",
   "Saisonnier": "3",
   "Apprentissage familial": "4",
@@ -338,7 +338,7 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     code_diplome: "54",
     intitule: "BTS Management Commercial Opérationnel",
     code_formation: "32031213",
-    code_rncp: "RNCP38362",
+    code_rncp: "38362",
     date_debut_formation_cfa: "04/09/2025",
     date_fin_epreuves: "30/06/2027",
     heures: "1680",
@@ -347,7 +347,7 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     code_diplome: "54",
     intitule: "BTS Management Commercial Opérationnel",
     code_formation: "32031213",
-    code_rncp: "RNCP38362",
+    code_rncp: "38362",
     date_debut_formation_cfa: "04/09/2025",
     date_fin_epreuves: "30/06/2027",
     heures: "1680",
@@ -356,7 +356,7 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     code_diplome: "54",
     intitule: "BTS Négociation et Digitalisation de la Relation Client",
     code_formation: "32031212",
-    code_rncp: "RNCP38368",
+    code_rncp: "38368",
     date_debut_formation_cfa: "09/09/2025",
     date_fin_epreuves: "30/06/2027",
     heures: "1740",
@@ -365,25 +365,25 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     code_diplome: "54",
     intitule: "BTS - Communication",
     code_formation: "32032002",
-    code_rncp: "RNCP37198",
+    code_rncp: "37198",
     date_debut_formation_cfa: "",
     date_fin_epreuves: "",
     heures: "1680",
   },
   "Titre Pro NTC": {
     code_diplome: "58",
-    intitule: "Titre Professionnel Négociateur technico-commercial",
+    intitule: "Négociateur technico-commercial",
     code_formation: "36T3120",
-    code_rncp: "RNCP39063",
+    code_rncp: "39063",
     date_debut_formation_cfa: "07/01/2026",
     date_fin_epreuves: "11/07/2026",
     heures: "450",
   },
   "Titre Pro NTC B (rentrée decalée)": {
     code_diplome: "58",
-    intitule: "Titre Professionnel Négociateur technico-commercial",
+    intitule: "Négociateur technico-commercial",
     code_formation: "36T3120",
-    code_rncp: "RNCP39063",
+    code_rncp: "39063",
     date_debut_formation_cfa: "07/01/2026",
     date_fin_epreuves: "11/07/2026",
     heures: "450",
@@ -392,7 +392,7 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     code_diplome: "64",
     intitule: "Bachelor Responsable du développement commercial",
     code_formation: "26X31015",
-    code_rncp: "RNCP37849",
+    code_rncp: "37849",
     date_debut_formation_cfa: "17/09/2025",
     date_fin_epreuves: "17/07/2027",
     heures: "500",
@@ -530,7 +530,7 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
 
   // =====================================================
   // RÉMUNÉRATION
-  // Layout PDF: chaque ligne = 1 année, 2 périodes par ligne
+  // Layout PDF vérifié par coordonnées:
   // 1ère année (y=669): 8_95/8_96 (période 1) + 8_97/8_98 (période 2)
   // 2ème année (y=655): 8_56/8_57 (période 1) + 8_58/8_59 (période 2)
   // 3ème année (y=641): 8_60/8_61 (période 1) + 8_62/8_63 (période 2)
@@ -539,6 +539,9 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
   // 1ère année - 1ère période
   "Zone de texte 8_95": ["entreprise", "Pourcentage du SMIC 1"],
   "Zone de texte 8_96": ["entreprise", "SMIC 1"],
+  // 1ère année - 2ème période
+  "Zone de texte 8_97": ["entreprise", "Pourcentage du SMIC 1"],
+  "Zone de texte 8_98": ["entreprise", "SMIC 1"],
   // 2ème année - 1ère période
   "Zone de texte 8_56": ["entreprise", "Pourcentage smic 2"],
   "Zone de texte 8_57": ["entreprise", "smic 2"],
@@ -692,74 +695,93 @@ export const CERFA_DATE_FIELDS: Record<string, {
     mois: "Zone de texte 21_85",
     annee: "Zone de texte 21_86",
   },
+  // --- 1ère année - 2ème période (y=669, droite: 21_87→21_92) ---
   "date_debut_remuneration_1_2": {
     source: ["entreprise", "date_debut_2periode_1er_annee"],
+    jour: "Zone de texte 21_87",
+    mois: "Zone de texte 21_88",
+    annee: "Zone de texte 21_89",
+  },
+  "date_fin_remuneration_1_2": {
+    source: ["entreprise", "date_fin_2periode_1er_annee"],
+    jour: "Zone de texte 21_90",
+    mois: "Zone de texte 21_91",
+    annee: "Zone de texte 21_92",
+  },
+  // --- 2ème année - 1ère période (y=655, gauche: 21_37→21_42) ---
+  "date_debut_remuneration_2_1": {
+    source: ["entreprise", "date_debut_1periode_2eme_annee"],
     jour: "Zone de texte 21_37",
     mois: "Zone de texte 21_38",
     annee: "Zone de texte 21_39",
   },
-  "date_fin_remuneration_1_2": {
-    source: ["entreprise", "date_fin_2periode_1er_annee"],
+  "date_fin_remuneration_2_1": {
+    source: ["entreprise", "date_fin_1periode_2eme_annee"],
     jour: "Zone de texte 21_40",
     mois: "Zone de texte 21_41",
     annee: "Zone de texte 21_42",
   },
-  "date_debut_remuneration_2_1": {
-    source: ["entreprise", "date_debut_1periode_2eme_annee"],
+  // --- 2ème année - 2ème période (y=655, droite: 21_43→21_48) ---
+  "date_debut_remuneration_2_2": {
+    source: ["entreprise", "date_debut_2periode_2eme_annee"],
     jour: "Zone de texte 21_43",
     mois: "Zone de texte 21_44",
     annee: "Zone de texte 21_45",
   },
-  "date_fin_remuneration_2_1": {
-    source: ["entreprise", "date_fin_1periode_2eme_annee"],
+  "date_fin_remuneration_2_2": {
+    source: ["entreprise", "date_fin_2periode_2eme_annee"],
     jour: "Zone de texte 21_46",
     mois: "Zone de texte 21_47",
     annee: "Zone de texte 21_48",
   },
-  "date_debut_remuneration_2_2": {
-    source: ["entreprise", "date_debut_2periode_2eme_annee"],
+  // --- 3ème année - 1ère période (y=641, gauche: 21_49→21_54) ---
+  "date_debut_remuneration_3_1": {
+    source: ["entreprise", "date_debut_1periode_3eme_annee"],
     jour: "Zone de texte 21_49",
     mois: "Zone de texte 21_50",
     annee: "Zone de texte 21_51",
   },
-  "date_fin_remuneration_2_2": {
-    source: ["entreprise", "date_fin_2periode_2eme_annee"],
+  "date_fin_remuneration_3_1": {
+    source: ["entreprise", "date_fin_1periode_3eme_annee"],
     jour: "Zone de texte 21_52",
     mois: "Zone de texte 21_53",
     annee: "Zone de texte 21_54",
   },
-  "date_debut_remuneration_3_1": {
-    source: ["entreprise", "date_debut_1periode_3eme_annee"],
+  // --- 3ème année - 2ème période (y=641, droite: 21_55→21_60) ---
+  "date_debut_remuneration_3_2": {
+    source: ["entreprise", "date_debut_2periode_3eme_annee"],
     jour: "Zone de texte 21_55",
     mois: "Zone de texte 21_56",
     annee: "Zone de texte 21_57",
   },
-  "date_fin_remuneration_3_1": {
-    source: ["entreprise", "date_fin_1periode_3eme_annee"],
+  "date_fin_remuneration_3_2": {
+    source: ["entreprise", "date_fin_2periode_3eme_annee"],
     jour: "Zone de texte 21_58",
     mois: "Zone de texte 21_59",
     annee: "Zone de texte 21_60",
   },
-  "date_debut_remuneration_3_2": {
-    source: ["entreprise", "date_debut_2periode_3eme_annee"],
+  // --- 4ème année - 1ère période (y=627, gauche: 21_61→21_66) ---
+  "date_debut_remuneration_4_1": {
+    source: ["entreprise", "date_debut_1periode_4eme_annee"],
     jour: "Zone de texte 21_61",
     mois: "Zone de texte 21_62",
     annee: "Zone de texte 21_63",
   },
-  "date_fin_remuneration_3_2": {
-    source: ["entreprise", "date_fin_2periode_3eme_annee"],
+  "date_fin_remuneration_4_1": {
+    source: ["entreprise", "date_fin_1periode_4eme_annee"],
     jour: "Zone de texte 21_64",
     mois: "Zone de texte 21_65",
     annee: "Zone de texte 21_66",
   },
-  "date_debut_remuneration_4": {
-    source: ["entreprise", "date_debut_1periode_4eme_annee"],
+  // --- 4ème année - 2ème période (y=627, droite: 21_67→21_72) ---
+  "date_debut_remuneration_4_2": {
+    source: ["entreprise", "date_debut_2periode_4eme_annee"],
     jour: "Zone de texte 21_67",
     mois: "Zone de texte 21_68",
     annee: "Zone de texte 21_69",
   },
-  "date_fin_remuneration_4": {
-    source: ["entreprise", "date_fin_1periode_4eme_annee"],
+  "date_fin_remuneration_4_2": {
+    source: ["entreprise", "date_fin_2periode_4eme_annee"],
     jour: "Zone de texte 21_70",
     mois: "Zone de texte 21_71",
     annee: "Zone de texte 21_72",

@@ -146,18 +146,28 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 const PORT = config.port;
 
-// Connecter MongoDB avant de démarrer le serveur
-connectDB().then(() => {
+// Démarrer le serveur, MongoDB est optionnel (l'API utilise principalement Airtable)
+const startServer = () => {
   app.listen(PORT, () => {
     logger.info(`Serveur démarré sur le port ${PORT}`);
     logger.info(` URL: http://localhost:${PORT}`);
     logger.info(` Environnement: ${config.nodeEnv}`);
+  });
+};
+
+// Tenter la connexion MongoDB si MONGODB_URI est configuré, sinon démarrer sans
+if (process.env.MONGODB_URI) {
+  connectDB().then(() => {
     logger.info(` MongoDB: ✓ Connecté`);
     logger.info(`  Base: ${process.env.MONGODB_DATABASE || 'processiq'}`);
+    startServer();
+  }).catch((error) => {
+    logger.warn(' MongoDB non disponible, démarrage sans MongoDB:', error.message);
+    startServer();
   });
-}).catch((error) => {
-  logger.error(' Impossible de se connecter à MongoDB:', error);
-  process.exit(1);
-});
+} else {
+  logger.info(' MongoDB: non configuré (MONGODB_URI absent), démarrage avec Airtable uniquement');
+  startServer();
+}
 
 export default app;

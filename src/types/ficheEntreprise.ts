@@ -12,6 +12,7 @@ export interface IdentificationEntreprise {
   siret?: number;
   code_ape_naf?: string;
   type_employeur?: string;
+  employeur_specifique?: string;
   nombre_salaries?: number;
   convention_collective?: string;
 }
