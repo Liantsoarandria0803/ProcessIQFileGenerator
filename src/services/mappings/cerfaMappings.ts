@@ -371,7 +371,7 @@ export const CODES_REGIME_SOCIAL: Record<string, string> = {
 
 export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
   "BTS MCO A": {
-    code_diplome: "543",
+    code_diplome: "54",
     intitule: "BTS Management Commercial Opérationnel",
     code_formation: "32031213",
     code_rncp: "38362",
@@ -380,7 +380,7 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     heures: "1680",
   },
   "BTS MCO 2": {
-    code_diplome: "543",
+    code_diplome: "54",
     intitule: "BTS Management Commercial Opérationnel",
     code_formation: "32031213",
     code_rncp: "38362",
@@ -389,7 +389,7 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     heures: "1680",
   },
   "BTS NDRC 1": {
-    code_diplome: "543",
+    code_diplome: "54",
     intitule: "BTS Négociation et Digitalisation de la Relation Client",
     code_formation: "32031212",
     code_rncp: "38368",
@@ -398,7 +398,7 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     heures: "1740",
   },
   "BTS COM": {
-    code_diplome: "543",
+    code_diplome: "54",
     intitule: "BTS - Communication",
     code_formation: "32032002",
     code_rncp: "37198",
@@ -407,9 +407,9 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     heures: "1680",
   },
   "Titre Pro NTC": {
-    code_diplome: "583",
+    code_diplome: "58",
     intitule: "Négociateur technico-commercial",
-    code_formation: "36T3120",
+    code_formation: "36T31203",
     code_rncp: "39063",
     date_debut_formation_cfa: "07/01/2026",
     date_fin_epreuves: "11/07/2026",
