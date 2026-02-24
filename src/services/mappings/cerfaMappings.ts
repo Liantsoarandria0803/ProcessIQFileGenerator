@@ -534,7 +534,7 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
   "Zone de texte 8_43": ["entreprise", "Prénom Maître apprentissage"],
   "Zone de texte 8_44": ["entreprise", "Email Maître apprentissage"],
   "Zone de texte 8_45": ["entreprise", "Fonction Maître apprentissage"],
-  "Zone de texte 8_50": ["entreprise", "Diplôme Maître apprentissage intitulé"], // grand champ (width=264) → intitulé en lettres brutes
+  "Zone de texte 8_50": ["entreprise", "Diplôme Maître apprentissage intitulé"], // grand champ (width=264) → lit "Diplôme Maître apprentissage" en texte brut
   "Zone de texte 8_52": ["entreprise", "Diplôme Maître apprentissage"],           // petit champ (width=37) → code chiffre (0/3/4/5/6/7/8)
 
   // =====================================================
@@ -544,7 +544,7 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
   "Zone de texte 8_47": ["entreprise", "Prénom Maître apprentissage 2"],
   "Zone de texte 8_48": ["entreprise", "Email Maître apprentissage 2"],
   "Zone de texte 8_49": ["entreprise", "Fonction Maître apprentissage 2"],
-  "Zone de texte 8_51": ["entreprise", "Diplôme Maître apprentissage 2 intitulé"], // grand champ (width=280) → intitulé en lettres brutes
+  "Zone de texte 8_51": ["entreprise", "Diplôme Maître apprentissage 2 intitulé"], // grand champ (width=280) → lit "Diplôme Maître apprentissage 2" en texte brut
   "Zone de texte 8_53": ["entreprise", "Diplôme Maître apprentissage 2"],          // petit champ (width=53) → code chiffre (0/3/4/5/6/7/8)
 
   // =====================================================

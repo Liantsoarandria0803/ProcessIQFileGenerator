@@ -511,6 +511,15 @@ export class CerfaGeneratorService {
     if (key === 'Dernier diplôme ou titre préparé') return this.getCodeDiplome(valueStr);
     if (key === 'Dernière classe / année suivie') return this.getCodeClasse(valueStr);
     if (key === 'Diplôme Maître apprentissage' || key === 'Diplôme Maître apprentissage 2') return this.getCodeDiplomeMaitre(valueStr);
+    // Champ intitulé : même colonne Airtable, mais on retourne le texte brut (sans conversion en code)
+    if (key === 'Diplôme Maître apprentissage intitulé') {
+      const raw = entrepriseData['Diplôme Maître apprentissage'];
+      return raw ? String(raw) : '';
+    }
+    if (key === 'Diplôme Maître apprentissage 2 intitulé') {
+      const raw = entrepriseData['Diplôme Maître apprentissage 2'];
+      return raw ? String(raw) : '';
+    }
     if (key === 'Nationalité') return this.getCodeNationalite(valueStr);
     if (key === 'Régime social') return this.getCodeRegimeSocial(valueStr);
     if (key === 'Situation avant le contrat') return this.getCodeSituationAvantContrat(valueStr);
