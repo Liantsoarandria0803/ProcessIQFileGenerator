@@ -31,6 +31,7 @@ export interface CandidatFields {
   'Déclare avoir un projet de création ou de reprise dentreprise'?: string;
   'Fiche entreprise'?: Attachment[];
   'cerfa'?: Attachment[];
+  'Suivie entretien'?: Attachment[];
   [key: string]: any;
 }
 
