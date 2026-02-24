@@ -251,6 +251,7 @@ export class AdmissionService {
     if (info.nationalite !== undefined) airtableData['Nationalité'] = info.nationalite;
     if (info.commune_naissance !== undefined) airtableData['Commune de naissance'] = info.commune_naissance;
     if (info.departement !== undefined) airtableData['Département'] = info.departement;
+    if(info.numeroInscription !== undefined) airtableData["Numero Inscription"] = info.numeroInscription;
 
     // Section 2: Adresse et coordonnées
     if (info.adresse_residence !== undefined || info.code_postal !== undefined || info.ville !== undefined) {
@@ -338,6 +339,7 @@ export class AdmissionService {
       'Nationalité': info.nationalite,
       'Commune de naissance': info.commune_naissance,
       'Département': info.departement,
+      'Numero Inscription': info.numeroInscription,
 
       // Section 2: Adresse et coordonnées
       'Adresse lieu dexécution du contrat': `${info.adresse_residence}, ${info.code_postal}, ${info.ville}`,
@@ -421,6 +423,7 @@ export class AdmissionService {
       nationalite: fields['Nationalité'] || '',
       commune_naissance: fields['Commune de naissance'] || '',
       departement: fields['Département'] || '',
+      numeroInscription: fields['Numero Inscription'] || undefined,
 
       nom_representant_legal: fields['Nom Représentant légal principal'],
       prenom_representant_legal: fields['Prénom Représentant légal principal'],
