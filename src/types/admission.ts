@@ -8,7 +8,7 @@
 export interface InformationsPersonnelles {
   // Section 1: Informations personnelles
   prenom: string;
-  numeroInscription?: number;
+  readonly numeroInscription?: string; // Généré automatiquement à la création
   nom_naissance: string;
   nom_usage?: string;
   sexe: string;

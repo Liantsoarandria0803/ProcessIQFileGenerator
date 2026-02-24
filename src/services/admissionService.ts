@@ -41,8 +41,15 @@ export class AdmissionService {
       // Valider les informations
       this.validateInformationsPersonnelles(informations);
 
+      // Générer automatiquement un numéro d'inscription unique
+      const numeroInscription = this.generateNumeroInscription();
+      const informationsAvecNumero: InformationsPersonnelles = {
+        ...informations,
+        numeroInscription,
+      };
+
       // Préparer les données pour Airtable
-      const airtableData = this.mapInformationsToAirtable(informations);
+      const airtableData = this.mapInformationsToAirtable(informationsAvecNumero);
 
       // Créer le candidat
       const candidat = await this.candidatRepo.create(airtableData);
@@ -53,7 +60,7 @@ export class AdmissionService {
         success: true,
         message: 'Candidat créé avec succès',
         record_id: candidat.id,
-        candidate_info: informations
+        candidate_info: informationsAvecNumero
       };
     } catch (error) {
       logger.error(`❌ Erreur création candidat: ${error}`);
@@ -181,6 +188,20 @@ export class AdmissionService {
   // =====================================================
   // MÉTHODES PRIVÉES - VALIDATION ET MAPPING
   // =====================================================
+
+  /**
+   * Génère un numéro d'inscription unique sous la forme :
+   * YYYYMMDD + 4 chiffres aléatoires  →  ex: 202602241847
+   */
+  private generateNumeroInscription(): string {
+    const now = new Date();
+    const date =
+      String(now.getFullYear()) +
+      String(now.getMonth() + 1).padStart(2, '0') +
+      String(now.getDate()).padStart(2, '0');
+    const random = String(Math.floor(Math.random() * 9000) + 1000); // 1000–9999
+    return date + random;
+  }
 
   /**
    * Valide les informations personnelles
