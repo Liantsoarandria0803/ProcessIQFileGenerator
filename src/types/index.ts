@@ -8,6 +8,7 @@
 export interface CandidatFields {
   'NOM de naissance'?: string;
   'Prénom'?: string;
+  'Numero Inscription'?: number;
   'E-mail'?: string;
   'Téléphone'?: string;
   'Date de naissance'?: string;

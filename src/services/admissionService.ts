@@ -193,14 +193,14 @@ export class AdmissionService {
    * Génère un numéro d'inscription unique sous la forme :
    * YYYYMMDD + 4 chiffres aléatoires  →  ex: 202602241847
    */
-  private generateNumeroInscription(): string {
+  private generateNumeroInscription(): number {
     const now = new Date();
     const date =
       String(now.getFullYear()) +
       String(now.getMonth() + 1).padStart(2, '0') +
       String(now.getDate()).padStart(2, '0');
     const random = String(Math.floor(Math.random() * 9000) + 1000); // 1000–9999
-    return date + random;
+    return Number(date + random);
   }
 
   /**
@@ -272,7 +272,7 @@ export class AdmissionService {
     if (info.nationalite !== undefined) airtableData['Nationalité'] = info.nationalite;
     if (info.commune_naissance !== undefined) airtableData['Commune de naissance'] = info.commune_naissance;
     if (info.departement !== undefined) airtableData['Département'] = info.departement;
-    if(info.numeroInscription !== undefined) airtableData["Numero Inscription"] = info.numeroInscription;
+    if (info.numeroInscription !== undefined) airtableData["Numero Inscription"] = Number(info.numeroInscription);
 
     // Section 2: Adresse et coordonnées
     if (info.adresse_residence !== undefined || info.code_postal !== undefined || info.ville !== undefined) {
@@ -360,7 +360,7 @@ export class AdmissionService {
       'Nationalité': info.nationalite,
       'Commune de naissance': info.commune_naissance,
       'Département': info.departement,
-      'Numero Inscription': info.numeroInscription,
+      'Numero Inscription': info.numeroInscription !== undefined ? Number(info.numeroInscription) : undefined,
 
       // Section 2: Adresse et coordonnées
       'Adresse lieu dexécution du contrat': `${info.adresse_residence}, ${info.code_postal}, ${info.ville}`,
@@ -444,7 +444,7 @@ export class AdmissionService {
       nationalite: fields['Nationalité'] || '',
       commune_naissance: fields['Commune de naissance'] || '',
       departement: fields['Département'] || '',
-      numeroInscription: fields['Numero Inscription'] || undefined,
+      numeroInscription: fields['Numero Inscription'] ? Number(fields['Numero Inscription']) : undefined,
 
       nom_representant_legal: fields['Nom Représentant légal principal'],
       prenom_representant_legal: fields['Prénom Représentant légal principal'],
