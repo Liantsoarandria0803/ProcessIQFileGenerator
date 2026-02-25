@@ -12,6 +12,7 @@ import routes from './routes';
 import logger from './utils/logger';
 import { swaggerSpec } from './config/swagger';
 import { connectDB } from './config/database';
+import { ensureDefaultUsers } from './services/default-users.service';
 
 
 // Crée l'application Express
@@ -157,12 +158,18 @@ const startServer = () => {
 
 // Tenter la connexion MongoDB si MONGODB_URI est configuré, sinon démarrer sans
 if (process.env.MONGODB_URI) {
-  connectDB().then(() => {
+  connectDB().then(async () => {
     logger.info(` MongoDB: ✓ Connecté`);
     logger.info(`  Base: ${process.env.MONGODB_DATABASE || 'processiq'}`);
+    try {
+      await ensureDefaultUsers();
+    } catch (error: any) {
+      logger.warn(' Auth seed: impossible de creer les comptes par defaut:', error?.message || error);
+    }
+
     startServer();
-  }).catch((error) => {
-    logger.warn(' MongoDB non disponible, démarrage sans MongoDB:', error.message);
+  }).catch((error: any) => {
+    logger.warn(' MongoDB non disponible, démarrage sans MongoDB:', error?.message || error);
     startServer();
   });
 } else {

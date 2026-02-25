@@ -26,7 +26,7 @@ const requireMongoConnection = (_req: any, res: any, next: any): void => {
   next();
 };
 
-router.use('/auth', requireMongoConnection, authRoutes);
+router.use('/auth', authRoutes);
 
 // Routes d'admission (candidats, entreprises, generation PDF)
 router.use('/admission', admissionRoutes);

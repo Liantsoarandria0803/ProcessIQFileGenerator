@@ -4,7 +4,7 @@ export interface IUser extends Document {
   email: string;
   password: string;
   name: string;
-  role: 'admin' | 'student' | 'staff';
+  role: 'admin' | 'student' | 'staff' | 'commercial' | 'admission' | 'rh';
   studentId?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -23,7 +23,7 @@ const UserSchema = new Schema<IUser>({
   name: { type: String, required: true, maxlength: 120 },
   role: {
     type: String,
-    enum: ['admin', 'student', 'staff'],
+    enum: ['admin', 'student', 'staff', 'commercial', 'admission', 'rh'],
     default: 'student',
     index: true
   },
@@ -37,4 +37,3 @@ UserSchema.index({ email: 1 }, { unique: true });
 UserSchema.index({ studentId: 1, role: 1 });
 
 export const User = mongoose.model<IUser>('User', UserSchema);
-
