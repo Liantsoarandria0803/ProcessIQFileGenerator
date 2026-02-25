@@ -8,6 +8,7 @@
 export interface CandidatFields {
   'NOM de naissance'?: string;
   'Prénom'?: string;
+  'Numero Inscription'?: number;
   'E-mail'?: string;
   'Téléphone'?: string;
   'Date de naissance'?: string;
@@ -33,6 +34,7 @@ export interface CandidatFields {
   'cerfa'?: Attachment[];
   'convention'?: Attachment[];
   'Convention apprentissage'?: Attachment[];
+  'Suivie entretien'?: Attachment[];
   [key: string]: any;
 }
 

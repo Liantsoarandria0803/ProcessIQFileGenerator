@@ -314,14 +314,18 @@ export class CerfaGeneratorService {
   }
 
   private getCodeDiplomeMaitre(diplomeStr: string | undefined): string {
-    if (!diplomeStr) return '';
+    if (!diplomeStr) return '0';
     const d = String(diplomeStr).trim();
-    if (/^\d{2}$/.test(d)) return d;
+    // Si déjà un code chiffre valide (0, 3, 4, 5, 6, 7, 8)
+    if (/^[03-8]$/.test(d)) return d;
+    // Recherche exacte dans la table
     if (CODES_DIPLOMES_MAITRE[d]) return CODES_DIPLOMES_MAITRE[d];
+    // Recherche partielle insensible à la casse
     for (const [key, code] of Object.entries(CODES_DIPLOMES_MAITRE)) {
       if (key.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(key.toLowerCase())) return code;
     }
-    return d;
+    // Aucune correspondance → 0 (aucun diplôme)
+    return '0';
   }
 
   private getCodeSituationAvantContrat(situationStr: string | undefined): string {
@@ -506,7 +510,17 @@ export class CerfaGeneratorService {
     if (key === 'Employeur specifique') return this.getCodeEmployeurSpecifique(valueStr);
     if (key === 'Dernier diplôme ou titre préparé') return this.getCodeDiplome(valueStr);
     if (key === 'Dernière classe / année suivie') return this.getCodeClasse(valueStr);
+    // Champ intitulé : même colonne Airtable, mais on retourne le texte brut (sans conversion en code)
+    if (key === 'Diplôme Maître apprentissage intitulé') {
+      const raw = entrepriseData['Diplôme Maître apprentissage'];
+      return raw ? String(raw) : 'Essaie';
+    }
     if (key === 'Diplôme Maître apprentissage' || key === 'Diplôme Maître apprentissage 2') return this.getCodeDiplomeMaitre(valueStr);
+    
+    if (key === 'Diplôme Maître apprentissage 2 intitulé') {
+      const raw = entrepriseData['Diplôme Maître apprentissage 2'];
+      return raw ? String(raw) : '';
+    }
     if (key === 'Nationalité') return this.getCodeNationalite(valueStr);
     if (key === 'Régime social') return this.getCodeRegimeSocial(valueStr);
     if (key === 'Situation avant le contrat') return this.getCodeSituationAvantContrat(valueStr);

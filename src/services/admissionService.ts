@@ -41,8 +41,15 @@ export class AdmissionService {
       // Valider les informations
       this.validateInformationsPersonnelles(informations);
 
+      // Générer automatiquement un numéro d'inscription unique
+      const numeroInscription = this.generateNumeroInscription();
+      const informationsAvecNumero: InformationsPersonnelles = {
+        ...informations,
+        numeroInscription,
+      };
+
       // Préparer les données pour Airtable
-      const airtableData = this.mapInformationsToAirtable(informations);
+      const airtableData = this.mapInformationsToAirtable(informationsAvecNumero);
 
       // Créer le candidat
       const candidat = await this.candidatRepo.create(airtableData);
@@ -53,7 +60,7 @@ export class AdmissionService {
         success: true,
         message: 'Candidat créé avec succès',
         record_id: candidat.id,
-        candidate_info: informations
+        candidate_info: informationsAvecNumero
       };
     } catch (error) {
       logger.error(`❌ Erreur création candidat: ${error}`);
@@ -183,6 +190,20 @@ export class AdmissionService {
   // =====================================================
 
   /**
+   * Génère un numéro d'inscription unique sous la forme :
+   * YYYYMMDD + 4 chiffres aléatoires  →  ex: 202602241847
+   */
+  private generateNumeroInscription(): number {
+    const now = new Date();
+    const date =
+      String(now.getFullYear()) +
+      String(now.getMonth() + 1).padStart(2, '0') +
+      String(now.getDate()).padStart(2, '0');
+    const random = String(Math.floor(Math.random() * 9000) + 1000); // 1000–9999
+    return Number(date + random);
+  }
+
+  /**
    * Valide les informations personnelles
    */
   private validateInformationsPersonnelles(informations: InformationsPersonnelles): void {
@@ -251,6 +272,7 @@ export class AdmissionService {
     if (info.nationalite !== undefined) airtableData['Nationalité'] = info.nationalite;
     if (info.commune_naissance !== undefined) airtableData['Commune de naissance'] = info.commune_naissance;
     if (info.departement !== undefined) airtableData['Département'] = info.departement;
+    if (info.numeroInscription !== undefined) airtableData["Numero Inscription"] = Number(info.numeroInscription);
 
     // Section 2: Adresse et coordonnées
     if (info.adresse_residence !== undefined || info.code_postal !== undefined || info.ville !== undefined) {
@@ -294,9 +316,13 @@ export class AdmissionService {
     if (info.nir !== undefined) airtableData['NIR'] = info.nir;
 
     // Section 6: Parcours scolaire
-    if (info.dernier_diplome_prepare !== undefined) airtableData['Dernier diplôme ou titre préparé'] = info.dernier_diplome_prepare;
+    if (info.dernier_diplome_prepare !== undefined) {
+        const valeur = info.dernier_diplome_prepare;
+        airtableData['Dernier diplôme ou titre préparé'] = valeur;
+        airtableData['Intitulé précis du dernier diplôme ou titre préparé'] = valeur;
+        }
     if (info.derniere_classe !== undefined) airtableData['Dernière classe / année suivie'] = info.derniere_classe;
-    if (info.intitulePrecisDernierDiplome !== undefined) airtableData['Intitulé précis du dernier diplôme ou titre préparé'] = info.intitulePrecisDernierDiplome;
+
     if (info.bac !== undefined) airtableData['BAC'] = info.bac;
 
     // Section 7: Situations & déclarations
@@ -334,6 +360,7 @@ export class AdmissionService {
       'Nationalité': info.nationalite,
       'Commune de naissance': info.commune_naissance,
       'Département': info.departement,
+      'Numero Inscription': info.numeroInscription !== undefined ? Number(info.numeroInscription) : undefined,
 
       // Section 2: Adresse et coordonnées
       'Adresse lieu dexécution du contrat': `${info.adresse_residence}, ${info.code_postal}, ${info.ville}`,
@@ -417,6 +444,7 @@ export class AdmissionService {
       nationalite: fields['Nationalité'] || '',
       commune_naissance: fields['Commune de naissance'] || '',
       departement: fields['Département'] || '',
+      numeroInscription: fields['Numero Inscription'] ? Number(fields['Numero Inscription']) : undefined,
 
       nom_representant_legal: fields['Nom Représentant légal principal'],
       prenom_representant_legal: fields['Prénom Représentant légal principal'],

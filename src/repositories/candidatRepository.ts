@@ -182,6 +182,10 @@ export class CandidatRepository {
   async uploadDernierDiplome(recordId: string, filePath: string): Promise<boolean> {
     return this.uploadDocument(recordId, 'dernier diplome', filePath);
   }
+
+  async uploadSuivieEntretien(recordId: string, filePath: string): Promise<boolean> {
+    return this.uploadDocument(recordId, 'Suivie entretien', filePath);
+  }
 }
 
 export default CandidatRepository;
