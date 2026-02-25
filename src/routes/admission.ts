@@ -532,8 +532,8 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
     let uploadedToAirtable = false;
     let conventionUrl: string | null = null;
 
+    const tmpFilePath = path.join(os.tmpdir(), `convention_apprentissage_${id}_${Date.now()}.pdf`);
     try {
-      const tmpFilePath = path.join(os.tmpdir(), `convention_apprentissage_${id}_${Date.now()}.pdf`);
       fs.writeFileSync(tmpFilePath, result.pdfBuffer);
 
       // Nom de colonne prioritaire
@@ -544,28 +544,41 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
         uploadedToAirtable = await candidatRepo.uploadDocument(id, 'Convention apprentissage', tmpFilePath);
       }
 
-      if (uploadedToAirtable) {
-        logger.info(`✅ Convention apprentissage uploadée vers Airtable pour ${id}`);
-        try {
-          const updatedRecord = await candidatRepo.getById(id);
-          const conventionData =
-            (updatedRecord?.fields?.['convention'] as any[] | undefined) ||
-            (updatedRecord?.fields?.['Convention apprentissage'] as any[] | undefined);
-          conventionUrl = conventionData?.[0]?.url || null;
-        } catch (e) {
-          // ignore: URL optionnelle
-        }
-      } else {
-        logger.warn(`⚠️ Échec upload Convention apprentissage vers Airtable pour ${id}`);
+      if (!uploadedToAirtable) {
+        logger.warn(`⚠️ Echec upload Convention apprentissage vers Airtable pour ${id}`);
+        return res.status(500).json({
+          success: false,
+          error: "Convention generee mais non stockee dans Airtable",
+        });
       }
 
+      const updatedRecord = await candidatRepo.getById(id);
+      const conventionData =
+        (updatedRecord?.fields?.['convention'] as any[] | undefined) ||
+        (updatedRecord?.fields?.['Convention apprentissage'] as any[] | undefined);
+      conventionUrl = conventionData?.[0]?.url || null;
+
+      if (!conventionUrl) {
+        logger.warn(`⚠️ Convention apprentissage introuvable dans Airtable apres upload pour ${id}`);
+        return res.status(500).json({
+          success: false,
+          error: "Convention generee mais non visible dans Airtable",
+        });
+      }
+
+      logger.info(`✅ Convention apprentissage uploadée vers Airtable pour ${id}`);
+    } catch (uploadError: any) {
+      logger.warn(`⚠️ Erreur upload Convention apprentissage vers Airtable: ${uploadError.message}`);
+      return res.status(500).json({
+        success: false,
+        error: "Erreur lors du stockage Airtable de la convention d'apprentissage",
+      });
+    } finally {
       try {
         fs.unlinkSync(tmpFilePath);
       } catch (e) {
         // ignore
       }
-    } catch (uploadError: any) {
-      logger.warn(`⚠️ Erreur upload Convention apprentissage vers Airtable: ${uploadError.message}`);
     }
 
     res.json({
