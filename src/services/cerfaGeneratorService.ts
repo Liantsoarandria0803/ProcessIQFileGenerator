@@ -513,7 +513,7 @@ export class CerfaGeneratorService {
     // Champ intitulé : même colonne Airtable, mais on retourne le texte brut (sans conversion en code)
     if (key === 'Diplôme Maître apprentissage intitulé') {
       const raw = entrepriseData['Diplôme Maître apprentissage'];
-      return raw ? String(raw) : '';
+      return raw ? String(raw) : 'Essaie';
     }
     if (key === 'Diplôme Maître apprentissage' || key === 'Diplôme Maître apprentissage 2') return this.getCodeDiplomeMaitre(valueStr);
     
