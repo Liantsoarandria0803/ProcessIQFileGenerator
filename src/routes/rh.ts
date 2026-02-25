@@ -77,6 +77,7 @@ router.get('/etudiants-fiches', async (req: Request, res: Response) => {
       avec_atre_uniquement: req.query.avec_atre_uniquement === 'true',
       avec_compte_rendu_uniquement: req.query.avec_compte_rendu_uniquement === 'true',
       avec_reglement_uniquement: req.query.avec_reglement_uniquement === 'true',
+      avec_convention_uniquement: req.query.avec_convention_uniquement === 'true',
       dossier_complet_uniquement: req.query.dossier_complet_uniquement === 'true',
     };
 

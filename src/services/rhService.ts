@@ -47,6 +47,7 @@ export class RhService {
     let etudiantsAvecAtre = 0;
     let etudiantsAvecCompteRendu = 0;
     let etudiantsAvecReglement = 0;
+  let etudiantsAvecConvention = 0;
     let etudiantsDossierComplet = 0;
     let etudiantsSansDocuments = 0;
 
@@ -56,6 +57,7 @@ export class RhService {
 
       // Compteurs globaux (avant filtrage)
       if (etudiant.has_fiche_renseignement) etudiantsAvecFiche++;
+  if (etudiant.has_convention) etudiantsAvecConvention++;
       if (etudiant.has_cerfa) etudiantsAvecCerfa++;
       if (etudiant.has_atre) etudiantsAvecAtre++;
       if (etudiant.has_compte_rendu_visite) etudiantsAvecCompteRendu++;
@@ -69,6 +71,8 @@ export class RhService {
       if (filters.avec_atre_uniquement && !etudiant.has_atre) continue;
       if (filters.avec_compte_rendu_uniquement && !etudiant.has_compte_rendu_visite) continue;
       if (filters.avec_reglement_uniquement && !etudiant.has_reglement_interieur) continue;
+  // si on demande uniquement les étudiants avec convention
+  if ((filters as any).avec_convention_uniquement && !etudiant.has_convention) continue;
       if (filters.dossier_complet_uniquement && !etudiant.dossier_complet) continue;
 
       etudiants.push(etudiant);
@@ -77,6 +81,7 @@ export class RhService {
     return {
       total: candidats.length,
       etudiants_avec_fiche: etudiantsAvecFiche,
+      etudiants_avec_convention: etudiantsAvecConvention,
       etudiants_avec_cerfa: etudiantsAvecCerfa,
       etudiants_avec_atre: etudiantsAvecAtre,
       etudiants_avec_compte_rendu: etudiantsAvecCompteRendu,
@@ -120,6 +125,7 @@ export class RhService {
     let etudiantsAvecAtre = 0;
     let etudiantsAvecCompteRendu = 0;
     let etudiantsAvecReglement = 0;
+  let etudiantsAvecConvention = 0;
     let etudiantsDossierComplet = 0;
     let etudiantsSansDocuments = 0;
 
@@ -130,12 +136,14 @@ export class RhService {
       const hasAtre = this.hasAttachment(fields['Atre']);
       const hasCompteRendu = this.hasAttachment(fields['compte rendu de visite']);
       const hasReglement = this.hasAttachment(fields['Reglement interieur']);
+  const hasConvention = this.hasAttachment(fields['Convention'] || fields['Convention']);
 
       if (hasFiche) etudiantsAvecFichePdf++;
       if (hasCerfa) etudiantsAvecCerfa++;
       if (hasAtre) etudiantsAvecAtre++;
       if (hasCompteRendu) etudiantsAvecCompteRendu++;
       if (hasReglement) etudiantsAvecReglement++;
+  if (hasConvention) etudiantsAvecConvention++;
       if (hasFiche && hasCerfa && hasAtre && hasCompteRendu && hasReglement) etudiantsDossierComplet++;
       if (!hasFiche && !hasCerfa && !hasAtre && !hasCompteRendu && !hasReglement) etudiantsSansDocuments++;
     }
@@ -143,6 +151,7 @@ export class RhService {
     return {
       total_etudiants: totalEtudiants,
       total_fiches_entreprise: fichesEntreprise.length,
+      etudiants_avec_convention: etudiantsAvecConvention,
       etudiants_avec_fiche_pdf: etudiantsAvecFichePdf,
       taux_fiche_renseignement: this.computeRate(etudiantsAvecFichePdf, totalEtudiants),
       etudiants_avec_cerfa: etudiantsAvecCerfa,
@@ -216,6 +225,7 @@ export class RhService {
     const hasAtre = this.hasAttachment(fields['Atre']);
     const hasCompteRendu = this.hasAttachment(fields['compte rendu de visite']);
     const hasReglement = this.hasAttachment(fields['Reglement interieur']);
+  const hasConvention = this.hasAttachment(fields['Convention'] || fields['Convention apprentissage']);
 
     return {
       record_id: recordId,
@@ -235,6 +245,8 @@ export class RhService {
       has_compte_rendu_visite: hasCompteRendu,
       reglement_interieur: hasReglement ? this.extractFicheInfo(fields['Reglement interieur']) : null,
       has_reglement_interieur: hasReglement,
+      convention: hasConvention ? this.extractFicheInfo(fields['Convention'] || fields['Convention apprentissage']) : null,
+      has_convention: hasConvention,
       dossier_complet: hasFiche && hasCerfa && hasAtre && hasCompteRendu && hasReglement,
       alternance: ['Oui', 'Non'].includes(fields['alternance']) ? fields['alternance'] : null,
     };

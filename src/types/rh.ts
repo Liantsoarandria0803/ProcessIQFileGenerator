@@ -38,6 +38,9 @@ export interface EtudiantFicheRenseignement {
   /** Règlement intérieur PDF */
   reglement_interieur: FicheInfo | null;
   has_reglement_interieur: boolean;
+  /** Convention (fiche de convention / convention d'apprentissage) */
+  convention: FicheInfo | null;
+  has_convention: boolean;
   /** Dossier complet = fiche + CERFA + ATRE + Compte rendu + Règlement */
   dossier_complet: boolean;
   /** Alternance : "Oui" | "Non" | null */
@@ -51,6 +54,7 @@ export interface EtudiantFicheRenseignement {
 export interface ListeEtudiantsFichesResponse {
   total: number;
   etudiants_avec_fiche: number;
+  etudiants_avec_convention: number;
   etudiants_avec_cerfa: number;
   etudiants_avec_atre: number;
   etudiants_avec_compte_rendu: number;
@@ -70,6 +74,7 @@ export interface EtudiantsFichesFilters {
   avec_atre_uniquement: boolean;
   avec_compte_rendu_uniquement: boolean;
   avec_reglement_uniquement: boolean;
+  avec_convention_uniquement: boolean;
   dossier_complet_uniquement: boolean;
 }
 
@@ -80,6 +85,7 @@ export interface EtudiantsFichesFilters {
 export interface StatistiquesRh {
   total_etudiants: number;
   total_fiches_entreprise: number;
+  etudiants_avec_convention: number;
   etudiants_avec_fiche_pdf: number;
   taux_fiche_renseignement: number;
   etudiants_avec_cerfa: number;
