@@ -536,12 +536,11 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
     try {
       fs.writeFileSync(tmpFilePath, result.pdfBuffer);
 
-      // Nom de colonne prioritaire
-      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'convention', tmpFilePath);
-
-      // Fallback au cas ou la colonne est nommee differemment dans Airtable
-      if (!uploadedToAirtable) {
-        uploadedToAirtable = await candidatRepo.uploadDocument(id, 'Convention apprentissage', tmpFilePath);
+      // Essayer les variantes de nom de colonne Airtable connues
+      const conventionColumns = ['Convention', 'convention', 'Convention apprentissage'] as const;
+      for (const columnName of conventionColumns) {
+        uploadedToAirtable = await candidatRepo.uploadDocument(id, columnName, tmpFilePath);
+        if (uploadedToAirtable) break;
       }
 
       if (!uploadedToAirtable) {
@@ -554,6 +553,7 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
 
       const updatedRecord = await candidatRepo.getById(id);
       const conventionData =
+        (updatedRecord?.fields?.['Convention'] as any[] | undefined) ||
         (updatedRecord?.fields?.['convention'] as any[] | undefined) ||
         (updatedRecord?.fields?.['Convention apprentissage'] as any[] | undefined);
       conventionUrl = conventionData?.[0]?.url || null;

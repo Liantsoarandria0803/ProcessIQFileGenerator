@@ -149,11 +149,11 @@ export class CandidatRepository {
           return true;
         } catch (err: any) {
           logger.warn(`⚠️ Erreur mise à jour Airtable: ${err.message}`);
-          return true; // Backup local existe
+          return false;
         }
       } else {
         logger.warn(`⚠️ Pas d'URL publique, fichier stocké localement uniquement`);
-        return true;
+        return false;
       }
     } catch (error: any) {
       logger.error(`❌ Erreur upload ${columnName}: ${error.message}`);

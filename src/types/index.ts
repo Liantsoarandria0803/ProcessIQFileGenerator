@@ -31,6 +31,7 @@ export interface CandidatFields {
   'Déclare être inscrits sur la liste des sportifs de haut niveau'?: string;
   'Déclare avoir un projet de création ou de reprise dentreprise'?: string;
   'Fiche entreprise'?: Attachment[];
+  'Convention'?: Attachment[];
   'cerfa'?: Attachment[];
   'convention'?: Attachment[];
   'Convention apprentissage'?: Attachment[];
