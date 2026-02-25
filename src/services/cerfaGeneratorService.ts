@@ -500,6 +500,19 @@ export class CerfaGeneratorService {
       if (!percentValue) return '';
     }
 
+    // Special-case: certains champs "intitulé" partagent la même colonne Airtable
+    // (ex: "Diplôme Maître apprentissage intitulé" doit lire la valeur
+    // présente dans la colonne "Diplôme Maître apprentissage" en texte brut).
+    // Faire ces vérifications AVANT le return pour ne pas quitter prématurément.
+    if (key === 'Diplôme Maître apprentissage intitulé') {
+      const raw = entrepriseData['Diplôme Maître apprentissage'];
+      return raw ? String(raw) : '';
+    }
+    if (key === 'Diplôme Maître apprentissage 2 intitulé') {
+      const raw = entrepriseData['Diplôme Maître apprentissage 2'];
+      return raw ? String(raw) : '';
+    }
+
     if (!value) return '';
     const valueStr = String(value);
 
