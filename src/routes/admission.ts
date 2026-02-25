@@ -4,7 +4,15 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { CandidatRepository, EntrepriseRepository } from '../repositories';
-import { PdfGeneratorService, CerfaGeneratorService, AtreGeneratorService, CompteRenduGeneratorService, ReglementGeneratorService, LivretApprentissageService } from '../services';
+import {
+  PdfGeneratorService,
+  CerfaGeneratorService,
+  AtreGeneratorService,
+  CompteRenduGeneratorService,
+  ReglementGeneratorService,
+  LivretApprentissageService,
+  ConventionApprentissageGeneratorService,
+} from '../services';
 import { AdmissionService } from '../services/admissionService';
 import logger from '../utils/logger';
 import { InformationsPersonnelles } from '../types/admission';
@@ -19,6 +27,7 @@ const atreService = new AtreGeneratorService();
 const compteRenduService = new CompteRenduGeneratorService();
 const reglementService = new ReglementGeneratorService();
 const livretService = new LivretApprentissageService();
+const conventionService = new ConventionApprentissageGeneratorService();
 const admissionService = new AdmissionService();
 
 // Configuration multer : stockage en mémoire (buffer)
@@ -457,6 +466,124 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Erreur lors de la génération du CERFA'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admission/candidats/{id}/convention-apprentissage:
+ *   post:
+ *     summary: Genere la convention de formation apprentissage (PDF)
+ *     tags: [PDF]
+ *     description: |
+ *       Genere la convention de formation apprentissage a partir des donnees
+ *       candidat + entreprise (meme source que le CERFA), puis upload le PDF
+ *       dans Airtable (colonne `convention`).
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID Airtable du candidat
+ *         example: rec1BBjsjxhdqEKuq
+ *     responses:
+ *       200:
+ *         description: Convention generee et uploadee avec succes
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/candidats/:id/convention-apprentissage', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const candidat = await candidatRepo.getById(id);
+    if (!candidat) {
+      return res.status(404).json({
+        success: false,
+        error: 'Candidat non trouvé',
+      });
+    }
+
+    const entreprise = await entrepriseRepo.getByEtudiantId(id);
+    if (!entreprise) {
+      logger.warn(`⚠️ Pas de fiche entreprise pour ${id} — convention générée avec champs entreprise partiellement vides`);
+    }
+
+    const result = await conventionService.generateConvention(
+      candidat.fields,
+      entreprise?.fields || {}
+    );
+
+    if (!result.success || !result.pdfBuffer) {
+      return res.status(500).json({
+        success: false,
+        error: result.error || 'Erreur génération convention apprentissage',
+      });
+    }
+
+    const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
+    const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
+    const fileName = result.filename || `Convention_Apprentissage_${nom}_${prenom}.pdf`;
+
+    let uploadedToAirtable = false;
+    let conventionUrl: string | null = null;
+
+    try {
+      const tmpFilePath = path.join(os.tmpdir(), `convention_apprentissage_${id}_${Date.now()}.pdf`);
+      fs.writeFileSync(tmpFilePath, result.pdfBuffer);
+
+      // Nom de colonne prioritaire
+      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'convention', tmpFilePath);
+
+      // Fallback au cas ou la colonne est nommee differemment dans Airtable
+      if (!uploadedToAirtable) {
+        uploadedToAirtable = await candidatRepo.uploadDocument(id, 'Convention apprentissage', tmpFilePath);
+      }
+
+      if (uploadedToAirtable) {
+        logger.info(`✅ Convention apprentissage uploadée vers Airtable pour ${id}`);
+        try {
+          const updatedRecord = await candidatRepo.getById(id);
+          const conventionData =
+            (updatedRecord?.fields?.['convention'] as any[] | undefined) ||
+            (updatedRecord?.fields?.['Convention apprentissage'] as any[] | undefined);
+          conventionUrl = conventionData?.[0]?.url || null;
+        } catch (e) {
+          // ignore: URL optionnelle
+        }
+      } else {
+        logger.warn(`⚠️ Échec upload Convention apprentissage vers Airtable pour ${id}`);
+      }
+
+      try {
+        fs.unlinkSync(tmpFilePath);
+      } catch (e) {
+        // ignore
+      }
+    } catch (uploadError: any) {
+      logger.warn(`⚠️ Erreur upload Convention apprentissage vers Airtable: ${uploadError.message}`);
+    }
+
+    res.json({
+      success: true,
+      message: "Convention d'apprentissage générée avec succès",
+      data: {
+        candidatId: id,
+        fileName,
+        uploadedToAirtable,
+        airtableUrl: conventionUrl,
+        usedTemplate: result.usedTemplate || false,
+      },
+    });
+  } catch (error) {
+    logger.error("Erreur génération Convention d'apprentissage:", error);
+    res.status(500).json({
+      success: false,
+      error: "Erreur lors de la génération de la convention d'apprentissage",
     });
   }
 });

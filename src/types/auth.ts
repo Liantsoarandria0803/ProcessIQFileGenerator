@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'student' | 'staff';
+export type UserRole = 'admin' | 'student' | 'staff' | 'commercial' | 'admission' | 'rh';
 
 export interface AuthPayload {
   username: string;
@@ -8,4 +8,3 @@ export interface AuthPayload {
   iat: number;
   exp: number;
 }
-

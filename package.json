@@ -10,7 +10,8 @@
     "dev": "cross-env PORT=3001 ts-node-dev --respawn --transpile-only src/index.ts",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
-    "migrate": "ts-node src/scripts/migrate-airtable-to-mongodb.ts"
+    "migrate": "ts-node src/scripts/migrate-airtable-to-mongodb.ts",
+    "seed:test-data": "ts-node src/scripts/seed-test-data.ts"
   },
   "keywords": [
     "airtable",

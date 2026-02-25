@@ -11,8 +11,20 @@ import documentRoutes from './document.routes';
 import questionnaireRoutes from './questionnaire.routes';
 import authRoutes from './auth.routes';
 import { authenticateRequest } from '../middlewares/auth.middleware';
+import { isMongoConnected } from '../config/database';
 
 const router = Router();
+
+const requireMongoConnection = (_req: any, res: any, next: any): void => {
+  if (!isMongoConnected()) {
+    res.status(503).json({
+      success: false,
+      error: 'Base MongoDB indisponible, reessayez dans quelques secondes.'
+    });
+    return;
+  }
+  next();
+};
 
 router.use('/auth', authRoutes);
 
@@ -32,13 +44,13 @@ router.get('/health', (req, res) => {
 });
 
 // Routes protegees (session requise)
-router.use('/candidates', authenticateRequest, candidateRoutes);
-router.use('/students', authenticateRequest, studentRoutes);
-router.use('/attendances', authenticateRequest, attendanceRoutes);
-router.use('/grades', authenticateRequest, gradeRoutes);
-router.use('/events', authenticateRequest, eventRoutes);
-router.use('/appointments', authenticateRequest, appointmentRoutes);
-router.use('/documents', authenticateRequest, documentRoutes);
-router.use('/questionnaires', authenticateRequest, questionnaireRoutes);
+router.use('/candidates', requireMongoConnection, authenticateRequest, candidateRoutes);
+router.use('/students', requireMongoConnection, authenticateRequest, studentRoutes);
+router.use('/attendances', requireMongoConnection, authenticateRequest, attendanceRoutes);
+router.use('/grades', requireMongoConnection, authenticateRequest, gradeRoutes);
+router.use('/events', requireMongoConnection, authenticateRequest, eventRoutes);
+router.use('/appointments', requireMongoConnection, authenticateRequest, appointmentRoutes);
+router.use('/documents', requireMongoConnection, authenticateRequest, documentRoutes);
+router.use('/questionnaires', requireMongoConnection, authenticateRequest, questionnaireRoutes);
 
 export default router;
