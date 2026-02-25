@@ -870,4 +870,5 @@ export const EXTRA_SMALL_FONT_FIELDS: Set<string> = new Set([
   "Zone de texte 8_84",
   "Zone de texte 8_83",
   "Zone de texte 8_18",
+  "Zone de texte 8_50"
 ]);
