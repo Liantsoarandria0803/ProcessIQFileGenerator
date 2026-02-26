@@ -63,6 +63,8 @@ export class LivretApprentissageService {
   private static LIVRET_TEMPLATE_FIELDS: Record<string, typeof LivretApprentissageService.LIVRET_COMMON_FIELDS> = {
     MCO: LivretApprentissageService.LIVRET_COMMON_FIELDS,
     NDRC: LivretApprentissageService.LIVRET_COMMON_FIELDS,
+    BACHELOR: LivretApprentissageService.LIVRET_COMMON_FIELDS,
+    'TP NTC': LivretApprentissageService.LIVRET_COMMON_FIELDS,
   };
 
   /**
@@ -72,6 +74,14 @@ export class LivretApprentissageService {
     if (!formation) return null;
 
     const formationUpper = formation.toUpperCase();
+
+    // Alias métier: "Titre Pro NTC" doit utiliser le template "TP NTC"
+    if (
+      formationUpper.includes('TITRE PRO NTC') ||
+      formationUpper.includes('TITRE PROFESSIONNEL NTC')
+    ) {
+      return FORMATION_TEMPLATES.find((entry) => entry.keyword === 'TP NTC') || null;
+    }
 
     // Chercher "TP NTC" en premier car "TP" pourrait matcher d'autres choses
     for (const entry of FORMATION_TEMPLATES) {
