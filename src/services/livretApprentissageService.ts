@@ -5,8 +5,10 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { CandidatRepository } from '../repositories/candidatRepository';
 import logger from '../utils/logger';
+const { promises: fsPromises } = fs;
 
 // Colonne Airtable pour le livret d'apprentissage
 const LIVRET_AIRTABLE_COLUMN = 'livret dapprentissage';
@@ -39,6 +41,29 @@ export class LivretApprentissageService {
       '../../assets/templates_pdf/Livret dapprentissage'
     );
   }
+
+  // Champs et positions pour le template MCO (coordonnées fournies)
+  private static LIVRET_COMMON_FIELDS = [
+    // PAGE 1 – Couverture
+    { page: 0, key: 'NOM de naissance', x: 275, y: 257.2, fontSize: 11 },
+    { page: 0, key: 'Prénom', x: 275, y: 212.6, fontSize: 11 },
+    // Année scolaire - try Airtable column 'Année scolaire' else use literal
+    { page: 0, key: 'Année scolaire', x: 275, y: 164.8, fontSize: 11 },
+
+    // PAGE 24 – Entreprise
+    { page: 23, key: 'Raison sociale', x: 215, y: 778.4, fontSize: 9 },
+    { page: 23, key: 'Nom Maître apprentissage', x: 215, y: 760.4, fontSize: 9 },
+    { page: 23, key: 'Fonction Maître apprentissage', x: 215, y: 740.0, fontSize: 9 },
+    { page: 23, key: 'Téléphone Maître apprentissage', x: 215, y: 721.4, fontSize: 9 },
+    { page: 23, key: 'Email Maître apprentissage', x: 215, y: 703.4, fontSize: 9 },
+    { page: 23, key: 'Date de début exécution', x: 215, y: 669.2, fontSize: 9 },
+    { page: 23, key: 'Fin du contrat apprentissage', x: 215, y: 651.2, fontSize: 9 },
+  ];
+
+  private static LIVRET_TEMPLATE_FIELDS: Record<string, typeof LivretApprentissageService.LIVRET_COMMON_FIELDS> = {
+    MCO: LivretApprentissageService.LIVRET_COMMON_FIELDS,
+    NDRC: LivretApprentissageService.LIVRET_COMMON_FIELDS,
+  };
 
   /**
    * Détecte le template à utiliser selon la formation de l'étudiant
@@ -103,15 +128,65 @@ export class LivretApprentissageService {
       // 3. Lire le template PDF
       const templatePath = path.join(this.templatesDir, template.filename);
 
-      if (!fs.existsSync(templatePath)) {
-        return {
-          success: false,
-          error: `Template PDF introuvable: ${templatePath}`,
-        };
+      let pdfBuffer: Buffer;
+      try {
+        pdfBuffer = await fsPromises.readFile(templatePath);
+      } catch (error: any) {
+        if (error?.code === 'ENOENT') {
+          return {
+            success: false,
+            error: `Template PDF introuvable: ${templatePath}`,
+          };
+        }
+        throw error;
       }
-
-      const pdfBuffer = fs.readFileSync(templatePath);
       logger.info(`[LivretApprentissage] Template chargé, taille: ${pdfBuffer.length} bytes`);
+
+      // If template is mapped, render fields onto the template before upload
+      let finalPdfBuffer = pdfBuffer;
+      const templateKeyword = template.keyword.toUpperCase();
+      const templateFields = LivretApprentissageService.LIVRET_TEMPLATE_FIELDS[templateKeyword];
+      if (templateFields?.length) {
+        try {
+          const pdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
+          const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+          const pages = pdfDoc.getPages();
+          const entrepriseFields = (await this.candidatRepo.getById(idEtudiant))?.fields || {};
+          const candidatFields = candidat.fields || {};
+
+          for (const f of templateFields) {
+            const pageIndex = f.page;
+            if (pageIndex < 0 || pageIndex >= pages.length) continue;
+            const page = pages[pageIndex];
+
+            // Prefer candidate fields, fallback to entreprise when appropriate
+            let value: any = candidatFields[f.key];
+            if ((value === undefined || value === null || value === '') && entrepriseFields[f.key]) {
+              value = entrepriseFields[f.key];
+            }
+
+            const text = value ? String(value) : '';
+            if (!text) continue;
+
+            // PDF coordinate system: origin bottom-left; positions provided are assumed from top-left in your spec
+            // We treat provided y as the PDF y coordinate already (observed matching other templates). If offset needed adjust here.
+            page.drawText(text, {
+              x: f.x,
+              y: f.y,
+              size: f.fontSize,
+              font,
+              color: rgb(0, 0, 0),
+            });
+          }
+
+          const saved = await pdfDoc.save();
+          finalPdfBuffer = Buffer.from(saved);
+        } catch (e) {
+          logger.warn('[LivretApprentissage] Erreur rendu champs template, on continuera avec le template brut:', e);
+          finalPdfBuffer = pdfBuffer;
+        }
+      }
 
       // 4. Générer le nom de fichier
       const nomSanitized = (nom as string).replace(/[^a-zA-ZÀ-ÿ0-9]/g, '_');
@@ -120,33 +195,38 @@ export class LivretApprentissageService {
 
       // 5. Sauvegarder en fichier temporaire pour l'upload
       const tmpDir = path.join(__dirname, '../tmp');
-      if (!fs.existsSync(tmpDir)) {
-        fs.mkdirSync(tmpDir, { recursive: true });
-      }
+      await fsPromises.mkdir(tmpDir, { recursive: true });
       const tmpPath = path.join(tmpDir, filename);
-      fs.writeFileSync(tmpPath, pdfBuffer);
+      await fsPromises.writeFile(tmpPath, finalPdfBuffer);
 
       logger.info(`[LivretApprentissage] Fichier temporaire: ${tmpPath}`);
 
-      // 6. Upload vers Airtable
-      logger.info(`[LivretApprentissage] Upload vers Airtable colonne: "${LIVRET_AIRTABLE_COLUMN}"`);
-      const uploadSuccess = await this.candidatRepo.uploadDocument(
-        idEtudiant,
-        LIVRET_AIRTABLE_COLUMN,
-        tmpPath
-      );
-
-      // 7. Nettoyer le fichier temporaire
-      if (fs.existsSync(tmpPath)) {
-        fs.unlinkSync(tmpPath);
-        logger.info(`[LivretApprentissage] Fichier temporaire supprimé: ${tmpPath}`);
+      let uploadSuccess = false;
+      try {
+        // 6. Upload vers Airtable
+        logger.info(`[LivretApprentissage] Upload vers Airtable colonne: "${LIVRET_AIRTABLE_COLUMN}"`);
+        uploadSuccess = await this.candidatRepo.uploadDocument(
+          idEtudiant,
+          LIVRET_AIRTABLE_COLUMN,
+          tmpPath
+        );
+      } finally {
+        // 7. Nettoyer le fichier temporaire
+        try {
+          await fsPromises.unlink(tmpPath);
+          logger.info(`[LivretApprentissage] Fichier temporaire supprimé: ${tmpPath}`);
+        } catch (error: any) {
+          if (error?.code !== 'ENOENT') {
+            logger.warn(`[LivretApprentissage] Impossible de supprimer le fichier temporaire: ${tmpPath}`, error);
+          }
+        }
       }
 
       if (uploadSuccess) {
         logger.info(`[LivretApprentissage] ✅ Upload réussi pour ${prenom} ${nom}`);
         return {
           success: true,
-          pdfBuffer: Buffer.from(pdfBuffer),
+          pdfBuffer: Buffer.from(finalPdfBuffer),
           filename,
           formation: String(formation),
           templateUsed: template.filename,
