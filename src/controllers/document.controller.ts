@@ -4,6 +4,10 @@ import fs from 'fs';
 import path from 'path';
 import { DocumentModel } from '../models/document.etudiant.model';
 import { canAccessStudentId, getStudentScopeId } from '../utils/requestScope';
+import {
+  DocumentSignatureAutomationService,
+  SignatureAutomationError
+} from '../services/documentSignatureAutomation.service';
 
 const sanitizeFileName = (value: string): string => value.replace(/[^a-zA-Z0-9-_]/g, '_');
 
@@ -14,6 +18,8 @@ const resolveDocumentFilePath = (storageRef: string): string | null => {
 };
 
 export class DocumentController {
+  private readonly signatureAutomationService = new DocumentSignatureAutomationService();
+
   getAll = async (req: Request, res: Response): Promise<void> => {
     try {
       const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
@@ -217,6 +223,100 @@ export class DocumentController {
         data: updated
       });
     } catch (error: any) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  };
+
+  createSignatureRequest = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        res.status(400).json({ success: false, error: 'ID invalide' });
+        return;
+      }
+
+      const item = await DocumentModel.findById(id);
+      if (!item) {
+        res.status(404).json({ success: false, error: 'Document non trouve' });
+        return;
+      }
+      if (!canAccessStudentId(req, item.studentId)) {
+        res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
+        return;
+      }
+
+      const result = await this.signatureAutomationService.createSignatureRequestForDocument({
+        document: item,
+        workflowKey: req.body?.workflowKey,
+        documentUrl: req.body?.documentUrl,
+        participants: req.body?.participants,
+        auth: req.auth,
+        callbackUrl: req.body?.callbackUrl
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'Demande de signature DocuSign creee avec succes',
+        data: result
+      });
+    } catch (error: any) {
+      if (error instanceof SignatureAutomationError) {
+        res.status(error.statusCode || 400).json({
+          success: false,
+          error: error.message,
+          details: error.details || null
+        });
+        return;
+      }
+      res.status(400).json({ success: false, error: error.message });
+    }
+  };
+
+  createSigningLink = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        res.status(400).json({ success: false, error: 'ID invalide' });
+        return;
+      }
+
+      const item = await DocumentModel.findById(id);
+      if (!item) {
+        res.status(404).json({ success: false, error: 'Document non trouve' });
+        return;
+      }
+      if (!canAccessStudentId(req, item.studentId)) {
+        res.status(403).json({ success: false, error: 'Acces refuse a cette ressource' });
+        return;
+      }
+
+      const signerEmail = String(req.body?.signerEmail || req.auth?.username || '').trim();
+      const signerName = String(req.body?.signerName || '').trim() || undefined;
+      const signerRole = String(req.body?.signerRole || '').trim();
+      const returnUrl = String(req.body?.returnUrl || '').trim() || undefined;
+
+      const result = await this.signatureAutomationService.createSigningLinkForDocument({
+        document: item,
+        signerEmail,
+        signerName,
+        signerRole: signerRole as any,
+        returnUrl
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Lien de signature DocuSign genere avec succes',
+        data: result
+      });
+    } catch (error: any) {
+      if (error instanceof SignatureAutomationError) {
+        res.status(error.statusCode || 400).json({
+          success: false,
+          error: error.message,
+          details: error.details || null
+        });
+        return;
+      }
       res.status(400).json({ success: false, error: error.message });
     }
   };

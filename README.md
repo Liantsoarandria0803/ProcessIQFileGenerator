@@ -147,6 +147,47 @@ Placez les templates PDF dans `assets/templates_pdf/` :
 
 ---
 
+## UDocSign Integration (Documents a signer)
+
+### Variables `.env` a ajouter
+
+```env
+UDOCSIGN_ENABLED=true
+UDOCSIGN_BASE_URL=https://api.udocsign.example
+UDOCSIGN_API_KEY=your_api_key
+UDOCSIGN_TIMEOUT_MS=15000
+UDOCSIGN_CREATE_REQUEST_PATH=/signature-requests
+UDOCSIGN_CREATE_SIGNING_LINK_PATH=/signature-requests/{requestId}/signing-links
+UDOCSIGN_CALLBACK_URL=https://your-backend.example/api/documents/signature/webhook
+```
+
+### Endpoints backend ajoutes
+
+- `POST /api/documents/:id/signature/request`
+- `POST /api/documents/:id/signature/signing-link`
+
+### Workflow documents/signataires
+
+La config metier est dans:
+
+- `src/config/udocsign.signature-workflows.ts`
+
+Tu peux y ajuster les pages et signataires par document sans toucher au code API.
+
+### Script batch (generation automatique)
+
+Script:
+
+- `npm run udocsign:batch`
+
+Variables utiles:
+
+- `UDOCSIGN_STUDENT_ID` (obligatoire)
+- `UDOCSIGN_DOCUMENT_STATUSES` (par defaut: `to_sign,pending`)
+- `UDOCSIGN_WORKFLOW_KEY` (optionnel)
+- `UDOCSIGN_DOCUMENT_URL` (optionnel, URL publique du PDF)
+- `UDOCSIGN_PARTICIPANTS_JSON` ou `UDOCSIGN_PARTICIPANTS_FILE` (optionnels)
+
 ## 🚀 Déploiement sur Render
 
 ### Déploiement rapide
