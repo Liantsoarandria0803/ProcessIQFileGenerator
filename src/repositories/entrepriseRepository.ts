@@ -5,9 +5,64 @@ import { Entreprise, EntrepriseFields, FicheRenseignementEntreprise } from '../t
 
 export class EntrepriseRepository {
   private tableName: string;
+  private readonly fieldAliases: Record<string, string[]> = {
+    'Raison sociale': ['Raison Sociale', 'Raison sociale ', 'Raison Sociale ', 'Entreprise', 'Nom entreprise']
+  };
 
   constructor() {
     this.tableName = config.airtable.tables.entreprise;
+  }
+
+  private extractUnknownFieldName(error: any): string | null {
+    const type = error?.response?.data?.error?.type;
+    const message = error?.response?.data?.error?.message;
+
+    if (type !== 'UNKNOWN_FIELD_NAME' || typeof message !== 'string') {
+      return null;
+    }
+
+    const match = message.match(/Unknown field name:\s*"([^"]+)"/i);
+    return match?.[1] ?? null;
+  }
+
+  private async updateWithFieldFallbacks(recordId: string, data: Partial<EntrepriseFields>): Promise<void> {
+    const payload: Record<string, any> = { ...data };
+    const usedAliases = new Set<string>();
+    const maxAttempts = Math.max(3, Object.keys(payload).length + 2);
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await airtableClient.update<EntrepriseFields>(this.tableName, recordId, payload);
+        return;
+      } catch (error: any) {
+        const unknownField = this.extractUnknownFieldName(error);
+        if (!unknownField) {
+          throw error;
+        }
+
+        const value = payload[unknownField];
+        const aliases = this.fieldAliases[unknownField] || [];
+        const nextAlias = aliases.find((alias) => !usedAliases.has(`${unknownField}->${alias}`));
+
+        if (nextAlias) {
+          delete payload[unknownField];
+          payload[nextAlias] = value;
+          usedAliases.add(`${unknownField}->${nextAlias}`);
+          logger.warn(`⚠️ Colonne "${unknownField}" inconnue, retry avec alias "${nextAlias}"`);
+          continue;
+        }
+
+        delete payload[unknownField];
+        logger.warn(`⚠️ Colonne "${unknownField}" inconnue et sans alias valide, champ ignoré`);
+
+        if (Object.keys(payload).length === 0) {
+          logger.warn('⚠️ Aucun champ valide restant à mettre à jour');
+          return;
+        }
+      }
+    }
+
+    throw new Error('Échec de mise à jour Airtable après résolution des colonnes inconnues');
   }
 
   async getAll(options: {
@@ -229,8 +284,8 @@ export class EntrepriseRepository {
 
       logger.info(`📝 Données à mettre à jour: ${Object.keys(cleanedData).length} champs`);
 
-      // Mettre à jour l'enregistrement via axios
-      await airtableClient.update<EntrepriseFields>(this.tableName, recordId, cleanedData);
+      // Mettre à jour l'enregistrement avec fallback sur noms de colonnes inconnus
+      await this.updateWithFieldFallbacks(recordId, cleanedData);
 
       const raisonSociale = fiche.identification?.raison_sociale || 'N/A';
       logger.info(`✅ Fiche entreprise mise à jour avec succès: ${recordId}`);
