@@ -147,18 +147,20 @@ Placez les templates PDF dans `assets/templates_pdf/` :
 
 ---
 
-## UDocSign Integration (Documents a signer)
+## DocuSign Integration (Documents a signer)
 
 ### Variables `.env` a ajouter
 
 ```env
-UDOCSIGN_ENABLED=true
-UDOCSIGN_BASE_URL=https://api.udocsign.example
-UDOCSIGN_API_KEY=your_api_key
-UDOCSIGN_TIMEOUT_MS=15000
-UDOCSIGN_CREATE_REQUEST_PATH=/signature-requests
-UDOCSIGN_CREATE_SIGNING_LINK_PATH=/signature-requests/{requestId}/signing-links
-UDOCSIGN_CALLBACK_URL=https://your-backend.example/api/documents/signature/webhook
+DOCUSIGN_ENABLED=true
+DOCUSIGN_AUTH_SERVER=account-d.docusign.com
+DOCUSIGN_BASE_PATH=https://demo.docusign.net/restapi
+DOCUSIGN_INTEGRATION_KEY=your_integration_key
+DOCUSIGN_USER_ID=your_impersonated_user_guid
+DOCUSIGN_ACCOUNT_ID=your_account_id
+DOCUSIGN_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+DOCUSIGN_PRIVATE_KEY_FILE=./secrets/docusign-private.pem
+DOCUSIGN_RETURN_URL=https://your-frontend.example/signature/complete
 ```
 
 ### Endpoints backend ajoutes
@@ -170,7 +172,7 @@ UDOCSIGN_CALLBACK_URL=https://your-backend.example/api/documents/signature/webho
 
 La config metier est dans:
 
-- `src/config/udocsign.signature-workflows.ts`
+- `src/config/udocsign.signature-workflows.ts` (re-exporte aussi via `src/config/docusign.signature-workflows.ts`)
 
 Tu peux y ajuster les pages et signataires par document sans toucher au code API.
 
@@ -179,14 +181,15 @@ Tu peux y ajuster les pages et signataires par document sans toucher au code API
 Script:
 
 - `npm run udocsign:batch`
+- `npm run docusign:batch`
 
 Variables utiles:
 
-- `UDOCSIGN_STUDENT_ID` (obligatoire)
-- `UDOCSIGN_DOCUMENT_STATUSES` (par defaut: `to_sign,pending`)
-- `UDOCSIGN_WORKFLOW_KEY` (optionnel)
-- `UDOCSIGN_DOCUMENT_URL` (optionnel, URL publique du PDF)
-- `UDOCSIGN_PARTICIPANTS_JSON` ou `UDOCSIGN_PARTICIPANTS_FILE` (optionnels)
+- `DOCUSIGN_STUDENT_ID` (obligatoire)
+- `DOCUSIGN_DOCUMENT_STATUSES` (par defaut: `to_sign,pending`)
+- `DOCUSIGN_WORKFLOW_KEY` (optionnel)
+- `DOCUSIGN_DOCUMENT_URL` (optionnel, URL publique du PDF)
+- `DOCUSIGN_PARTICIPANTS_JSON` ou `DOCUSIGN_PARTICIPANTS_FILE` (optionnels)
 
 ## 🚀 Déploiement sur Render
 

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import axios, { AxiosInstance } from 'axios';
 import jwt from 'jsonwebtoken';
+import { PDFDocument } from 'pdf-lib';
 import { config } from '../config';
 import logger from '../utils/logger';
 
@@ -43,23 +44,39 @@ const normalizeRoleToken = (value: string): string =>
     .toUpperCase()
     .replace(/[^A-Z0-9_]+/g, '_');
 
-const ROLE_ANCHOR_TOKENS: Record<string, string> = {
-  student: 'STUDENT',
-  cfa: 'CFA',
-  maitre_apprentissage: 'MAITRE',
-  charge_admission: 'ADMISSION',
-  charge_rh: 'RH',
-  commercial: 'COMMERCIAL'
-};
+const SIGN_TAB_X = 430;
+const FILL_TAB_X = 90;
+const TAB_Y_START = 680;
+const TAB_Y_STEP = 34;
 
-const toAnchorRoleToken = (role: string): string => {
-  const key = String(role || '').trim();
-  return ROLE_ANCHOR_TOKENS[key] || normalizeRoleToken(key);
-};
+const buildSignHereTab = (params: { role: string; pageNumber: number; index: number }) => ({
+  documentId: '1',
+  pageNumber: String(params.pageNumber),
+  xPosition: String(SIGN_TAB_X),
+  yPosition: String(TAB_Y_START + params.index * TAB_Y_STEP),
+  tabLabel: `SIGN_${normalizeRoleToken(params.role)}_${params.pageNumber}_${params.index}`
+});
 
-const buildAnchor = (action: 'sign' | 'fill', role: string): string => {
-  const roleToken = toAnchorRoleToken(role);
-  return action === 'sign' ? `[[SIGN_${roleToken}]]` : `[[FILL_${roleToken}]]`;
+const buildFillTab = (params: { role: string; pageNumber: number; index: number }) => ({
+  documentId: '1',
+  pageNumber: String(params.pageNumber),
+  xPosition: String(FILL_TAB_X),
+  yPosition: String(TAB_Y_START + params.index * TAB_Y_STEP),
+  width: '220',
+  height: '24',
+  required: 'true',
+  tabLabel: `FILL_${normalizeRoleToken(params.role)}_${params.pageNumber}_${params.index}`
+});
+
+const normalizePageNumbers = (pageNumbers: number[], pageCount: number): number[] => {
+  const source = pageNumbers.length > 0 ? pageNumbers : [1];
+  const maxPage = Math.max(1, pageCount);
+
+  return source.map((page) => {
+    const parsed = Number(page);
+    if (!Number.isFinite(parsed) || parsed < 1) return 1;
+    return Math.min(Math.floor(parsed), maxPage);
+  });
 };
 
 export class DocuSignService {
@@ -67,8 +84,12 @@ export class DocuSignService {
 
   private readonly authClient: AxiosInstance;
   private readonly apiClient: AxiosInstance;
+  private readonly apiVersionBase: string;
 
   constructor() {
+    const apiBase = ensureNoTrailingSlash(config.docusign.basePath);
+    const baseIncludesRestApi = /\/restapi$/i.test(apiBase);
+
     this.authClient = axios.create({
       baseURL: `https://${config.docusign.authServer}`,
       timeout: config.docusign.timeoutMs,
@@ -78,9 +99,11 @@ export class DocuSignService {
     });
 
     this.apiClient = axios.create({
-      baseURL: ensureNoTrailingSlash(config.docusign.basePath),
+      baseURL: apiBase,
       timeout: config.docusign.timeoutMs
     });
+
+    this.apiVersionBase = baseIncludesRestApi ? '/v2.1' : '/restapi/v2.1';
   }
 
   private validateConfig(): void {
@@ -115,7 +138,8 @@ export class DocuSignService {
       {
         iss: config.docusign.integrationKey,
         sub: config.docusign.userId,
-        aud: `https://${config.docusign.authServer}`,
+        // JWT aud claim must be the DocuSign auth host (without protocol).
+        aud: config.docusign.authServer,
         scope: config.docusign.scopes.join(' ')
       },
       config.docusign.privateKey,
@@ -130,7 +154,19 @@ export class DocuSignService {
       assertion
     });
 
-    const response = await this.authClient.post('/oauth/token', body.toString());
+    let response: any;
+    try {
+      response = await this.authClient.post('/oauth/token', body.toString());
+    } catch (error: any) {
+      logger.error('DocuSign oauth token request failed', {
+        status: error?.response?.status,
+        data: error?.response?.data,
+        aud: config.docusign.authServer,
+        iss: config.docusign.integrationKey,
+        sub: config.docusign.userId
+      });
+      throw error;
+    }
     const accessToken = response.data?.access_token;
     const expiresIn = Number(response.data?.expires_in || 3600);
 
@@ -167,6 +203,13 @@ export class DocuSignService {
     }
 
     const documentBase64 = toBase64(documentBytes);
+    let documentPageCount = 1;
+    try {
+      const pdf = await PDFDocument.load(documentBytes);
+      documentPageCount = Math.max(1, pdf.getPageCount());
+    } catch {
+      documentPageCount = 1;
+    }
 
     const byRole = new Map<string, DocuSignParticipant[]>();
     input.participants.forEach((p) => {
@@ -182,26 +225,17 @@ export class DocuSignService {
       const signHereTabs = entries
         .filter((e) => e.action === 'sign')
         .flatMap((e) =>
-          (e.pageNumbers.length ? e.pageNumbers : [1]).map((pageNumber, idx) => ({
-            anchorString: buildAnchor('sign', role),
-            anchorUnits: 'pixels',
-            anchorXOffset: '0',
-            anchorYOffset: String(idx * 20),
-            pageNumber: String(pageNumber)
-          }))
+          normalizePageNumbers(e.pageNumbers, documentPageCount).map((pageNumber, idx) =>
+            buildSignHereTab({ role, pageNumber, index: idx })
+          )
         );
 
       const textTabs = entries
         .filter((e) => e.action === 'fill')
         .flatMap((e) =>
-          (e.pageNumbers.length ? e.pageNumbers : [1]).map((pageNumber, idx) => ({
-            anchorString: buildAnchor('fill', role),
-            anchorUnits: 'pixels',
-            anchorXOffset: '0',
-            anchorYOffset: String(idx * 20),
-            pageNumber: String(pageNumber),
-            required: 'true'
-          }))
+          normalizePageNumbers(e.pageNumbers, documentPageCount).map((pageNumber, idx) =>
+            buildFillTab({ role, pageNumber, index: idx })
+          )
         );
 
       const recipientId = String(recipientIdSeq++);
@@ -247,7 +281,9 @@ export class DocuSignService {
       }
     };
 
-    const url = `/restapi/v2.1/accounts/${encodeURIComponent(config.docusign.accountId)}/envelopes`;
+    const url = `${this.apiVersionBase}/accounts/${encodeURIComponent(
+      config.docusign.accountId
+    )}/envelopes`;
     const response = await this.apiClient.post(url, payload, { headers });
 
     const envelopeId = response.data?.envelopeId || response.data?.envelope_id;
@@ -282,10 +318,11 @@ export class DocuSignService {
       authenticationMethod: 'none',
       email: params.signerEmail,
       userName: params.signerName,
-      clientUserId
+      clientUserId,
+      roleName: params.signerRole
     };
 
-    const url = `/restapi/v2.1/accounts/${encodeURIComponent(
+    const url = `${this.apiVersionBase}/accounts/${encodeURIComponent(
       config.docusign.accountId
     )}/envelopes/${encodeURIComponent(params.envelopeId)}/views/recipient`;
 
