@@ -116,6 +116,38 @@ router.patch(
   documentController.updateStatus
 );
 
+router.post(
+  '/:id/signature/request',
+  [
+    param('id').isMongoId().withMessage('ID invalide'),
+    body('workflowKey').optional().isString(),
+    body('documentUrl').optional().isURL({ require_protocol: true }),
+    body('callbackUrl').optional().isURL({ require_protocol: true }),
+    body('participants').optional().isObject()
+  ],
+  validateRequest,
+  documentController.createSignatureRequest
+);
+
+router.post(
+  '/:id/signature/signing-link',
+  [
+    param('id').isMongoId().withMessage('ID invalide'),
+    body('signerRole')
+      .notEmpty().withMessage('signerRole requis')
+      .isIn(['student', 'cfa', 'maitre_apprentissage', 'charge_admission', 'charge_rh', 'commercial'])
+      .withMessage('signerRole invalide'),
+    body('signerEmail').optional().isEmail().withMessage('signerEmail invalide'),
+    body('signerName').optional().isString(),
+    body('returnUrl')
+      .optional()
+      .isURL({ require_protocol: true, require_tld: false })
+      .withMessage('returnUrl invalide')
+  ],
+  validateRequest,
+  documentController.createSigningLink
+);
+
 /**
  * @swagger
  * /api/documents/{id}:
