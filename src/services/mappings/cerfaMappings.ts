@@ -18,11 +18,11 @@ export const CODES_SITUATION_AVANT_CONTRAT: Record<string, string> = {
   "4 Contrat dapprentissage": "4",
   "5 Contrat de professionnalisation": "5",
   "6 Contrat aidé": "6",
-  "7 Formation au CFA sous statut de stagiaire": "7",
-  "8 Formation au CFA sans contrat après rupture": "8",
+  "7 En formation au CFA sous statut de stagiaire de la formation professionnelle, avant conclusion dun contrat dapprentissage (L6222-12-1 du code du travail)": "7",
+  "8 En formation, au CFA sans contrat sous statut de stagiaire de la formation professionnelle, à la suite dune rupture dun précédent contrat (5° de L6231-2 du code du travail)": "8",
   "9 Autres situations stagiaire formation professionnelle": "9",
   "10 Salarié": "10",
-  "11 Personne à la recherche d'un emploi": "11",
+  "11 Personne à la recherche dun emploi (inscrite ou non à Pôle Emploi)": "11",
   "12 Inactif": "12",
   // // Valeurs Airtable legacy sans numéros
   // "Scolaire : (Bac / brevet...)": "1",
@@ -158,10 +158,10 @@ export const CODES_DEPARTEMENTS: Record<string, string> = {
   "La Réunion": "974",
   "Mayotte": "976",
   // Étranger
-  "Étranger": "99",
-  "Etranger": "99",
-  "personne née à l'étranger": "99",
-  "né à l'étranger": "99",
+  "Étranger": "099",
+  "Etranger": "099",
+  "personne née à l'étranger": "099",
+  "né à l'étranger": "099",
 };
 
 // Codes diplomes - EXACT Python
