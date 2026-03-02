@@ -397,9 +397,10 @@ export class AdmissionService {
       'NIR': info.nir,
 
       // Section 6: Parcours scolaire
+      // Une seule donnée (ex: "55 Diplôme Universitaire de technologie") alimente les 2 colonnes
       'Dernier diplôme ou titre préparé': info.dernier_diplome_prepare,
       'Dernière classe / année suivie': info.derniere_classe,
-      'Intitulé précis du dernier diplôme ou titre préparé': info.intitulePrecisDernierDiplome,
+      'Intitulé précis du dernier diplôme ou titre préparé': info.dernier_diplome_prepare,
       'BAC': info.bac,
 
       // Section 7: Situations & déclarations
