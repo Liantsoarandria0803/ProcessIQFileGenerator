@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { CandidatRepository } from '../repositories/candidatRepository';
+import { EntrepriseRepository } from '../repositories/entrepriseRepository';
 import logger from '../utils/logger';
 const { promises: fsPromises } = fs;
 
@@ -32,10 +33,12 @@ export interface LivretGenerationResult {
 
 export class LivretApprentissageService {
   private candidatRepo: CandidatRepository;
+  private entrepriseRepo: EntrepriseRepository;
   private templatesDir: string;
 
   constructor() {
     this.candidatRepo = new CandidatRepository();
+    this.entrepriseRepo = new EntrepriseRepository();
     this.templatesDir = path.resolve(
       __dirname,
       '../../assets/templates_pdf/Livret dapprentissage'
@@ -162,18 +165,64 @@ export class LivretApprentissageService {
           const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
           const pages = pdfDoc.getPages();
-          const entrepriseFields = (await this.candidatRepo.getById(idEtudiant))?.fields || {};
           const candidatFields = candidat.fields || {};
+
+          // Charger les données de la fiche entreprise liée à cet étudiant
+          const entreprise = await this.entrepriseRepo.getByEtudiantId(idEtudiant);
+          const entrepriseFields = entreprise?.fields || {};
+
+          logger.info(`[LivretApprentissage] Données entreprise chargées: ${entreprise ? 'oui' : 'non'}`);
+
+          // Calculer l'année scolaire (fallback si pas dans Airtable)
+          const computeAnneeScolaire = (): string => {
+            // Essayer depuis la date de début du contrat
+            const dateDebut = entrepriseFields['Date de début exécution'] as string | undefined;
+            if (dateDebut) {
+              try {
+                const d = new Date(dateDebut);
+                const year = d.getFullYear();
+                const month = d.getMonth() + 1; // 1-12
+                // Si le contrat commence entre sept et déc → année = year/year+1
+                // Si le contrat commence entre janv et août → année = year-1/year
+                if (month >= 9) return `${year}/${year + 1}`;
+                return `${year - 1}/${year}`;
+              } catch { /* ignore */ }
+            }
+            // Fallback : année scolaire courante basée sur la date actuelle
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = now.getMonth() + 1;
+            if (m >= 9) return `${y}/${y + 1}`;
+            return `${y - 1}/${y}`;
+          };
 
           for (const f of templateFields) {
             const pageIndex = f.page;
             if (pageIndex < 0 || pageIndex >= pages.length) continue;
             const page = pages[pageIndex];
 
-            // Prefer candidate fields, fallback to entreprise when appropriate
-            let value: any = candidatFields[f.key];
-            if ((value === undefined || value === null || value === '') && entrepriseFields[f.key]) {
-              value = entrepriseFields[f.key];
+            let value: any = '';
+
+            if (f.key === 'Année scolaire') {
+              // D'abord chercher dans Airtable, sinon calculer
+              value = candidatFields['Année scolaire'] || entrepriseFields['Année scolaire'] || computeAnneeScolaire();
+            } else {
+              // Chercher d'abord dans candidat, puis dans entreprise
+              value = candidatFields[f.key];
+              if (value === undefined || value === null || value === '') {
+                value = entrepriseFields[f.key];
+              }
+            }
+
+            // Formater les dates pour affichage (DD/MM/YYYY)
+            if (value && (f.key.includes('Date') || f.key.includes('Fin du contrat'))) {
+              const dateStr = String(value);
+              if (dateStr.includes('-') && dateStr.length >= 10) {
+                const parts = dateStr.substring(0, 10).split('-');
+                if (parts.length === 3) {
+                  value = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                }
+              }
             }
 
             const text = value ? String(value) : '';

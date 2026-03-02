@@ -422,10 +422,23 @@ export class AdmissionService {
       'motivation projet perso': info.motivation_projet_professionnel
     };
 
-    // Supprimer les valeurs undefined
+    // Supprimer les valeurs undefined, null, chaînes vides, et 0 pour les codes postaux
     Object.keys(airtableData).forEach(key => {
-      if (airtableData[key as keyof CandidatFields] === undefined) {
+      const value = airtableData[key as keyof CandidatFields];
+      // Supprimer si undefined ou null
+      if (value === undefined || value === null) {
         delete airtableData[key as keyof CandidatFields];
+        return;
+      }
+      // Supprimer si chaîne vide
+      if (value === '') {
+        delete airtableData[key as keyof CandidatFields];
+        return;
+      }
+      // Supprimer si 0 pour les champs de code postal (qui ne doivent pas être 0)
+      if (typeof value === 'number' && value === 0 && key.toLowerCase().includes('code postal')) {
+        delete airtableData[key as keyof CandidatFields];
+        return;
       }
     });
 
