@@ -402,8 +402,8 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     intitule: "BTS - Communication",
     code_formation: "32032002",
     code_rncp: "37198",
-    date_debut_formation_cfa: "",
-    date_fin_epreuves: "",
+    date_debut_formation_cfa: "03/09/2025",
+    date_fin_epreuves: "30/06/2027",
     heures: "1680",
   },
   "Titre Pro NTC": {
