@@ -1,8 +1,19 @@
 import dotenv from 'dotenv';
+import fs from 'fs';
 dotenv.config();
 
 const normalizePrivateKey = (value: string): string =>
   String(value || '').includes('\\n') ? String(value || '').replace(/\\n/g, '\n') : String(value || '');
+
+const resolveDocuSignPrivateKey = (): string => {
+  const filePath = String(process.env.DOCUSIGN_PRIVATE_KEY_FILE || '').trim();
+  if (filePath) {
+    const absolutePath = filePath;
+    const pem = fs.readFileSync(absolutePath, 'utf8');
+    return normalizePrivateKey(pem);
+  }
+  return normalizePrivateKey(process.env.DOCUSIGN_PRIVATE_KEY || '');
+};
 
 export const config = {
   // Airtable
@@ -50,7 +61,7 @@ export const config = {
     integrationKey: process.env.DOCUSIGN_INTEGRATION_KEY || '',
     userId: process.env.DOCUSIGN_USER_ID || '',
     accountId: process.env.DOCUSIGN_ACCOUNT_ID || '',
-    privateKey: normalizePrivateKey(process.env.DOCUSIGN_PRIVATE_KEY || ''),
+    privateKey: resolveDocuSignPrivateKey(),
     jwtExpiresInSeconds: parseInt(process.env.DOCUSIGN_JWT_EXPIRES_IN || '3600', 10),
     timeoutMs: parseInt(process.env.DOCUSIGN_TIMEOUT_MS || '20000', 10),
     returnUrl: process.env.DOCUSIGN_RETURN_URL || '',

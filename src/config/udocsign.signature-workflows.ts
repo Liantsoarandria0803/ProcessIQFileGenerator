@@ -51,8 +51,8 @@ export const SIGNATURE_DOCUMENT_WORKFLOWS: SignatureDocumentWorkflow[] = [
     key: 'fiche_renseignements_entreprise',
     displayName: 'Fiche de renseignements entreprise',
     aliases: ['fiche de renseignements entreprise', 'fiche renseignements entreprise'],
-    actors: [{ role: 'cfa', action: 'fill', required: true, pageNumbers: [] }],
-    notes: 'Le tableau indique un remplissage de questionnaire par le CFA.'
+    actors: [{ role: 'commercial', action: 'fill', required: true, pageNumbers: [] }],
+    notes: 'Le tableau indique un remplissage de questionnaire par le commercial.'
   },
   {
     key: 'reglement_interieur',
@@ -102,4 +102,3 @@ export const findSignatureWorkflow = (params: {
     ) || null
   );
 };
-

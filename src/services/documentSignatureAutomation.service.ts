@@ -3,7 +3,7 @@ import type { IDocument } from '../models/document.etudiant.model';
 import {
   SignatureActorRole,
   findSignatureWorkflow
-} from '../config/udocsign.signature-workflows';
+} from '../config/docusign.signature-workflows';
 import { DocuSignService } from './docusign.service';
 
 export interface SignatureParticipantInput {
@@ -113,7 +113,8 @@ export class DocumentSignatureAutomationService {
           role: actor.role,
           action: actor.action,
           email: participant.email,
-          name: participant.name || ROLE_LABELS[actor.role],
+          // Keep recipient names deterministic to avoid embedded signing mismatch.
+          name: ROLE_LABELS[actor.role],
           pageNumbers: actor.pageNumbers
         }
       ];
@@ -205,4 +206,3 @@ export class DocumentSignatureAutomationService {
 }
 
 export { SignatureAutomationError };
-
