@@ -227,6 +227,9 @@ export class CerfaGeneratorService {
   private getCodeDiplome(diplomeStr: string | undefined): string {
     if (!diplomeStr) return '';
     const d = String(diplomeStr).trim();
+    // Format "NN Libellé..." → extract the leading numeric code (e.g. "55 Diplôme Universitaire de technologie" → "55")
+    const leadingCode = d.match(/^(\d{2})\s+.+/);
+    if (leadingCode) return leadingCode[1];
     if (/^\d{2}$/.test(d)) return d;
     if (CODES_DIPLOMES[d]) return CODES_DIPLOMES[d];
     for (const [key, code] of Object.entries(CODES_DIPLOMES)) {
@@ -522,6 +525,11 @@ export class CerfaGeneratorService {
     if (key === 'Type de dérogation') return this.getCodeTypeDerogation(valueStr);
     if (key === 'Employeur specifique') return this.getCodeEmployeurSpecifique(valueStr);
     if (key === 'Dernier diplôme ou titre préparé') return this.getCodeDiplome(valueStr);
+    if (key === 'Intitulé précis du dernier diplôme ou titre préparé') {
+      // Strip leading code if present: "55 Diplôme Universitaire de technologie" → "Diplôme Universitaire de technologie"
+      const stripped = valueStr.match(/^\d{2}\s+(.+)$/);
+      return stripped ? stripped[1] : valueStr;
+    }
     if (key === 'Dernière classe / année suivie') return this.getCodeClasse(valueStr);
     // Champ intitulé : même colonne Airtable, mais on retourne le texte brut (sans conversion en code)
     if (key === 'Diplôme Maître apprentissage intitulé') {
