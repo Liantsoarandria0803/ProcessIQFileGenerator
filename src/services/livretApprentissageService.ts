@@ -54,13 +54,13 @@ export class LivretApprentissageService {
     { page: 0, key: 'Année scolaire', x: 275, y: 164.8, fontSize: 11 },
 
     // PAGE 24 – Entreprise
-    { page: 23, key: 'Raison sociale', x: 215, y: 778.4, fontSize: 9 },
-    { page: 23, key: 'Nom Maître apprentissage', x: 215, y: 760.4, fontSize: 9 },
-    { page: 23, key: 'Fonction Maître apprentissage', x: 215, y: 740.0, fontSize: 9 },
-    { page: 23, key: 'Téléphone Maître apprentissage', x: 215, y: 721.4, fontSize: 9 },
-    { page: 23, key: 'Email Maître apprentissage', x: 215, y: 703.4, fontSize: 9 },
-    { page: 23, key: 'Date de début exécution', x: 215, y: 669.2, fontSize: 9 },
-    { page: 23, key: 'Fin du contrat apprentissage', x: 215, y: 651.2, fontSize: 9 },
+    { page: 23, key: 'Raison sociale', x: 215, y: 770.4, fontSize: 9 },
+    { page: 23, key: 'Nom Maître apprentissage', x: 215, y: 755.4, fontSize: 9 },
+    { page: 23, key: 'Fonction Maître apprentissage', x: 215, y: 735.0, fontSize: 9 },
+    { page: 23, key: 'Téléphone Maître apprentissage', x: 215, y: 716.4, fontSize: 9 },
+    { page: 23, key: 'Email Maître apprentissage', x: 215, y: 696.4, fontSize: 9 },
+    { page: 23, key: 'Date de début exécution', x: 215, y: 660.2, fontSize: 9 },
+    { page: 23, key: 'Fin du contrat apprentissage', x: 215, y: 646.2, fontSize: 9 },
   ];
 
   private static LIVRET_TEMPLATE_FIELDS: Record<string, typeof LivretApprentissageService.LIVRET_COMMON_FIELDS> = {
