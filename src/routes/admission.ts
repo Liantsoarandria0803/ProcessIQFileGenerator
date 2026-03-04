@@ -3,7 +3,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { CandidatRepository, EntrepriseRepository, ResultatPdfRepository } from '../repositories';
+import { CandidatRepository, EntrepriseRepository, ResultatPdfRepository, ResultatEntretienRepository } from '../repositories';
 import {
   PdfGeneratorService,
   CerfaGeneratorService,
@@ -22,6 +22,7 @@ const router = Router();
 const candidatRepo = new CandidatRepository();
 const entrepriseRepo = new EntrepriseRepository();
 const resultatPdfRepo = new ResultatPdfRepository();
+const resultatEntretienRepo = new ResultatEntretienRepository();
 const pdfService = new PdfGeneratorService();
 const cerfaService = new CerfaGeneratorService();
 const atreService = new AtreGeneratorService();
@@ -1783,8 +1784,8 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
  *     summary: Upload un PDF de suivi d'entretien pour un candidat
  *     tags: [Candidats]
  *     description: >
- *       Reçoit un fichier PDF et l'upload dans la colonne "Suivie entretien"
- *       de la table "Liste des candidats" pour l'enregistrement correspondant à l'ID fourni.
+ *       Reçoit un email et un fichier PDF, puis crée un enregistrement dans la table
+ *       "Resultat entretien" avec l'email dans "E-mail" et le PDF dans "Suivie entretien".
  *     parameters:
  *       - in: path
  *         name: id
@@ -1800,15 +1801,21 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
  *           schema:
  *             type: object
  *             required:
+ *               - email
  *               - file
  *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Adresse email associée au suivi d'entretien
+ *                 example: "etudiant@example.com"
  *               file:
  *                 type: string
  *                 format: binary
- *                 description: Fichier PDF de suivi d'entretien
+ *                 description: Fichier PDF du suivi d'entretien
  *     responses:
- *       200:
- *         description: Fichier uploadé avec succès dans Airtable
+ *       201:
+ *         description: Suivi d'entretien enregistré avec succès dans Airtable
  *         content:
  *           application/json:
  *             schema:
@@ -1819,24 +1826,21 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Suivi d'entretien uploadé avec succès"
+ *                   example: "Suivi d'entretien enregistré avec succès"
  *                 data:
  *                   type: object
  *                   properties:
- *                     candidatId:
+ *                     record_id:
  *                       type: string
- *                       example: "rec1BBjsjxhdqEKuq"
- *                     fileName:
+ *                       example: "recXXXXXXXXXXXXXX"
+ *                     email:
+ *                       type: string
+ *                       example: "etudiant@example.com"
+ *                     filename:
  *                       type: string
  *                       example: "suivi_entretien_Dupont_Jean.pdf"
- *                     uploadedToAirtable:
- *                       type: boolean
- *                       example: true
- *                     airtableUrl:
- *                       type: string
- *                       nullable: true
  *       400:
- *         description: Aucun fichier fourni ou format invalide
+ *         description: Email ou fichier manquant
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       500:
@@ -1845,6 +1849,8 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
 router.post('/candidats/:id/suivie-entretien', upload.single('file'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { email } = req.body;
+
     logger.info(`[Route] POST /candidats/${id}/suivie-entretien`);
 
     // Vérifier que le candidat existe
@@ -1856,67 +1862,46 @@ router.post('/candidats/:id/suivie-entretien', upload.single('file'), async (req
       });
     }
 
-    // Vérifier que le fichier a bien été envoyé
+    // Vérifier l'email
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Un email valide est requis',
+      });
+    }
+
+    // Vérifier le fichier
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        error: 'Aucun fichier fourni. Utilisez le champ "file" en multipart/form-data.',
+        error: 'Un fichier PDF est requis',
       });
     }
 
-    // Vérifier que c'est bien un PDF
-    if (req.file.mimetype !== 'application/pdf') {
-      return res.status(400).json({
-        success: false,
-        error: 'Le fichier doit être un PDF (application/pdf).',
-      });
-    }
-
-    const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
-    const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
-    const fileName = `suivi_entretien_${nom}_${prenom}_${Date.now()}.pdf`;
-
-    // Écrire le buffer dans un fichier temporaire
-    const tmpPath = path.join(os.tmpdir(), fileName);
+    // Écriture temporaire du buffer sur disque
+    const tmpPath = path.join(os.tmpdir(), `suivie_entretien_${Date.now()}_${req.file.originalname}`);
     fs.writeFileSync(tmpPath, req.file.buffer);
 
-    let uploadedToAirtable = false;
-    let airtableUrl: string | null = null;
-
     try {
-      uploadedToAirtable = await candidatRepo.uploadSuivieEntretien(id, tmpPath);
+      const result = await resultatEntretienRepo.create(email, tmpPath, req.file.originalname);
 
-      if (uploadedToAirtable) {
-        logger.info(`✅ Suivi entretien uploadé vers Airtable pour ${id}`);
-        // Récupérer l'URL du fichier uploadé
-        try {
-          const updatedRecord = await candidatRepo.getById(id);
-          const suivieData = updatedRecord?.fields?.['Suivie entretien'] as any[] | undefined;
-          airtableUrl = suivieData?.[0]?.url || null;
-        } catch (_) {
-          // Non bloquant
-        }
-      }
+      return res.status(201).json({
+        success: true,
+        message: "Suivi d'entretien enregistré avec succès",
+        data: {
+          record_id: result.id,
+          email,
+          filename: req.file.originalname,
+        },
+      });
     } finally {
-      // Toujours nettoyer le fichier temporaire
-      try { fs.unlinkSync(tmpPath); } catch (_) {}
+      try { fs.unlinkSync(tmpPath); } catch (_) { /* ignore */ }
     }
-
-    res.json({
-      success: true,
-      message: "Suivi d'entretien uploadé avec succès",
-      data: {
-        candidatId: id,
-        fileName: req.file.originalname,
-        uploadedToAirtable,
-        airtableUrl,
-      },
-    });
-  } catch (error) {
+  } catch (error: any) {
     logger.error("Erreur upload suivi entretien:", error);
     res.status(500).json({
       success: false,
-      error: "Erreur lors de l'upload du suivi d'entretien",
+      error: error.message || "Erreur lors de l'upload du suivi d'entretien",
     });
   }
 });
