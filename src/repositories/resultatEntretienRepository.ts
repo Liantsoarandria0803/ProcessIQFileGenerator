@@ -9,14 +9,14 @@ import dns from 'dns';
 // Force IPv4 pour les appels axios (tmpfiles.org)
 dns.setDefaultResultOrder('ipv4first');
 
-const TABLE_NAME = 'Résultats PDF';
+const TABLE_NAME = 'Resultat entretien';
 
-export interface ResultatPdfFields {
+export interface ResultatEntretienFields {
   'E-mail'?: string;
-  'PDF Résultat'?: { url: string; filename?: string }[];
+  'Suivie entretien'?: { url: string; filename?: string }[];
 }
 
-export class ResultatPdfRepository {
+export class ResultatEntretienRepository {
 
   /**
    * Upload le fichier vers tmpfiles.org pour obtenir une URL publique
@@ -37,7 +37,7 @@ export class ResultatPdfRepository {
         if (url) {
           // Transformer https://tmpfiles.org/123/file.pdf → https://tmpfiles.org/dl/123/file.pdf
           url = url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-          logger.info(`✅ Résultat PDF uploadé vers tmpfiles.org: ${url}`);
+          logger.info(`✅ Fichier uploadé vers tmpfiles.org: ${url}`);
           return url;
         }
       }
@@ -51,32 +51,30 @@ export class ResultatPdfRepository {
   }
 
   /**
-   * Récupère tous les enregistrements de la table "Résultats PDF"
+   * Récupère tous les enregistrements de la table "Resultat entretien"
    */
-  async getAll(): Promise<{ id: string; fields: ResultatPdfFields }[]> {
-    return airtableClient.getAll<ResultatPdfFields>(TABLE_NAME);
+  async getAll(): Promise<{ id: string; fields: ResultatEntretienFields }[]> {
+    return airtableClient.getAll<ResultatEntretienFields>(TABLE_NAME);
   }
 
   /**
-   * Crée un enregistrement dans "Résultats PDF" avec l'email et le PDF
+   * Crée un enregistrement dans "Resultat entretien" avec l'email et le PDF
    */
   async create(email: string, pdfFilePath: string, filename: string): Promise<{ id: string; success: boolean }> {
-    // Upload du fichier vers l'hébergement temporaire
     const publicUrl = await this.uploadToFileHosting(pdfFilePath);
 
     if (!publicUrl) {
       throw new Error("Impossible d'obtenir une URL publique pour le PDF (tmpfiles.org indisponible)");
     }
 
-    // Création de l'enregistrement Airtable
-    const record = await airtableClient.create<ResultatPdfFields>(TABLE_NAME, {
+    const record = await airtableClient.create<ResultatEntretienFields>(TABLE_NAME, {
       'E-mail': email,
-      'PDF Résultat': [{ url: publicUrl, filename }],
+      'Suivie entretien': [{ url: publicUrl, filename }],
     });
 
-    logger.info(`✅ Résultat PDF créé dans Airtable: ${record.id} pour ${email}`);
+    logger.info(`✅ Résultat entretien créé dans Airtable: ${record.id} pour ${email}`);
     return { id: record.id, success: true };
   }
 }
 
-export default ResultatPdfRepository;
+export default ResultatEntretienRepository;
