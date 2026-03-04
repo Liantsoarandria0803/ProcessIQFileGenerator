@@ -51,6 +51,13 @@ export class ResultatPdfRepository {
   }
 
   /**
+   * Récupère tous les enregistrements de la table "Résultats PDF"
+   */
+  async getAll(): Promise<{ id: string; fields: ResultatPdfFields }[]> {
+    return airtableClient.getAll<ResultatPdfFields>(TABLE_NAME);
+  }
+
+  /**
    * Crée un enregistrement dans "Résultats PDF" avec l'email et le PDF
    */
   async create(email: string, pdfFilePath: string, filename: string): Promise<{ id: string; success: boolean }> {

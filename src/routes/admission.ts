@@ -86,6 +86,218 @@ router.get('/candidats', async (req: Request, res: Response) => {
 
 /**
  * @swagger
+ * /api/admission/candidats-with-documents:
+ *   get:
+ *     summary: Liste tous les candidats avec leurs documents (Résultat PDF + Suivie entretien)
+ *     tags: [Candidats]
+ *     description: >
+ *       Récupère la liste complète des candidats depuis Airtable avec une jointure
+ *       sur l'email pour inclure les documents des tables "Résultats PDF" et "Resultat entretien".
+ *     responses:
+ *       200:
+ *         description: Liste des candidats avec documents récupérée avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         description: ID Airtable du candidat
+ *                       fields:
+ *                         type: object
+ *                         description: Champs du candidat
+ *                       resultat_pdf:
+ *                         type: array
+ *                         description: Documents PDF résultat associés via email
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: string
+ *                             fields:
+ *                               type: object
+ *                       suivie_entretien:
+ *                         type: array
+ *                         description: Documents suivie entretien associés via email
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: string
+ *                             fields:
+ *                               type: object
+ *                 count:
+ *                   type: integer
+ *                   description: Nombre total de candidats
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/candidats-with-documents', async (req: Request, res: Response) => {
+  try {
+    // Récupérer toutes les données en parallèle
+    const [candidats, resultatsPdf, resultatsEntretien] = await Promise.all([
+      candidatRepo.getAll(),
+      resultatPdfRepo.getAll(),
+      resultatEntretienRepo.getAll(),
+    ]);
+
+    // Indexer les résultats PDF par email
+    const pdfByEmail = new Map<string, typeof resultatsPdf>();
+    for (const pdf of resultatsPdf) {
+      const email = pdf.fields['E-mail'];
+      if (email) {
+        const existing = pdfByEmail.get(email) || [];
+        existing.push(pdf);
+        pdfByEmail.set(email, existing);
+      }
+    }
+
+    // Indexer les résultats entretien par email
+    const entretienByEmail = new Map<string, typeof resultatsEntretien>();
+    for (const entretien of resultatsEntretien) {
+      const email = entretien.fields['E-mail'];
+      if (email) {
+        const existing = entretienByEmail.get(email) || [];
+        existing.push(entretien);
+        entretienByEmail.set(email, existing);
+      }
+    }
+
+    // Jointure : enrichir chaque candidat avec ses documents
+    const candidatsWithDocuments = candidats.map((candidat) => {
+      const email = (candidat.fields as any)['E-mail'] as string | undefined;
+      return {
+        id: candidat.id,
+        fields: candidat.fields,
+        resultat_pdf: email ? (pdfByEmail.get(email) || []) : [],
+        suivie_entretien: email ? (entretienByEmail.get(email) || []) : [],
+      };
+    });
+
+    res.json({
+      success: true,
+      data: candidatsWithDocuments,
+      count: candidatsWithDocuments.length,
+    });
+  } catch (error) {
+    logger.error('Erreur récupération candidats avec documents:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la récupération des candidats avec documents',
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admission/candidats/{id}/with-documents:
+ *   get:
+ *     summary: Récupère un candidat par ID avec ses documents (Résultat PDF + Suivie entretien)
+ *     tags: [Candidats]
+ *     description: >
+ *       Récupère un candidat spécifique depuis Airtable avec une jointure
+ *       sur l'email pour inclure ses documents des tables "Résultats PDF" et "Resultat entretien".
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID Airtable du candidat
+ *         example: rec1BBjsjxhdqEKuq
+ *     responses:
+ *       200:
+ *         description: Candidat avec documents récupéré avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       description: ID Airtable du candidat
+ *                     fields:
+ *                       type: object
+ *                       description: Champs du candidat
+ *                     resultat_pdf:
+ *                       type: array
+ *                       description: Documents PDF résultat associés via email
+ *                       items:
+ *                         type: object
+ *                     suivie_entretien:
+ *                       type: array
+ *                       description: Documents suivie entretien associés via email
+ *                       items:
+ *                         type: object
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/candidats/:id/with-documents', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Récupérer le candidat
+    const candidat = await candidatRepo.getById(id);
+    if (!candidat) {
+      return res.status(404).json({
+        success: false,
+        error: 'Candidat non trouvé',
+      });
+    }
+
+    const email = (candidat.fields as any)['E-mail'] as string | undefined;
+
+    let resultatsPdf: any[] = [];
+    let resultatsEntretien: any[] = [];
+
+    if (email) {
+      // Récupérer les documents liés par email en parallèle
+      const [allPdf, allEntretien] = await Promise.all([
+        resultatPdfRepo.getAll(),
+        resultatEntretienRepo.getAll(),
+      ]);
+
+      resultatsPdf = allPdf.filter((r) => r.fields['E-mail'] === email);
+      resultatsEntretien = allEntretien.filter((r) => r.fields['E-mail'] === email);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: candidat.id,
+        fields: candidat.fields,
+        resultat_pdf: resultatsPdf,
+        suivie_entretien: resultatsEntretien,
+      },
+    });
+  } catch (error) {
+    logger.error('Erreur récupération candidat avec documents:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la récupération du candidat avec documents',
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/admission/candidats/{id}:
  *   get:
  *     summary: Récupère un candidat par ID

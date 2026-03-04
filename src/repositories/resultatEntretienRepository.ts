@@ -51,6 +51,13 @@ export class ResultatEntretienRepository {
   }
 
   /**
+   * Récupère tous les enregistrements de la table "Resultat entretien"
+   */
+  async getAll(): Promise<{ id: string; fields: ResultatEntretienFields }[]> {
+    return airtableClient.getAll<ResultatEntretienFields>(TABLE_NAME);
+  }
+
+  /**
    * Crée un enregistrement dans "Resultat entretien" avec l'email et le PDF
    */
   async create(email: string, pdfFilePath: string, filename: string): Promise<{ id: string; success: boolean }> {
