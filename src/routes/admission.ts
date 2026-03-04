@@ -12,6 +12,7 @@ import {
   ReglementGeneratorService,
   LivretApprentissageService,
   ConventionApprentissageGeneratorService,
+  PriseConnaissanceGeneratorService,
 } from '../services';
 import { AdmissionService } from '../services/admissionService';
 import logger from '../utils/logger';
@@ -30,6 +31,7 @@ const compteRenduService = new CompteRenduGeneratorService();
 const reglementService = new ReglementGeneratorService();
 const livretService = new LivretApprentissageService();
 const conventionService = new ConventionApprentissageGeneratorService();
+const priseConnaissanceService = new PriseConnaissanceGeneratorService();
 const admissionService = new AdmissionService();
 
 // Configuration multer : stockage en mémoire (buffer)
@@ -2204,6 +2206,76 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
     res.status(500).json({
       success: false,
       error: error.message || "Erreur lors de l'enregistrement du résultat PDF",
+    });
+  }
+});
+
+// =====================================================
+// PRISE DE CONNAISSANCE
+// =====================================================
+
+/**
+ * @swagger
+ * /api/admission/candidats/{id}/prise-connaissance:
+ *   post:
+ *     summary: Génère la Prise de Connaissance pour un candidat
+ *     tags: [Admission]
+ *     description: |
+ *       Génère le document "Prise de Connaissance" à partir du template PDF,
+ *       remplit automatiquement :
+ *       - Nom et Prénom depuis Airtable "Listes des candidats"
+ *       - Coche toutes les cases (règlement pédagogique, intérieur, livret apprentissage,
+ *         livret accueil, autorisation image, référents)
+ *       - Coche OUI
+ *       - Lieu fixe : Nanterre
+ *       - Date du jour
+ *       
+ *       Le PDF généré est uploadé dans la colonne "Prise de connaissance" d'Airtable.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID Airtable du candidat (IdEtudiant)
+ *     responses:
+ *       200:
+ *         description: PDF généré et uploadé avec succès
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/candidats/:id/prise-connaissance', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const result = await priseConnaissanceService.generateAndUpload(id);
+
+    if (!result.success || !result.pdfBuffer) {
+      const status = result.error?.includes('non trouvé') ? 404 : 500;
+      return res.status(status).json({
+        success: false,
+        error: result.error || 'Erreur génération Prise de Connaissance',
+      });
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(result.filename!)}"`
+    );
+    res.send(result.pdfBuffer);
+  } catch (error) {
+    logger.error('Erreur génération Prise de Connaissance:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la génération de la Prise de Connaissance',
     });
   }
 });
