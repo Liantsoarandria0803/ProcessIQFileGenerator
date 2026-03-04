@@ -43,9 +43,8 @@ export const SIGNATURE_DOCUMENT_WORKFLOWS: SignatureDocumentWorkflow[] = [
     key: 'modification_document',
     displayName: 'Modification du document',
     aliases: ['modification du document', 'document modifie'],
-    actors: [],
-    disabled: true,
-    notes: 'Regle non renseignee dans le tableau. A completer selon votre workflow.'
+    actors: [{ role: 'charge_admission', action: 'sign', required: true, pageNumbers: [1] }],
+    notes: "Document de suivi admission - signature du charge d'admission."
   },
   {
     key: 'fiche_renseignements_entreprise',
@@ -79,6 +78,20 @@ export const SIGNATURE_DOCUMENT_WORKFLOWS: SignatureDocumentWorkflow[] = [
     aliases: ['cerfa', 'contrat cerfa', "cerfa apprentissage"],
     actors: [{ role: 'charge_rh', action: 'sign', required: true, pageNumbers: [3] }],
     notes: 'Le tableau indique une signature par le charge RH (page 3).'
+  },
+  {
+    key: 'grille_evaluation_plateforme',
+    displayName: 'Grille d evaluation (Plateforme) en PDF',
+    aliases: ['grille evaluation', 'grille d evaluation', 'plateforme', 'grille d evaluation plateforme'],
+    actors: [{ role: 'charge_admission', action: 'sign', required: true, pageNumbers: [1] }],
+    notes: "Document d'evaluation signe par le charge d'admission."
+  },
+  {
+    key: 'prise_de_connaissance',
+    displayName: 'Prise de connaissance',
+    aliases: ['prise de connaissance', 'charte informatique', 'livret accueil'],
+    actors: [{ role: 'student', action: 'sign', required: true, pageNumbers: [1] }],
+    notes: "Document de prise de connaissance signe par l'etudiant."
   }
 ];
 
