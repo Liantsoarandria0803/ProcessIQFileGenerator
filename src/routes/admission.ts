@@ -1991,21 +1991,13 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
 
 /**
  * @swagger
- * /api/admission/candidats/{id}/suivie-entretien:
+ * /api/admission/suivie-entretien:
  *   post:
- *     summary: Upload un PDF de suivi d'entretien pour un candidat
+ *     summary: Upload un PDF de suivi d'entretien et l'enregistre dans la table "Resultat entretien"
  *     tags: [Candidats]
  *     description: >
- *       Reçoit un email et un fichier PDF, puis crée un enregistrement dans la table
- *       "Resultat entretien" avec l'email dans "E-mail" et le PDF dans "Suivie entretien".
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: ID Airtable du candidat
- *         example: rec1BBjsjxhdqEKuq
+ *       Reçoit un fichier PDF et un email, upload le PDF et crée un enregistrement
+ *       dans la table Airtable "Resultat entretien" avec les colonnes "E-mail" et "Suivie entretien".
  *     requestBody:
  *       required: true
  *       content:
@@ -2053,26 +2045,12 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
  *                       example: "suivi_entretien_Dupont_Jean.pdf"
  *       400:
  *         description: Email ou fichier manquant
- *       404:
- *         $ref: '#/components/responses/NotFound'
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-router.post('/candidats/:id/suivie-entretien', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/suivie-entretien', upload.single('file'), async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
     const { email } = req.body;
-
-    logger.info(`[Route] POST /candidats/${id}/suivie-entretien`);
-
-    // Vérifier que le candidat existe
-    const candidat = await candidatRepo.getById(id);
-    if (!candidat) {
-      return res.status(404).json({
-        success: false,
-        error: 'Candidat non trouvé',
-      });
-    }
 
     // Vérifier l'email
     if (!email || typeof email !== 'string' || !email.includes('@')) {
@@ -2089,6 +2067,8 @@ router.post('/candidats/:id/suivie-entretien', upload.single('file'), async (req
         error: 'Un fichier PDF est requis',
       });
     }
+
+    logger.info(`[Route] POST /suivie-entretien — email: ${email}, fichier: ${req.file.originalname}`);
 
     // Écriture temporaire du buffer sur disque
     const tmpPath = path.join(os.tmpdir(), `suivie_entretien_${Date.now()}_${req.file.originalname}`);
