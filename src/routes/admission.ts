@@ -3,7 +3,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { CandidatRepository, EntrepriseRepository } from '../repositories';
+import { CandidatRepository, EntrepriseRepository, ResultatPdfRepository } from '../repositories';
 import {
   PdfGeneratorService,
   CerfaGeneratorService,
@@ -21,6 +21,7 @@ import config from '../config';
 const router = Router();
 const candidatRepo = new CandidatRepository();
 const entrepriseRepo = new EntrepriseRepository();
+const resultatPdfRepo = new ResultatPdfRepository();
 const pdfService = new PdfGeneratorService();
 const cerfaService = new CerfaGeneratorService();
 const atreService = new AtreGeneratorService();
@@ -1916,6 +1917,116 @@ router.post('/candidats/:id/suivie-entretien', upload.single('file'), async (req
     res.status(500).json({
       success: false,
       error: "Erreur lors de l'upload du suivi d'entretien",
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admission/resultats-pdf:
+ *   post:
+ *     summary: Envoie un PDF résultat et l'enregistre dans la table "Résultats PDF"
+ *     tags: [Candidats]
+ *     description: >
+ *       Reçoit un fichier PDF et un email, upload le PDF et crée un enregistrement
+ *       dans la table Airtable "Résultats PDF" avec les colonnes "E-mail" et "PDF Résultat".
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - file
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Adresse email associée au résultat
+ *                 example: "etudiant@example.com"
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Fichier PDF du résultat
+ *     responses:
+ *       201:
+ *         description: Résultat PDF créé avec succès dans Airtable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Résultat PDF enregistré avec succès"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     record_id:
+ *                       type: string
+ *                       example: "recXXXXXXXXXXXXXX"
+ *                     email:
+ *                       type: string
+ *                       example: "etudiant@example.com"
+ *                     filename:
+ *                       type: string
+ *                       example: "resultat_Jean_Dupont.pdf"
+ *       400:
+ *         description: Email ou fichier manquant
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    // Vérifications
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Un email valide est requis',
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Un fichier PDF est requis',
+      });
+    }
+
+    logger.info(`[Route] POST /resultats-pdf — email: ${email}, fichier: ${req.file.originalname}`);
+
+    // Écriture temporaire du buffer sur disque
+    const os = await import('os');
+    const tmpPath = path.join(os.tmpdir(), `resultat_${Date.now()}_${req.file.originalname}`);
+    fs.writeFileSync(tmpPath, req.file.buffer);
+
+    try {
+      const result = await resultatPdfRepo.create(email, tmpPath, req.file.originalname);
+
+      return res.status(201).json({
+        success: true,
+        message: 'Résultat PDF enregistré avec succès',
+        data: {
+          record_id: result.id,
+          email,
+          filename: req.file.originalname,
+        },
+      });
+    } finally {
+      // Nettoyage du fichier temporaire
+      try { fs.unlinkSync(tmpPath); } catch (_) { /* ignore */ }
+    }
+  } catch (error: any) {
+    logger.error('Erreur upload résultat PDF:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Erreur lors de l'enregistrement du résultat PDF",
     });
   }
 });
