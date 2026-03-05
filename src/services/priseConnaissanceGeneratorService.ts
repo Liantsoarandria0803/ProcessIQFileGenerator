@@ -6,7 +6,6 @@ import {
   PRISE_CONNAISSANCE_AIRTABLE_FIELDS,
   PRISE_CONNAISSANCE_AIRTABLE_COLUMN,
   PRISE_CONNAISSANCE_FIELDS,
-  PRISE_CONNAISSANCE_CHECKBOX_ON,
 } from './mappings/priseConnaissanceMappings';
 
 export class PriseConnaissanceGeneratorService {
@@ -74,30 +73,6 @@ export class PriseConnaissanceGeneratorService {
       const year = now.getFullYear();
       const dateFormatted = `${day}/${month}/${year}`;
       form.getTextField(PRISE_CONNAISSANCE_FIELDS.DATE).setText(dateFormatted);
-
-      // Cases à cocher — toutes cochées
-      const checkboxNames = [
-        PRISE_CONNAISSANCE_FIELDS.CHECK_REGLEMENT_PEDAGOGIQUE,
-        PRISE_CONNAISSANCE_FIELDS.CHECK_REGLEMENT_INTERIEUR,
-        PRISE_CONNAISSANCE_FIELDS.CHECK_LIVRET_APPRENTISSAGE,
-        PRISE_CONNAISSANCE_FIELDS.CHECK_LIVRET_ACCUEIL,
-        PRISE_CONNAISSANCE_FIELDS.CHECK_AUTORISATION_IMAGE,
-        PRISE_CONNAISSANCE_FIELDS.CHECK_REFERENTS,
-        PRISE_CONNAISSANCE_FIELDS.CHECK_OUI,
-      ];
-
-      for (const name of checkboxNames) {
-        try {
-          const checkbox = form.getCheckBox(name);
-          // Obtenir la valeur ON réelle depuis les options du champ
-          const options = checkbox.acroField.getExportValues();
-          const onValue = options && options.length > 0 ? options[0] : PRISE_CONNAISSANCE_CHECKBOX_ON;
-          checkbox.check();
-          console.log(`[PriseConnaissance] Case cochée: "${name}" (valeur ON: ${onValue})`);
-        } catch (e: any) {
-          console.warn(`[PriseConnaissance] Impossible de cocher "${name}": ${e.message}`);
-        }
-      }
 
       // Aplatir le formulaire pour que les valeurs soient intégrées
       form.flatten();

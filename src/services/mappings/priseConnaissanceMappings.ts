@@ -41,29 +41,8 @@ export const PRISE_CONNAISSANCE_FIELDS = {
   NOM: 'Champ de texte 96',
   /** Prénom de l'étudiant */
   PRENOM: 'Champ de texte 97',
-  /** Case : J'ai pris connaissance du règlement pédagogique */
-  CHECK_REGLEMENT_PEDAGOGIQUE: 'Case à cocher 32',
-  /** Case : J'ai pris connaissance du règlement intérieur */
-  CHECK_REGLEMENT_INTERIEUR: 'Case à cocher 33',
-  /** Case : J'ai pris connaissance du livret d'apprentissage */
-  CHECK_LIVRET_APPRENTISSAGE: 'Case à cocher 34',
-  /** Case : J'ai pris connaissance du livret d'accueil */
-  CHECK_LIVRET_ACCUEIL: 'Case à cocher 35',
-  /** Case : J'ai pris connaissance (autorisation image) */
-  CHECK_AUTORISATION_IMAGE: 'Case à cocher 36',
-  /** Case : NON (pour la question OUI/NON) */
-  CHECK_NON: 'Case à cocher 39',
-  /** Case : OUI (pour la question OUI/NON) */
-  CHECK_OUI: 'Case à cocher 38',
-  /** Case : J'ai pris connaissance des différents référents */
-  CHECK_REFERENTS: 'Case à cocher 40',
   /** Lieu (À :) */
   LIEU: 'Champ de texte 98',
   /** Date (Fait le :) */
   DATE: 'Champ de texte 99',
 } as const;
-
-/**
- * Valeur ON pour les cases à cocher de ce PDF
- */
-export const PRISE_CONNAISSANCE_CHECKBOX_ON = 'Oui';
