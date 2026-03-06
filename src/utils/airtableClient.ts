@@ -105,6 +105,7 @@ class AirtableClient {
 
   /**
    * Récupère un enregistrement par ID
+   * Retourne null si le record n'existe pas (404) ou n'est pas accessible (403/422)
    */
   async getById<T>(tableName: string, recordId: string): Promise<{ id: string; fields: T } | null> {
     try {
@@ -114,7 +115,9 @@ class AirtableClient {
         fields: response.data.fields as T
       };
     } catch (error: any) {
-      if (error.response?.status === 404) {
+      const status = error.response?.status;
+      if (status === 404 || status === 403 || status === 422) {
+        logger.warn(`⚠️ Record ${recordId} non accessible (HTTP ${status}) dans ${tableName}`);
         return null;
       }
       throw error;
@@ -136,25 +139,41 @@ class AirtableClient {
 
   /**
    * Met à jour un enregistrement
+   * Retourne null si le record n'existe pas ou n'est pas accessible (403/404/422)
    */
-  async update<T>(tableName: string, recordId: string, fields: Partial<T>): Promise<{ id: string; fields: T }> {
-    const response = await this.client.patch(`/${encodeURIComponent(tableName)}/${recordId}`, {
-      fields
-    });
-    return {
-      id: response.data.id,
-      fields: response.data.fields as T
-    };
+  async update<T>(tableName: string, recordId: string, fields: Partial<T>): Promise<{ id: string; fields: T } | null> {
+    try {
+      const response = await this.client.patch(`/${encodeURIComponent(tableName)}/${recordId}`, {
+        fields
+      });
+      return {
+        id: response.data.id,
+        fields: response.data.fields as T
+      };
+    } catch (error: any) {
+      const status = error.response?.status;
+      if (status === 404 || status === 403 || status === 422) {
+        logger.warn(`⚠️ Update impossible: record ${recordId} non accessible (HTTP ${status}) dans ${tableName}`);
+        return null;
+      }
+      throw error;
+    }
   }
 
   /**
    * Supprime un enregistrement
+   * Retourne false si le record n'existe pas ou n'est pas accessible (403/404/422)
    */
   async delete(tableName: string, recordId: string): Promise<boolean> {
     try {
       await this.client.delete(`/${encodeURIComponent(tableName)}/${recordId}`);
       return true;
-    } catch (error) {
+    } catch (error: any) {
+      const status = error.response?.status;
+      if (status === 404 || status === 403 || status === 422) {
+        logger.warn(`⚠️ Delete impossible: record ${recordId} non accessible (HTTP ${status}) dans ${tableName}`);
+        return false;
+      }
       logger.error(`Erreur delete ${tableName}/${recordId}:`, error);
       throw error;
     }

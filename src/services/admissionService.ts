@@ -88,7 +88,10 @@ export class AdmissionService {
       const airtableData = this.mapPartialInformationsToAirtable(informations);
 
       // Mettre à jour dans Airtable
-      await this.candidatRepo.update(recordId, airtableData);
+      const updateResult = await this.candidatRepo.update(recordId, airtableData);
+      if (!updateResult) {
+        throw new Error(`Candidat ${recordId} introuvable ou inaccessible`);
+      }
 
       // Récupérer les données mises à jour
       const updatedCandidat = await this.candidatRepo.getById(recordId);

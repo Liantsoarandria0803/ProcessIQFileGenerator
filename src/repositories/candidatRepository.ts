@@ -51,7 +51,7 @@ export class CandidatRepository {
     return await airtableClient.create<CandidatFields>(this.tableName, data);
   }
 
-  async update(recordId: string, data: Partial<CandidatFields>): Promise<Candidat> {
+  async update(recordId: string, data: Partial<CandidatFields>): Promise<Candidat | null> {
     return await airtableClient.update<CandidatFields>(this.tableName, recordId, data);
   }
 
