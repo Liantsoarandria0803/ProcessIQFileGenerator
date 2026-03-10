@@ -7,6 +7,8 @@ import fs from 'fs';
 import path from 'path';
 import { CandidatRepository } from '../repositories/candidatRepository';
 import { EntrepriseRepository } from '../repositories/entrepriseRepository';
+import { CandidatMongoRepository } from '../repositories/mongo/candidatMongoRepository';
+import { isMongoConnected } from '../config/database';
 import config from '../config';
 import logger from '../utils/logger';
 import {
@@ -22,13 +24,33 @@ import {
 } from '../types/admission';
 import { CandidatFields } from '../types';
 
+// Interface commune pour les deux repos (Airtable & MongoDB)
+type CandidatRepoLike = {
+  getById(id: string): Promise<{ id: string; fields: Record<string, any> } | null>;
+  create(data: Record<string, any>): Promise<{ id: string; fields: Record<string, any> }>;
+  update(id: string, data: Record<string, any>): Promise<{ id: string; fields: Record<string, any> } | null>;
+  delete(id: string): Promise<boolean>;
+  uploadCV(id: string, filePath: string): Promise<boolean>;
+  uploadCIN(id: string, filePath: string): Promise<boolean>;
+  uploadLettreMotivation(id: string, filePath: string): Promise<boolean>;
+  uploadCarteVitale(id: string, filePath: string): Promise<boolean>;
+  uploadDernierDiplome(id: string, filePath: string): Promise<boolean>;
+};
+
 export class AdmissionService {
-  private candidatRepo: CandidatRepository;
+  private airtableRepo: CandidatRepository;
+  private mongoRepo: CandidatMongoRepository;
   private entrepriseRepo: EntrepriseRepository;
 
   constructor() {
-    this.candidatRepo = new CandidatRepository();
+    this.airtableRepo = new CandidatRepository();
+    this.mongoRepo = new CandidatMongoRepository();
     this.entrepriseRepo = new EntrepriseRepository();
+  }
+
+  /** Retourne le repo actif : MongoDB si connecté, sinon Airtable */
+  private get candidatRepo(): CandidatRepoLike {
+    return isMongoConnected() ? this.mongoRepo : this.airtableRepo;
   }
 
   /**
@@ -178,7 +200,9 @@ export class AdmissionService {
    * Récupère tous les candidats
    */
   async getAllCandidates() {
-    return await this.candidatRepo.getAll();
+    return isMongoConnected()
+      ? await this.mongoRepo.getAll()
+      : await this.airtableRepo.getAll();
   }
 
   // =====================================================
