@@ -8,14 +8,6 @@
 
 import mongoose from 'mongoose';
 import logger from '../../utils/logger';
-import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
-import FormData from 'form-data';
-import dns from 'dns';
-
-// Force IPv4 pour les appels axios (tmpfiles.org)
-dns.setDefaultResultOrder('ipv4first');
 
 const COLLECTION = 'resultats_pdf';
 
@@ -42,37 +34,6 @@ export class ResultatPdfMongoRepository {
   }
 
   /**
-   * Upload le fichier vers tmpfiles.org pour obtenir une URL publique
-   */
-  private async uploadToFileHosting(filePath: string): Promise<string | null> {
-    const fileName = path.basename(filePath);
-    try {
-      const form = new FormData();
-      form.append('file', fs.createReadStream(filePath), fileName);
-
-      const response = await axios.post('https://tmpfiles.org/api/v1/upload', form, {
-        headers: form.getHeaders(),
-        timeout: 30000,
-      });
-
-      if (response.status === 200 && response.data?.status === 'success') {
-        let url: string = response.data.data?.url || '';
-        if (url) {
-          url = url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-          logger.info(`✅ Résultat PDF uploadé vers tmpfiles.org: ${url}`);
-          return url;
-        }
-      }
-
-      logger.warn(`⚠️ tmpfiles.org a échoué: ${JSON.stringify(response.data)}`);
-    } catch (error: any) {
-      logger.warn(`⚠️ Erreur tmpfiles.org: ${error.message}`);
-    }
-
-    return null;
-  }
-
-  /**
    * Récupère tous les enregistrements de la collection resultats_pdf
    */
   async getAll(): Promise<ResultatPdfRecord[]> {
@@ -87,19 +48,19 @@ export class ResultatPdfMongoRepository {
   }
 
   /**
-   * Crée un enregistrement résultat PDF avec l'email et le fichier PDF
+   * Crée un enregistrement résultat PDF.
+   * Si attachmentData est fourni (GridFS), on l'utilise directement.
+   * Sinon on stocke juste l'email et le filename.
    */
-  async create(email: string, pdfFilePath: string, filename: string): Promise<{ id: string; success: boolean }> {
-    // Upload du fichier vers l'hébergement temporaire
-    const publicUrl = await this.uploadToFileHosting(pdfFilePath);
-
-    if (!publicUrl) {
-      throw new Error("Impossible d'obtenir une URL publique pour le PDF (tmpfiles.org indisponible)");
-    }
-
+  async create(
+    email: string,
+    _pdfFilePath: string,
+    filename: string,
+    attachmentData?: { fileId: string; url: string; filename: string }[],
+  ): Promise<{ id: string; success: boolean }> {
     const result = await this.collection.insertOne({
       'E-mail': email,
-      'PDF Résultat': [{ url: publicUrl, filename }],
+      'PDF Résultat': attachmentData || [{ filename }],
       createdAt: new Date(),
       updatedAt: new Date(),
     });

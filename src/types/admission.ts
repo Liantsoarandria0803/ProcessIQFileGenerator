@@ -112,6 +112,12 @@ export interface UploadResponse {
   file_name?: string;
   file_size?: number;
   airtable_record_id?: string;
+  /** ID du fichier dans GridFS (présent uniquement si source=mongodb) */
+  gridfs_file_id?: string;
+  /** URL de téléchargement via l'API (ex: /api/gridfs/<fileId>) */
+  download_url?: string;
+  /** Source du stockage : 'mongodb' (GridFS) ou 'airtable' (tmpfiles.org) */
+  source?: 'mongodb' | 'airtable';
 }
 
 // =====================================================

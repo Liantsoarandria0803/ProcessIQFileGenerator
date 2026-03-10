@@ -9,6 +9,7 @@ import eventRoutes from './event.routes';
 import appointmentRoutes from './appointment.routes';
 import documentRoutes from './document.routes';
 import questionnaireRoutes from './questionnaire.routes';
+import gridfsDocumentRoutes from './gridfsDocuments';
 import authRoutes from './auth.routes';
 import { authenticateRequest } from '../middlewares/auth.middleware';
 import { isMongoConnected } from '../config/database';
@@ -35,6 +36,9 @@ router.use('/admission', admissionRoutes);
 
 // Routes RH (suivi fiches de renseignement et CERFA)
 router.use('/rh', rhRoutes);
+
+// Routes documents GridFS (téléchargement / listing)
+router.use('/gridfs', gridfsDocumentRoutes);
 
 // Route de sante
 router.get('/health', (req, res) => {

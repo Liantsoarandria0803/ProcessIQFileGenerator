@@ -501,9 +501,12 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
 router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const useMongo = isMongoConnected();
     
     // Récupère les données du candidat
-    const candidat = await candidatRepo.getById(id);
+    const candidat = useMongo
+      ? await candidatMongoRepo.getById(id)
+      : await candidatRepo.getById(id);
     if (!candidat) {
       return res.status(404).json({
         success: false,
@@ -512,7 +515,9 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
     }
     
     // Récupère les données entreprise
-    const entreprise = await entrepriseRepo.getByEtudiantId(id);
+    const entreprise = useMongo
+      ? await entrepriseMongoRepo.getByEtudiantId(id)
+      : await entrepriseRepo.getByEtudiantId(id);
     
     // Génère le PDF
     const result = await pdfService.generatePdf(
@@ -527,46 +532,64 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
       });
     }
 
-    // Upload vers Airtable dans la colonne "Fiche entreprise"
     const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
     const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
     const fileName = `Fiche_Renseignement_${nom}_${prenom}.pdf`;
-    let uploadedToAirtable = false;
-    let airtableUrl: string | null = null;
+    let uploaded = false;
+    let downloadUrl: string | null = null;
+    let source: 'mongodb' | 'airtable' = useMongo ? 'mongodb' : 'airtable';
 
     try {
-      const tmpPath = path.join(os.tmpdir(), `fiche_renseignement_${nom}_${prenom}_${Date.now()}.pdf`);
-      fs.writeFileSync(tmpPath, result.pdfBuffer);
-      
-      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'Fiche entreprise', tmpPath);
-      
-      if (uploadedToAirtable) {
-        logger.info('✅ Fiche de renseignements uploadée vers Airtable pour ' + id);
-        // Récupérer l'URL du fichier uploadé
-        try {
-          const updatedRecord = await candidatRepo.getById(id);
-          const ficheData = updatedRecord?.fields?.['Fiche entreprise'] as any[] | undefined;
-          airtableUrl = ficheData?.[0]?.url || null;
-        } catch (e) {
-          // Pas grave si on n'arrive pas à récupérer l'URL
+      if (useMongo) {
+        // ── GridFS ──
+        const { uploadBuffer } = await import('../services/gridfsService');
+        const fileInfo = await uploadBuffer(result.pdfBuffer, fileName, 'application/pdf', {
+          candidatId: id,
+          documentType: 'Fiche entreprise',
+          originalFilename: fileName,
+        });
+        // Stocker la référence dans le candidat
+        await candidatMongoRepo.update(id, {
+          'Fiche entreprise': [{
+            fileId: fileInfo.fileId,
+            url: fileInfo.url,
+            filename: fileInfo.filename,
+            contentType: fileInfo.contentType,
+            size: fileInfo.size,
+            uploadedAt: fileInfo.uploadedAt,
+          }],
+        });
+        uploaded = true;
+        downloadUrl = fileInfo.url;
+        logger.info(`✅ Fiche de renseignements uploadée via GridFS pour ${id} (fileId=${fileInfo.fileId})`);
+      } else {
+        // ── Airtable ──
+        const tmpPath = path.join(os.tmpdir(), `fiche_renseignement_${nom}_${prenom}_${Date.now()}.pdf`);
+        fs.writeFileSync(tmpPath, result.pdfBuffer);
+        uploaded = await candidatRepo.uploadDocument(id, 'Fiche entreprise', tmpPath);
+        if (uploaded) {
+          logger.info('✅ Fiche de renseignements uploadée vers Airtable pour ' + id);
+          try {
+            const updatedRecord = await candidatRepo.getById(id);
+            const ficheData = updatedRecord?.fields?.['Fiche entreprise'] as any[] | undefined;
+            downloadUrl = ficheData?.[0]?.url || null;
+          } catch (e) { /* ignore */ }
         }
+        try { fs.unlinkSync(tmpPath); } catch {}
       }
-      
-      // Nettoyer le fichier temporaire
-      try { fs.unlinkSync(tmpPath); } catch {}
     } catch (uploadError) {
-      logger.warn('Upload fiche renseignement vers Airtable échoué:', uploadError);
+      logger.warn('Upload fiche renseignement échoué:', uploadError);
     }
     
-    // Retourne un JSON de succès
     res.json({
       success: true,
       message: 'Fiche de renseignement générée avec succès',
       data: {
         candidatId: id,
         fileName,
-        uploadedToAirtable,
-        airtableUrl
+        uploaded,
+        downloadUrl,
+        source,
       }
     });
     
@@ -2108,9 +2131,34 @@ router.post('/suivie-entretien', upload.single('file'), async (req: Request, res
       });
     }
 
-    logger.info(`[Route] POST /suivie-entretien — email: ${email}, fichier: ${req.file.originalname}`);
+    const useMongo = isMongoConnected();
+    logger.info(`[Route] POST /suivie-entretien — email: ${email}, fichier: ${req.file.originalname}, source: ${useMongo ? 'mongodb' : 'airtable'}`);
 
-    // Écriture temporaire du buffer sur disque
+    if (useMongo) {
+      // ── GridFS + collection resultats_entretien ──
+      const { uploadBuffer } = await import('../services/gridfsService');
+      const fileInfo = await uploadBuffer(req.file.buffer, req.file.originalname, req.file.mimetype, {
+        documentType: 'suivie_entretien',
+        email,
+      });
+      const attachment = [{ fileId: fileInfo.fileId, url: fileInfo.url, filename: fileInfo.filename }];
+      const result = await resultatEntretienMongoRepo.create(email, '', req.file.originalname, attachment);
+
+      return res.status(201).json({
+        success: true,
+        message: "Suivi d'entretien enregistré avec succès",
+        data: {
+          record_id: result.id,
+          email,
+          filename: req.file.originalname,
+          gridfs_file_id: fileInfo.fileId,
+          download_url: fileInfo.url,
+          source: 'mongodb',
+        },
+      });
+    }
+
+    // ── Airtable fallback ──
     const tmpPath = path.join(os.tmpdir(), `suivie_entretien_${Date.now()}_${req.file.originalname}`);
     fs.writeFileSync(tmpPath, req.file.buffer);
 
@@ -2124,6 +2172,7 @@ router.post('/suivie-entretien', upload.single('file'), async (req: Request, res
           record_id: result.id,
           email,
           filename: req.file.originalname,
+          source: 'airtable',
         },
       });
     } finally {
@@ -2216,11 +2265,36 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
       });
     }
 
-    logger.info(`[Route] POST /resultats-pdf — email: ${email}, fichier: ${req.file.originalname}`);
+    const useMongo = isMongoConnected();
+    logger.info(`[Route] POST /resultats-pdf — email: ${email}, fichier: ${req.file.originalname}, source: ${useMongo ? 'mongodb' : 'airtable'}`);
 
-    // Écriture temporaire du buffer sur disque
-    const os = await import('os');
-    const tmpPath = path.join(os.tmpdir(), `resultat_${Date.now()}_${req.file.originalname}`);
+    if (useMongo) {
+      // ── GridFS + collection resultats_pdf ──
+      const { uploadBuffer } = await import('../services/gridfsService');
+      const fileInfo = await uploadBuffer(req.file.buffer, req.file.originalname, req.file.mimetype, {
+        documentType: 'resultat_pdf',
+        email,
+      });
+      const attachment = [{ fileId: fileInfo.fileId, url: fileInfo.url, filename: fileInfo.filename }];
+      const result = await resultatPdfMongoRepo.create(email, '', req.file.originalname, attachment);
+
+      return res.status(201).json({
+        success: true,
+        message: 'Résultat PDF enregistré avec succès',
+        data: {
+          record_id: result.id,
+          email,
+          filename: req.file.originalname,
+          gridfs_file_id: fileInfo.fileId,
+          download_url: fileInfo.url,
+          source: 'mongodb',
+        },
+      });
+    }
+
+    // ── Airtable fallback ──
+    const tmpOs = await import('os');
+    const tmpPath = path.join(tmpOs.tmpdir(), `resultat_${Date.now()}_${req.file.originalname}`);
     fs.writeFileSync(tmpPath, req.file.buffer);
 
     try {
@@ -2233,6 +2307,7 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
           record_id: result.id,
           email,
           filename: req.file.originalname,
+          source: 'airtable',
         },
       });
     } finally {

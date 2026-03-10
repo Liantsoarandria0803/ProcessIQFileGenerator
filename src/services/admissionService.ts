@@ -9,6 +9,7 @@ import { CandidatRepository } from '../repositories/candidatRepository';
 import { EntrepriseRepository } from '../repositories/entrepriseRepository';
 import { CandidatMongoRepository } from '../repositories/mongo/candidatMongoRepository';
 import { isMongoConnected } from '../config/database';
+import * as gridfsService from './gridfsService';
 import config from '../config';
 import logger from '../utils/logger';
 import {
@@ -582,7 +583,9 @@ export class AdmissionService {
   }
 
   /**
-   * Méthode générique d'upload de document
+   * Méthode générique d'upload de document.
+   * - Si MongoDB est connecté → GridFS (via mongoRepo.uploadDocumentBuffer)
+   * - Sinon → tmpfiles.org + Airtable (via airtableRepo)
    */
   private async uploadDocument(
     recordId: string,
@@ -599,11 +602,37 @@ export class AdmissionService {
       throw new Error(`Candidat avec l'ID ${recordId} non trouvé`);
     }
 
-    // Sauvegarder temporairement le fichier
+    // ── Mode GridFS (MongoDB connecté) ──
+    if (isMongoConnected()) {
+      const columnName = this.documentTypeToColumn(documentType);
+      const fileInfo = await this.mongoRepo.uploadDocumentBuffer(
+        recordId,
+        columnName,
+        file.buffer,
+        file.originalname,
+        file.mimetype,
+      );
+
+      if (fileInfo) {
+        return {
+          success: true,
+          message: `${documentType} uploadé avec succès (GridFS)`,
+          file_name: file.originalname,
+          file_size: file.size,
+          airtable_record_id: recordId,
+          gridfs_file_id: fileInfo.fileId,
+          download_url: fileInfo.url,
+          source: 'mongodb',
+        };
+      } else {
+        throw new Error(`Erreur lors de l'upload vers GridFS`);
+      }
+    }
+
+    // ── Mode Airtable (fallback) ──
     const tempFilePath = this.saveTempFile(file, recordId, documentType);
 
     try {
-      // Uploader vers Airtable
       const success = await uploadMethod(recordId, tempFilePath);
 
       if (success) {
@@ -612,15 +641,30 @@ export class AdmissionService {
           message: `${documentType} uploadé avec succès`,
           file_name: file.originalname,
           file_size: file.size,
-          airtable_record_id: recordId
+          airtable_record_id: recordId,
+          source: 'airtable',
         };
       } else {
         throw new Error(`Erreur lors de l'upload vers Airtable`);
       }
     } finally {
-      // Nettoyer le fichier temporaire
       this.cleanupTempFile(tempFilePath);
     }
+  }
+
+  /**
+   * Mappe le nom logique du document vers le nom de colonne Airtable/MongoDB.
+   */
+  private documentTypeToColumn(documentType: string): string {
+    const map: Record<string, string> = {
+      'CV': 'CV',
+      'CIN': 'CIN',
+      'lettre_motivation': 'lettre de motivation',
+      'carte_vitale': 'Photocopie carte vitale',
+      'dernier_diplome': 'dernier diplome',
+      'suivie_entretien': 'Suivie entretien',
+    };
+    return map[documentType] || documentType;
   }
 
   /**

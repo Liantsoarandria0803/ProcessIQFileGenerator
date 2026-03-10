@@ -5,10 +5,21 @@
  * La collection "Candidats" dans MongoDB a la même structure flat
  * que les records Airtable (noms de colonnes Airtable préservés).
  * Chaque document a un champ _airtableId qui correspond à l'ancien ID Airtable.
+ *
+ * Les uploads de documents utilisent GridFS (bucket "documents") au lieu
+ * de tmpfiles.org + Airtable attachments.
  */
 
 import mongoose from 'mongoose';
+import fs from 'fs';
+import path from 'path';
 import logger from '../../utils/logger';
+import {
+  uploadBuffer,
+  uploadFromDisk,
+  deleteByMetadata,
+  GridFSFileInfo,
+} from '../../services/gridfsService';
 
 const COLLECTION = 'Candidats';
 
@@ -151,24 +162,51 @@ export class CandidatMongoRepository {
   }
 
   /**
-   * Upload un document (stocke l'URL/path dans le champ correspondant)
+   * Upload un document via GridFS et stocke la référence dans le champ correspondant.
+   *
+   * @param recordId    ID du candidat (_airtableId ou ObjectId)
+   * @param columnName  Nom du champ Airtable (ex: 'CV', 'CIN', …)
+   * @param filePath    Chemin du fichier temporaire sur disque
+   * @returns           true si succès
    */
   async uploadDocument(recordId: string, columnName: string, filePath: string): Promise<boolean> {
     try {
       const filter = await this.buildFilter(recordId);
       if (!filter) return false;
 
-      const fileName = require('path').basename(filePath);
+      if (!fs.existsSync(filePath)) {
+        logger.error(`❌ Fichier inexistant: ${filePath}`);
+        return false;
+      }
 
-      // Stocker le chemin local comme référence (même format qu'Airtable attachments)
+      const fileName = path.basename(filePath);
+
+      // Supprimer l'ancien fichier GridFS pour ce candidat + type
+      await deleteByMetadata(recordId, columnName);
+
+      // Upload vers GridFS
+      const fileInfo: GridFSFileInfo = await uploadFromDisk(filePath, undefined, {
+        candidatId: recordId,
+        documentType: columnName,
+        originalFilename: fileName,
+      });
+
+      // Stocker la référence dans le document candidat (format compatible Airtable)
       const result = await this.collection.updateOne(
         filter,
         {
           $set: {
-            [columnName]: [{ url: filePath, filename: fileName }],
+            [columnName]: [{
+              fileId: fileInfo.fileId,
+              url: fileInfo.url,
+              filename: fileInfo.filename,
+              contentType: fileInfo.contentType,
+              size: fileInfo.size,
+              uploadedAt: fileInfo.uploadedAt,
+            }],
             updatedAt: new Date(),
-          }
-        }
+          },
+        },
       );
 
       if (result.matchedCount === 0) {
@@ -176,11 +214,67 @@ export class CandidatMongoRepository {
         return false;
       }
 
-      logger.info(`✅ Document ${columnName} mis à jour pour candidat ${recordId}`);
+      logger.info(`✅ Document ${columnName} uploadé via GridFS pour candidat ${recordId} (fileId=${fileInfo.fileId})`);
       return true;
     } catch (error: any) {
       logger.error(`❌ Erreur uploadDocument ${columnName}: ${error.message}`);
       return false;
+    }
+  }
+
+  /**
+   * Upload un document depuis un Buffer (multer memoryStorage) via GridFS.
+   *
+   * @param recordId      ID du candidat
+   * @param columnName    Nom du champ Airtable
+   * @param buffer        Contenu du fichier
+   * @param originalName  Nom original du fichier
+   * @param contentType   MIME type
+   */
+  async uploadDocumentBuffer(
+    recordId: string,
+    columnName: string,
+    buffer: Buffer,
+    originalName: string,
+    contentType: string,
+  ): Promise<GridFSFileInfo | null> {
+    try {
+      const filter = await this.buildFilter(recordId);
+      if (!filter) return null;
+
+      // Supprimer l'ancien fichier GridFS pour ce candidat + type
+      await deleteByMetadata(recordId, columnName);
+
+      // Upload vers GridFS
+      const fileInfo = await uploadBuffer(buffer, originalName, contentType, {
+        candidatId: recordId,
+        documentType: columnName,
+        originalFilename: originalName,
+      });
+
+      // Stocker la référence dans le document candidat
+      await this.collection.updateOne(
+        filter,
+        {
+          $set: {
+            [columnName]: [{
+              fileId: fileInfo.fileId,
+              url: fileInfo.url,
+              filename: fileInfo.filename,
+              contentType: fileInfo.contentType,
+              size: fileInfo.size,
+              uploadedAt: fileInfo.uploadedAt,
+            }],
+            updatedAt: new Date(),
+          },
+        },
+      );
+
+      logger.info(`✅ Document ${columnName} (buffer) uploadé via GridFS pour candidat ${recordId}`);
+      return fileInfo;
+    } catch (error: any) {
+      logger.error(`❌ Erreur uploadDocumentBuffer ${columnName}: ${error.message}`);
+      return null;
     }
   }
 
