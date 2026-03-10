@@ -5,6 +5,12 @@ import path from 'path';
 import os from 'os';
 import { CandidatRepository, EntrepriseRepository, ResultatPdfRepository, ResultatEntretienRepository } from '../repositories';
 import {
+  CandidatMongoRepository,
+  EntrepriseMongoRepository,
+  ResultatPdfMongoRepository,
+  ResultatEntretienMongoRepository,
+} from '../repositories/mongo';
+import {
   PdfGeneratorService,
   CerfaGeneratorService,
   AtreGeneratorService,
@@ -18,12 +24,21 @@ import { AdmissionService } from '../services/admissionService';
 import logger from '../utils/logger';
 import { InformationsPersonnelles } from '../types/admission';
 import config from '../config';
+import { isMongoConnected } from '../config/database';
 
 const router = Router();
+
+// Repositories Airtable (fallback / écriture pour les routes non encore migrées)
 const candidatRepo = new CandidatRepository();
 const entrepriseRepo = new EntrepriseRepository();
 const resultatPdfRepo = new ResultatPdfRepository();
 const resultatEntretienRepo = new ResultatEntretienRepository();
+
+// Repositories MongoDB (lecture prioritaire)
+const candidatMongoRepo = new CandidatMongoRepository();
+const entrepriseMongoRepo = new EntrepriseMongoRepository();
+const resultatPdfMongoRepo = new ResultatPdfMongoRepository();
+const resultatEntretienMongoRepo = new ResultatEntretienMongoRepository();
 const pdfService = new PdfGeneratorService();
 const cerfaService = new CerfaGeneratorService();
 const atreService = new AtreGeneratorService();
@@ -71,11 +86,16 @@ const upload = multer({
  */
 router.get('/candidats', async (req: Request, res: Response) => {
   try {
-    const candidats = await candidatRepo.getAll();
+    // MongoDB prioritaire, fallback Airtable
+    const candidats = isMongoConnected()
+      ? await candidatMongoRepo.getAll()
+      : await candidatRepo.getAll();
+
     res.json({
       success: true,
       data: candidats,
-      count: candidats.length
+      count: candidats.length,
+      source: isMongoConnected() ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur récupération candidats:', error);
@@ -145,11 +165,13 @@ router.get('/candidats', async (req: Request, res: Response) => {
  */
 router.get('/candidats-with-documents', async (req: Request, res: Response) => {
   try {
+    const useMongo = isMongoConnected();
+
     // Récupérer toutes les données en parallèle
     const [candidats, resultatsPdf, resultatsEntretien] = await Promise.all([
-      candidatRepo.getAll(),
-      resultatPdfRepo.getAll(),
-      resultatEntretienRepo.getAll(),
+      useMongo ? candidatMongoRepo.getAll() : candidatRepo.getAll(),
+      useMongo ? resultatPdfMongoRepo.getAll() : resultatPdfRepo.getAll(),
+      useMongo ? resultatEntretienMongoRepo.getAll() : resultatEntretienRepo.getAll(),
     ]);
 
     // Indexer les résultats PDF par email
@@ -189,6 +211,7 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
       success: true,
       data: candidatsWithDocuments,
       count: candidatsWithDocuments.length,
+      source: useMongo ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur récupération candidats avec documents:', error);
@@ -254,9 +277,13 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
 router.get('/candidats/:id/with-documents', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const useMongo = isMongoConnected();
 
     // Récupérer le candidat
-    const candidat = await candidatRepo.getById(id);
+    const candidat = useMongo
+      ? await candidatMongoRepo.getById(id)
+      : await candidatRepo.getById(id);
+
     if (!candidat) {
       return res.status(404).json({
         success: false,
@@ -272,8 +299,8 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
     if (email) {
       // Récupérer les documents liés par email en parallèle
       const [allPdf, allEntretien] = await Promise.all([
-        resultatPdfRepo.getAll(),
-        resultatEntretienRepo.getAll(),
+        useMongo ? resultatPdfMongoRepo.getAll() : resultatPdfRepo.getAll(),
+        useMongo ? resultatEntretienMongoRepo.getAll() : resultatEntretienRepo.getAll(),
       ]);
 
       resultatsPdf = allPdf.filter((r) => r.fields['E-mail'] === email);
@@ -288,6 +315,7 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
         resultat_pdf: resultatsPdf,
         suivie_entretien: resultatsEntretien,
       },
+      source: useMongo ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur récupération candidat avec documents:', error);
@@ -334,7 +362,9 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
 router.get('/candidats/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const candidat = await candidatRepo.getById(id);
+    const candidat = isMongoConnected()
+      ? await candidatMongoRepo.getById(id)
+      : await candidatRepo.getById(id);
     
     if (!candidat) {
       return res.status(404).json({
@@ -345,7 +375,8 @@ router.get('/candidats/:id', async (req: Request, res: Response) => {
     
     res.json({
       success: true,
-      data: candidat
+      data: candidat,
+      source: isMongoConnected() ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur récupération candidat:', error);
@@ -392,7 +423,9 @@ router.get('/candidats/:id', async (req: Request, res: Response) => {
 router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const entreprise = await entrepriseRepo.getByEtudiantId(id);
+    const entreprise = isMongoConnected()
+      ? await entrepriseMongoRepo.getByEtudiantId(id)
+      : await entrepriseRepo.getByEtudiantId(id);
     
     if (!entreprise) {
       return res.status(404).json({
@@ -403,7 +436,8 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
     
     res.json({
       success: true,
-      data: entreprise
+      data: entreprise,
+      source: isMongoConnected() ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur récupération entreprise:', error);
@@ -848,11 +882,15 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
  */
 router.get('/entreprises', async (req: Request, res: Response) => {
   try {
-    const entreprises = await entrepriseRepo.getAll();
+    const entreprises = isMongoConnected()
+      ? await entrepriseMongoRepo.getAll()
+      : await entrepriseRepo.getAll();
+
     res.json({
       success: true,
       data: entreprises,
-      count: entreprises.length
+      count: entreprises.length,
+      source: isMongoConnected() ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur récupération entreprises:', error);
