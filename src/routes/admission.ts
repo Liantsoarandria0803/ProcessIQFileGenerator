@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import mongoose from 'mongoose';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
@@ -39,6 +40,15 @@ const candidatMongoRepo = new CandidatMongoRepository();
 const entrepriseMongoRepo = new EntrepriseMongoRepository();
 const resultatPdfMongoRepo = new ResultatPdfMongoRepository();
 const resultatEntretienMongoRepo = new ResultatEntretienMongoRepository();
+
+// Correction des index MongoDB au démarrage
+mongoose.connection.on('connected', () => {
+  entrepriseMongoRepo.ensureIndexes().catch(() => {});
+});
+// Si déjà connecté
+if (isMongoConnected()) {
+  entrepriseMongoRepo.ensureIndexes().catch(() => {});
+}
 const pdfService = new PdfGeneratorService();
 const cerfaService = new CerfaGeneratorService();
 const atreService = new AtreGeneratorService();
@@ -1016,7 +1026,9 @@ router.get('/entreprises', async (req: Request, res: Response) => {
  */
 router.post('/entreprises', async (req: Request, res: Response) => {
   try {
-    const fields = req.body;
+    const body = req.body;
+    // Le body peut être { fields: { ... } } ou directement les champs
+    const fields = body.fields && typeof body.fields === 'object' ? body.fields : body;
     
     if (!fields || Object.keys(fields).length === 0) {
       return res.status(400).json({
@@ -1025,10 +1037,15 @@ router.post('/entreprises', async (req: Request, res: Response) => {
       });
     }
     
-    const entreprise = await entrepriseRepo.create(fields);
+    const useMongo = isMongoConnected();
+    const entreprise = useMongo
+      ? await entrepriseMongoRepo.create(fields)
+      : await entrepriseRepo.create(fields);
+
     res.status(201).json({
       success: true,
-      data: entreprise
+      data: entreprise,
+      source: useMongo ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur création entreprise:', error);
@@ -1084,7 +1101,9 @@ router.post('/entreprises', async (req: Request, res: Response) => {
 router.patch('/entreprises/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const fields = req.body;
+    const body = req.body;
+    // Le body peut être { fields: { ... } } ou directement les champs
+    const fields = body.fields && typeof body.fields === 'object' ? body.fields : body;
     
     if (!fields || Object.keys(fields).length === 0) {
       return res.status(400).json({
@@ -1093,11 +1112,23 @@ router.patch('/entreprises/:id', async (req: Request, res: Response) => {
       });
     }
     
-    const success = await entrepriseRepo.update(id, fields);
+    const useMongo = isMongoConnected();
+    if (useMongo) {
+      const updated = await entrepriseMongoRepo.update(id, fields);
+      if (!updated) {
+        return res.status(404).json({
+          success: false,
+          error: 'Fiche entreprise non trouvée'
+        });
+      }
+    } else {
+      await entrepriseRepo.update(id, fields);
+    }
     
     res.json({
       success: true,
-      message: 'Fiche entreprise mise à jour avec succès'
+      message: 'Fiche entreprise mise à jour avec succès',
+      source: useMongo ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur mise à jour entreprise:', error);
@@ -1145,7 +1176,10 @@ router.patch('/entreprises/:id', async (req: Request, res: Response) => {
 router.delete('/entreprises/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const success = await entrepriseRepo.delete(id);
+    const useMongo = isMongoConnected();
+    const success = useMongo
+      ? await entrepriseMongoRepo.delete(id)
+      : await entrepriseRepo.delete(id);
     
     if (!success) {
       return res.status(404).json({
@@ -1156,7 +1190,8 @@ router.delete('/entreprises/:id', async (req: Request, res: Response) => {
     
     res.json({
       success: true,
-      message: 'Fiche entreprise supprimée avec succès'
+      message: 'Fiche entreprise supprimée avec succès',
+      source: useMongo ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur suppression entreprise:', error);
@@ -1476,16 +1511,20 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
 router.post('/entreprise', async (req: Request, res: Response) => {
   try {
     const ficheData = req.body;
+    const useMongo = isMongoConnected();
     
     logger.info(`📝 Création entreprise - Données reçues: ${ficheData.identification?.raison_sociale || 'N/A'}`);
     
-    const recordId = await entrepriseRepo.createFicheEntreprise(ficheData);
+    const recordId = useMongo
+      ? await entrepriseMongoRepo.createFicheEntreprise(ficheData)
+      : await entrepriseRepo.createFicheEntreprise(ficheData);
     
     logger.info(`✅ Entreprise créée avec ID: ${recordId}`);
     
     res.json({
       message: 'Fiche entreprise créée avec succès',
-      record_id: recordId
+      record_id: recordId,
+      source: useMongo ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('❌ ERREUR création entreprise:', error);
