@@ -890,7 +890,10 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
  *   get:
  *     summary: Liste toutes les fiches entreprises
  *     tags: [Entreprises]
- *     description: Récupère la liste de toutes les fiches entreprises depuis Airtable
+ *     description: |
+ *       Récupère la liste de toutes les fiches entreprises.
+ *       Utilise MongoDB comme source prioritaire si connecté, sinon Airtable en fallback.
+ *       Le champ `source` dans la réponse indique la source de données utilisée.
  *     responses:
  *       200:
  *         description: Liste des fiches entreprises
@@ -910,6 +913,11 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
  *                   type: integer
  *                   description: Nombre total de fiches
  *                   example: 10
+ *                 source:
+ *                   type: string
+ *                   enum: [mongodb, airtable]
+ *                   description: Source de données utilisée
+ *                   example: mongodb
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
@@ -938,23 +946,31 @@ router.get('/entreprises', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/entreprises:
  *   post:
- *     summary: Crée une nouvelle fiche entreprise (champs bruts Airtable)
+ *     summary: Crée une nouvelle fiche entreprise (champs bruts)
  *     tags: [Entreprises]
  *     description: |
- *       Crée une nouvelle fiche entreprise en envoyant directement les champs Airtable bruts.
- *       Contrairement à POST /api/admission/entreprise qui attend un objet structuré (FicheRenseignementEntreprise),
- *       cette route accepte un objet plat avec les noms de colonnes Airtable.
+ *       Crée une nouvelle fiche entreprise en envoyant directement les champs bruts.
+ *       Utilise MongoDB comme source prioritaire si connecté, sinon Airtable en fallback.
+ *
+ *       Le body peut être envoyé de deux façons :
+ *       - Directement les champs : `{ "Raison sociale": "ACME", ... }`
+ *       - Encapsulé dans fields : `{ "fields": { "Raison sociale": "ACME", ... } }`
+ *
+ *       L'ID retourné est un ObjectId MongoDB ou un recordId Airtable selon la source.
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             description: Champs Airtable bruts de la fiche entreprise
+ *             description: Champs bruts de la fiche entreprise (directement ou dans un objet `fields`)
  *             properties:
+ *               fields:
+ *                 type: object
+ *                 description: (Optionnel) Wrapper contenant les champs. Si absent, le body est lu directement.
  *               recordIdetudiant:
  *                 type: string
- *                 description: ID Airtable du candidat lié
+ *                 description: ID du candidat lié (recordId Airtable ou ObjectId MongoDB)
  *                 example: rec1BBjsjxhdqEKuq
  *               Raison sociale:
  *                 type: string
@@ -1008,6 +1024,11 @@ router.get('/entreprises', async (req: Request, res: Response) => {
  *                   example: true
  *                 data:
  *                   $ref: '#/components/schemas/Entreprise'
+ *                 source:
+ *                   type: string
+ *                   enum: [mongodb, airtable]
+ *                   description: Source de données utilisée
+ *                   example: mongodb
  *       400:
  *         description: Données entreprise manquantes
  *         content:
@@ -1062,14 +1083,20 @@ router.post('/entreprises', async (req: Request, res: Response) => {
  *   patch:
  *     summary: Met à jour partiellement une fiche entreprise existante
  *     tags: [Entreprises]
- *     description: Met à jour partiellement une fiche de renseignement entreprise dans Airtable (seuls les champs fournis sont modifiés)
+ *     description: |
+ *       Met à jour partiellement une fiche de renseignement entreprise (seuls les champs fournis sont modifiés).
+ *       Utilise MongoDB comme source prioritaire si connecté, sinon Airtable en fallback.
+ *
+ *       Le body peut être envoyé de deux façons :
+ *       - Directement les champs : `{ "Raison sociale": "ACME Updated", ... }`
+ *       - Encapsulé dans fields : `{ "fields": { "Raison sociale": "ACME Updated", ... } }`
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable de la fiche entreprise
+ *         description: ID de la fiche entreprise (recordId Airtable ou ObjectId MongoDB)
  *         example: recABCDEFGHIJKL
  *     requestBody:
  *       required: true
@@ -1091,6 +1118,11 @@ router.post('/entreprises', async (req: Request, res: Response) => {
  *                 message:
  *                   type: string
  *                   example: Fiche entreprise mise à jour avec succès
+ *                 source:
+ *                   type: string
+ *                   enum: [mongodb, airtable]
+ *                   description: Source de données utilisée
+ *                   example: mongodb
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       404:
@@ -1141,18 +1173,21 @@ router.patch('/entreprises/:id', async (req: Request, res: Response) => {
 
 /**
  * @swagger
- * /api/admission/entreprises/{recordId}:
+ * /api/admission/entreprises/{id}:
  *   delete:
  *     summary: Supprime une fiche entreprise
  *     tags: [Entreprises]
- *     description: Supprime une fiche de renseignement entreprise dans Airtable
+ *     description: |
+ *       Supprime une fiche de renseignement entreprise.
+ *       Utilise MongoDB comme source prioritaire si connecté, sinon Airtable en fallback.
+ *       L'ID peut être un recordId Airtable (recXXX) ou un ObjectId MongoDB.
  *     parameters:
  *       - in: path
- *         name: recordId
+ *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable de la fiche entreprise
+ *         description: ID de la fiche entreprise (recordId Airtable ou ObjectId MongoDB)
  *         example: recABCDEFGHIJKL
  *     responses:
  *       200:
@@ -1168,6 +1203,11 @@ router.patch('/entreprises/:id', async (req: Request, res: Response) => {
  *                 message:
  *                   type: string
  *                   example: Fiche entreprise supprimée avec succès
+ *                 source:
+ *                   type: string
+ *                   enum: [mongodb, airtable]
+ *                   description: Source de données utilisée
+ *                   example: mongodb
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       500:
@@ -1403,11 +1443,14 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
  *     summary: Crée une fiche de renseignement entreprise structurée
  *     tags: [Entreprises]
  *     description: |
- *       Crée une nouvelle fiche de renseignement entreprise complète dans Airtable.
+ *       Crée une nouvelle fiche de renseignement entreprise complète.
+ *       Utilise MongoDB comme source prioritaire si connecté, sinon Airtable en fallback.
+ *
  *       Le body est un objet structuré en sections (identification, adresse, maître d'apprentissage,
  *       OPCO, contrat avec rémunération/périodes, formation et missions, CFA).
- *       Les champs sont automatiquement mappés vers les colonnes Airtable correspondantes.
- *       Un mécanisme de retry (3 tentatives) est inclus pour les erreurs réseau.
+ *       Les champs sont automatiquement mappés vers les noms de colonnes correspondants.
+ *
+ *       L'ID retourné (`record_id`) est un ObjectId MongoDB ou un recordId Airtable selon la source.
  *     requestBody:
  *       required: true
  *       content:
@@ -1479,8 +1522,13 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
  *                   example: Fiche entreprise créée avec succès
  *                 record_id:
  *                   type: string
- *                   description: ID Airtable de la fiche créée
- *                   example: recXXXXXXXXXXXXXX
+ *                   description: ID de la fiche créée (ObjectId MongoDB ou recordId Airtable)
+ *                   example: 69b11aaf7cf1c07bbb4ad346
+ *                 source:
+ *                   type: string
+ *                   enum: [mongodb, airtable]
+ *                   description: Source de données utilisée
+ *                   example: mongodb
  *       400:
  *         description: Données invalides ou manquantes
  *         content:
@@ -1495,7 +1543,7 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
  *                   type: string
  *                   example: Données invalides
  *       500:
- *         description: Erreur serveur (incluant les erreurs Airtable après 3 tentatives)
+ *         description: Erreur serveur (MongoDB ou Airtable)
  *         content:
  *           application/json:
  *             schema:

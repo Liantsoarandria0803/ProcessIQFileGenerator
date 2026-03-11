@@ -37,7 +37,7 @@ const swaggerDefinition: SwaggerDefinition = {
     },
     {
       name: 'Entreprises',
-      description: 'Gestion des fiches entreprises'
+      description: 'Gestion des fiches entreprises (MongoDB prioritaire, Airtable en fallback)'
     },
     {
       name: 'PDF',
@@ -83,8 +83,8 @@ const swaggerDefinition: SwaggerDefinition = {
         properties: {
           id: {
             type: 'string',
-            description: 'ID unique Airtable',
-            example: 'recXXXXXXXXXXXXXX'
+            description: 'ID unique (ObjectId MongoDB ou recordId Airtable)',
+            example: '69b11aaf7cf1c07bbb4ad346'
           },
           fields: {
             type: 'object',
@@ -359,7 +359,7 @@ const swaggerDefinition: SwaggerDefinition = {
           },
           record_id_etudiant: {
             type: 'string',
-            description: 'ID Airtable du candidat lié à cette fiche entreprise',
+            description: 'ID du candidat lié à cette fiche entreprise (recordId Airtable ou ObjectId MongoDB)',
             example: 'rec1BBjsjxhdqEKuq'
           }
         }
