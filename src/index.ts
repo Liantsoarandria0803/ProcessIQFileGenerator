@@ -108,6 +108,7 @@ app.get('/', (req: Request, res: Response) => {
       atre: '/api/admission/candidats/:id/atre',
       compteRendu: '/api/admission/candidats/:id/compte-rendu',
       reglementInterieur: '/api/admission/candidats/:id/reglement-interieur',
+      certificatScolarite: '/api/admission/candidats/:id/certificat-scolarite',
       rhEtudiantsFiches: '/api/rh/etudiants-fiches',
       rhEtudiantFiche: '/api/rh/etudiants-fiches/:record_id',
       rhStatistiques: '/api/rh/statistiques'
