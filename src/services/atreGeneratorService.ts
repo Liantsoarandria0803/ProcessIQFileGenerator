@@ -24,7 +24,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import logger from '../utils/logger';
-import { CandidatRepository } from '../repositories/candidatRepository';
+import { CandidatMongoRepository } from '../repositories/mongo/candidatMongoRepository';
 import { CandidatFields } from '../types';
 import { ATRE_TEXT_FIELDS, BAC_CHECKBOX_MAPPING } from './mappings/atreMappings';
 
@@ -47,14 +47,14 @@ export interface AtreGenerationResult {
 
 export class AtreGeneratorService {
   private readonly templatePath: string;
-  private readonly candidatRepo: CandidatRepository;
+  private readonly candidatRepo: CandidatMongoRepository;
 
   constructor() {
     this.templatePath = path.resolve(
       __dirname,
       '../../assets/templates_pdf/Fiche de detection pour l\'ATRE.pdf'
     );
-    this.candidatRepo = new CandidatRepository();
+    this.candidatRepo = new CandidatMongoRepository();
   }
 
   // =====================================================
@@ -83,8 +83,8 @@ export class AtreGeneratorService {
       return result;
     }
 
-    // 3. Upload vers Airtable dans la colonne "Atre"
-    await this.uploadToAirtable(idEtudiant, result.pdfBuffer, result.filename!);
+    // 3. Upload vers MongoDB (GridFS) dans la colonne "Atre"
+    await this.uploadToMongo(idEtudiant, result.pdfBuffer, result.filename!);
 
     return result;
   }
@@ -331,7 +331,7 @@ export class AtreGeneratorService {
    * Upload le PDF généré vers Airtable dans la colonne « Atre »
    * Pattern identique à admission.ts (cerfa / fiche-renseignement)
    */
-  private async uploadToAirtable(
+  private async uploadToMongo(
     idEtudiant: string,
     pdfBuffer: Buffer,
     filename: string
@@ -342,16 +342,16 @@ export class AtreGeneratorService {
       // Écrire le buffer dans un fichier temporaire
       fs.writeFileSync(tmpPath, pdfBuffer);
 
-      // Upload vers Airtable
+      // Upload vers MongoDB (GridFS)
       const success = await this.candidatRepo.uploadDocument(idEtudiant, 'Atre', tmpPath);
 
       if (success) {
-        logger.info(`✅ Fiche ATRE uploadée vers Airtable pour ${idEtudiant}`);
+        logger.info(`✅ Fiche ATRE uploadée vers MongoDB pour ${idEtudiant}`);
       } else {
-        logger.warn(`⚠️ Échec upload ATRE vers Airtable pour ${idEtudiant}`);
+        logger.warn(`⚠️ Échec upload ATRE vers MongoDB pour ${idEtudiant}`);
       }
     } catch (err: any) {
-      logger.warn(`⚠️ Erreur upload ATRE vers Airtable : ${err.message}`);
+      logger.warn(`⚠️ Erreur upload ATRE vers MongoDB : ${err.message}`);
     } finally {
       // Nettoyer le fichier temporaire
       try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }

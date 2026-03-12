@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import * as fs from 'fs';
 import * as path from 'path';
-import { CandidatRepository } from '../repositories/candidatRepository';
+import { CandidatMongoRepository } from '../repositories/mongo/candidatMongoRepository';
 import {
   REGLEMENT_AIRTABLE_FIELDS,
   REGLEMENT_AIRTABLE_COLUMN,
@@ -11,11 +11,11 @@ import {
 } from './mappings/reglementMappings';
 
 export class ReglementGeneratorService {
-  private candidatRepo: CandidatRepository;
+  private candidatRepo: CandidatMongoRepository;
   private templatePath: string;
 
   constructor() {
-    this.candidatRepo = new CandidatRepository();
+    this.candidatRepo = new CandidatMongoRepository();
     this.templatePath = path.resolve(
       __dirname,
       '../../assets/templates_pdf/Reglement interieur Rush School.pdf'
@@ -23,8 +23,8 @@ export class ReglementGeneratorService {
   }
 
   /**
-   * Generate Règlement Intérieur PDF and upload to Airtable
-   * @param idEtudiant - Airtable record ID
+   * Generate Règlement Intérieur PDF and upload to MongoDB (GridFS)
+   * @param idEtudiant - ID candidat (ObjectId MongoDB ou _airtableId)
    * @returns Object with success status, PDF buffer, and filename
    */
   async generateAndUpload(idEtudiant: string): Promise<{
@@ -36,7 +36,7 @@ export class ReglementGeneratorService {
     try {
       console.log(`[ReglementGenerator] Starting generation for candidat: ${idEtudiant}`);
 
-      // Fetch candidat data from Airtable
+      // Fetch candidat data from MongoDB
       const candidat = await this.candidatRepo.getById(idEtudiant);
       if (!candidat) {
         return {
@@ -145,8 +145,8 @@ export class ReglementGeneratorService {
 
       console.log(`[ReglementGenerator] PDF saved to: ${tmpPath}`);
 
-      // Upload to Airtable
-      console.log(`[ReglementGenerator] Uploading to Airtable column: ${REGLEMENT_AIRTABLE_COLUMN}`);
+      // Upload to MongoDB (GridFS)
+      console.log(`[ReglementGenerator] Uploading to MongoDB (GridFS) column: ${REGLEMENT_AIRTABLE_COLUMN}`);
       const uploadSuccess = await this.candidatRepo.uploadDocument(
         idEtudiant,
         REGLEMENT_AIRTABLE_COLUMN,
@@ -160,17 +160,17 @@ export class ReglementGeneratorService {
       }
 
       if (uploadSuccess) {
-        console.log('[ReglementGenerator] Upload successful');
+        console.log('[ReglementGenerator] Upload successful (MongoDB/GridFS)');
         return {
           success: true,
           pdfBuffer,
           filename,
         };
       } else {
-        console.error('[ReglementGenerator] Upload failed');
+        console.error('[ReglementGenerator] Upload failed (MongoDB/GridFS)');
         return {
           success: false,
-          error: 'Failed to upload PDF to Airtable',
+          error: 'Failed to upload PDF to MongoDB',
         };
       }
     } catch (error: any) {

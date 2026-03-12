@@ -1,7 +1,7 @@
 import { PDFDocument } from 'pdf-lib';
 import * as fs from 'fs';
 import * as path from 'path';
-import { CandidatRepository } from '../repositories/candidatRepository';
+import { CandidatMongoRepository } from '../repositories/mongo/candidatMongoRepository';
 import {
   PRISE_CONNAISSANCE_AIRTABLE_FIELDS,
   PRISE_CONNAISSANCE_AIRTABLE_COLUMN,
@@ -9,11 +9,11 @@ import {
 } from './mappings/priseConnaissanceMappings';
 
 export class PriseConnaissanceGeneratorService {
-  private candidatRepo: CandidatRepository;
+  private candidatRepo: CandidatMongoRepository;
   private templatePath: string;
 
   constructor() {
-    this.candidatRepo = new CandidatRepository();
+    this.candidatRepo = new CandidatMongoRepository();
     this.templatePath = path.resolve(
       __dirname,
       '../../assets/templates_pdf/prise de connaissance.pdf'
@@ -21,8 +21,8 @@ export class PriseConnaissanceGeneratorService {
   }
 
   /**
-   * Génère la "Prise de Connaissance" PDF et l'uploade sur Airtable
-   * @param idEtudiant - Airtable record ID (colonne IdEtudiant)
+   * Génère la "Prise de Connaissance" PDF et l'uploade sur MongoDB (GridFS)
+   * @param idEtudiant - ID candidat (ObjectId MongoDB ou _airtableId)
    */
   async generateAndUpload(idEtudiant: string): Promise<{
     success: boolean;
@@ -93,8 +93,8 @@ export class PriseConnaissanceGeneratorService {
       fs.writeFileSync(tmpPath, pdfBuffer);
       console.log(`[PriseConnaissance] Fichier temporaire: ${tmpPath}`);
 
-      // 6. Upload vers Airtable
-      console.log(`[PriseConnaissance] Upload vers Airtable, colonne: "${PRISE_CONNAISSANCE_AIRTABLE_COLUMN}"`);
+      // 6. Upload vers MongoDB (GridFS)
+      console.log(`[PriseConnaissance] Upload vers MongoDB (GridFS), colonne: "${PRISE_CONNAISSANCE_AIRTABLE_COLUMN}"`);
       const uploadSuccess = await this.candidatRepo.uploadDocument(
         idEtudiant,
         PRISE_CONNAISSANCE_AIRTABLE_COLUMN,
@@ -108,13 +108,13 @@ export class PriseConnaissanceGeneratorService {
       }
 
       if (uploadSuccess) {
-        console.log('[PriseConnaissance] Upload réussi');
+        console.log('[PriseConnaissance] Upload réussi (MongoDB/GridFS)');
         return { success: true, pdfBuffer, filename };
       } else {
-        console.error('[PriseConnaissance] Échec de l\'upload Airtable');
+        console.error('[PriseConnaissance] Échec de l\'upload MongoDB');
         return {
           success: false,
-          error: 'Échec de l\'upload du PDF vers Airtable',
+          error: 'Échec de l\'upload du PDF vers MongoDB',
         };
       }
     } catch (error: any) {

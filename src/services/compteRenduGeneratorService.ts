@@ -4,7 +4,7 @@
  *   - Lecture du template PDF
  *   - Approche annotation-overlay (drawText sur coordonnées des annotations)
  *   - Suppression AcroForm + Annots après écriture
- *   - Upload vers Airtable via tmpfiles.org
+ *   - Upload vers MongoDB (GridFS)
  *
  * Colonnes Airtable utilisées :
  *   NOM de naissance, Prénom, E-mail, Téléphone, Date de visite, Formation
@@ -29,7 +29,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import logger from '../utils/logger';
-import { CandidatRepository } from '../repositories/candidatRepository';
+import { CandidatMongoRepository } from '../repositories/mongo/candidatMongoRepository';
 import { CandidatFields } from '../types';
 import {
   COMPTE_RENDU_TEXT_FIELDS,
@@ -54,14 +54,14 @@ export interface CompteRenduGenerationResult {
 
 export class CompteRenduGeneratorService {
   private readonly templatePath: string;
-  private readonly candidatRepo: CandidatRepository;
+  private readonly candidatRepo: CandidatMongoRepository;
 
   constructor() {
     this.templatePath = path.resolve(
       __dirname,
       '../../assets/templates_pdf/Compte rendu de visite entretien.pdf'
     );
-    this.candidatRepo = new CandidatRepository();
+    this.candidatRepo = new CandidatMongoRepository();
   }
 
   // =====================================================
@@ -70,12 +70,12 @@ export class CompteRenduGeneratorService {
 
   /**
    * Génère le compte rendu de visite entretien pour un étudiant
-   * et l'upload sur Airtable dans la colonne « Compte rendu de visite ».
+   * et l'upload sur MongoDB (GridFS) dans la colonne « Compte rendu de visite ».
    *
-   * @param idEtudiant - Record ID Airtable du candidat (ex: recXXXXXX)
+   * @param idEtudiant - ID candidat (ObjectId MongoDB ou _airtableId)
    */
   async generateAndUpload(idEtudiant: string): Promise<CompteRenduGenerationResult> {
-    // 1. Récupérer les données candidat depuis Airtable
+    // 1. Récupérer les données candidat depuis MongoDB
     const candidat = await this.candidatRepo.getById(idEtudiant);
     if (!candidat) {
       return { success: false, error: `Candidat avec l'ID ${idEtudiant} non trouvé` };
@@ -87,8 +87,8 @@ export class CompteRenduGeneratorService {
       return result;
     }
 
-    // 3. Upload vers Airtable
-    await this.uploadToAirtable(idEtudiant, result.pdfBuffer, result.filename!);
+    // 3. Upload vers MongoDB (GridFS)
+    await this.uploadToMongo(idEtudiant, result.pdfBuffer, result.filename!);
 
     return result;
   }
@@ -300,10 +300,10 @@ export class CompteRenduGeneratorService {
   }
 
   // =====================================================
-  // UPLOAD AIRTABLE
+  // UPLOAD MONGODB
   // =====================================================
 
-  private async uploadToAirtable(
+  private async uploadToMongo(
     idEtudiant: string,
     pdfBuffer: Buffer,
     filename: string
@@ -319,12 +319,12 @@ export class CompteRenduGeneratorService {
       );
 
       if (success) {
-        logger.info(`✅ Compte Rendu uploadé vers Airtable pour ${idEtudiant}`);
+        logger.info(`✅ Compte Rendu uploadé vers MongoDB pour ${idEtudiant}`);
       } else {
-        logger.warn(`⚠️ Échec upload Compte Rendu vers Airtable pour ${idEtudiant}`);
+        logger.warn(`⚠️ Échec upload Compte Rendu vers MongoDB pour ${idEtudiant}`);
       }
     } catch (err: any) {
-      logger.warn(`⚠️ Erreur upload Compte Rendu vers Airtable : ${err.message}`);
+      logger.warn(`⚠️ Erreur upload Compte Rendu vers MongoDB : ${err.message}`);
     } finally {
       try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
     }
