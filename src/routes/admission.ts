@@ -20,6 +20,7 @@ import {
   LivretApprentissageService,
   ConventionApprentissageGeneratorService,
   PriseConnaissanceGeneratorService,
+  CertificatScolariteGeneratorService
 } from '../services';
 import { AdmissionService } from '../services/admissionService';
 import logger from '../utils/logger';
@@ -57,6 +58,7 @@ const reglementService = new ReglementGeneratorService();
 const livretService = new LivretApprentissageService();
 const conventionService = new ConventionApprentissageGeneratorService();
 const priseConnaissanceService = new PriseConnaissanceGeneratorService();
+const certificatScolariteService = new CertificatScolariteGeneratorService();
 const admissionService = new AdmissionService();
 
 // Configuration multer : stockage en mémoire (buffer)
@@ -2476,6 +2478,146 @@ router.post('/candidats/:id/prise-connaissance', async (req: Request, res: Respo
     res.status(500).json({
       success: false,
       error: 'Erreur lors de la génération de la Prise de Connaissance',
+    });
+  }
+});
+
+
+
+// =====================================================
+// CERTIFICAT DE SCOLARITE
+// =====================================================
+
+/**
+ * @swagger
+ * /api/admission/candidats/{id}/certificat-scolarite:
+ *   post:
+ *     summary: Génère un Certificat de Scolarité (en alternance)
+ *     tags: [PDF]
+ *     description: |
+ *       Génère le certificat de scolarité **en alternance** pour un candidat à partir
+ *       du template PDF image. Le service :
+ *       1. Récupère les données du candidat depuis Airtable (Prénom, NOM de naissance,
+ *          Date de naissance, Commune de naissance)
+ *       2. Remplit le PDF en superposant le **NOM Prénom** (en gras) suivi de
+ *          **né(e) le : JJ/MM/AAAA à Lieu** sur une seule ligne
+ *       3. Upload le PDF généré vers Airtable dans la table "Liste des candidats",
+ *          colonne **"certificat de scolarité"**
+ *       4. Retourne le résultat avec l'URL Airtable du fichier uploadé
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID Airtable du candidat (table "Liste des candidats")
+ *         example: recC8DfinY52bGCtR
+ *     responses:
+ *       200:
+ *         description: Certificat de scolarité généré et uploadé avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CertificatScolariteResponse'
+ *             example:
+ *               success: true
+ *               message: "Certificat de scolarité généré avec succès"
+ *               data:
+ *                 candidatId: "recC8DfinY52bGCtR"
+ *                 fileName: "Certificat_Scolarite_CHERIF_Bilal.pdf"
+ *                 uploadedToAirtable: true
+ *                 airtableUrl: "https://dl.airtable.com/.attachments/..."
+ *       404:
+ *         description: Candidat non trouvé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               success: false
+ *               error: "Candidat non trouvé"
+ *       500:
+ *         description: Erreur lors de la génération du certificat
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               success: false
+ *               error: "Erreur lors de la génération du certificat de scolarité"
+ */
+router.post('/candidats/:id/certificat-scolarite', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Récupérer les données du candidat depuis Airtable
+    const candidat = await candidatRepo.getById(id);
+    if (!candidat) {
+      return res.status(404).json({
+        success: false,
+        error: 'Candidat non trouvé',
+      });
+    }
+
+    // 2. Générer le PDF
+    const result = await certificatScolariteService.generateCertificatScolarite(candidat.fields);
+
+    if (!result.success || !result.pdfBuffer) {
+      return res.status(500).json({
+        success: false,
+        error: result.error || 'Erreur génération Certificat de Scolarité',
+      });
+    }
+
+    // 3. Upload vers Airtable dans la colonne "certificat de scolarité"
+    const fileName = result.fileName || `Certificat_Scolarite_${id}.pdf`;
+    let uploadedToAirtable = false;
+    let certificatUrl: string | null = null;
+
+    try {
+      // Écrire le buffer dans un fichier temporaire
+      const tmpFilePath = path.join(os.tmpdir(), `certificat_scolarite_${id}_${Date.now()}.pdf`);
+      fs.writeFileSync(tmpFilePath, result.pdfBuffer);
+
+      // Upload vers Airtable
+      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'certificat de scolarité', tmpFilePath);
+
+      if (uploadedToAirtable) {
+        logger.info(`✅ Certificat de scolarité uploadé vers Airtable pour ${id}`);
+        // Récupérer l'URL du fichier uploadé
+        try {
+          const updatedRecord = await candidatRepo.getById(id);
+          const certData = updatedRecord?.fields?.['certificat de scolarité'] as any[] | undefined;
+          certificatUrl = certData?.[0]?.url || null;
+        } catch (e) {
+          // Pas grave si on n'arrive pas à récupérer l'URL
+        }
+      } else {
+        logger.warn(`⚠️ Échec upload certificat de scolarité vers Airtable pour ${id}`);
+      }
+
+      // Nettoyer le fichier temporaire
+      try { fs.unlinkSync(tmpFilePath); } catch (e) { /* ignore */ }
+    } catch (uploadError: any) {
+      logger.warn(`⚠️ Erreur upload certificat de scolarité vers Airtable: ${uploadError.message}`);
+    }
+
+    // 4. Retourner le résultat
+    res.json({
+      success: true,
+      message: 'Certificat de scolarité généré avec succès',
+      data: {
+        candidatId: id,
+        fileName,
+        uploadedToAirtable,
+        airtableUrl: certificatUrl,
+      },
+    });
+  } catch (error) {
+    logger.error('Erreur génération certificat de scolarité:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la génération du certificat de scolarité',
     });
   }
 });
