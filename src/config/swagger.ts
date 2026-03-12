@@ -567,6 +567,8 @@ const swaggerDefinition: SwaggerDefinition = {
           has_compte_rendu_visite: { type: 'boolean', description: 'Indique si le compte rendu de visite est présent', example: false },
           reglement_interieur: { nullable: true, allOf: [{ $ref: '#/components/schemas/FicheInfoRh' }], description: 'Règlement intérieur (PDF)' },
           has_reglement_interieur: { type: 'boolean', description: 'Indique si le règlement intérieur est présent', example: false },
+          certificat_scolarite: { nullable: true, allOf: [{ $ref: '#/components/schemas/FicheInfoRh' }], description: 'Certificat de scolarité en alternance (PDF)' },
+          has_certificat_scolarite: { type: 'boolean', description: 'Indique si le certificat de scolarité est présent', example: false },
           dossier_complet: { type: 'boolean', description: 'Dossier complet = fiche + CERFA + ATRE + Compte rendu + Règlement intérieur', example: false },
           alternance: { type: 'string', nullable: true, enum: ['Oui', 'Non'], description: 'En alternance', example: 'Oui' }
         }
@@ -581,6 +583,7 @@ const swaggerDefinition: SwaggerDefinition = {
           etudiants_avec_atre: { type: 'integer', description: 'Nombre d\'étudiants ayant une fiche ATRE', example: 60 },
           etudiants_avec_compte_rendu: { type: 'integer', description: 'Nombre d\'étudiants ayant un compte rendu de visite', example: 50 },
           etudiants_avec_reglement: { type: 'integer', description: 'Nombre d\'étudiants ayant un règlement intérieur', example: 45 },
+          etudiants_avec_certificat_scolarite: { type: 'integer', description: 'Nombre d\'étudiants ayant un certificat de scolarité', example: 40 },
           etudiants_dossier_complet: { type: 'integer', description: 'Nombre d\'étudiants ayant tous les documents', example: 30 },
           etudiants_sans_documents: { type: 'integer', description: 'Nombre d\'étudiants sans aucun document', example: 10 },
           etudiants: {
@@ -606,9 +609,28 @@ const swaggerDefinition: SwaggerDefinition = {
           taux_compte_rendu: { type: 'number', format: 'float', description: 'Taux de compte rendu (%)', example: 33.33 },
           etudiants_avec_reglement: { type: 'integer', description: 'Étudiants ayant un règlement intérieur', example: 45 },
           taux_reglement: { type: 'number', format: 'float', description: 'Taux de règlement intérieur (%)', example: 30.0 },
+          etudiants_avec_certificat_scolarite: { type: 'integer', description: 'Étudiants ayant un certificat de scolarité', example: 40 },
+          taux_certificat_scolarite: { type: 'number', format: 'float', description: 'Taux de certificat de scolarité (%)', example: 26.67 },
           etudiants_dossier_complet: { type: 'integer', description: 'Étudiants ayant tous les documents', example: 30 },
           taux_dossier_complet: { type: 'number', format: 'float', description: 'Taux de dossier complet (%)', example: 20.0 },
           etudiants_sans_documents: { type: 'integer', description: 'Étudiants sans aucun document', example: 10 }
+        }
+      },
+      CertificatScolariteResponse: {
+        type: 'object',
+        description: 'Réponse de la génération du certificat de scolarité (en alternance)',
+        properties: {
+          success: { type: 'boolean', description: 'Indique si la génération a réussi', example: true },
+          message: { type: 'string', description: 'Message de résultat', example: 'Certificat de scolarité généré avec succès' },
+          data: {
+            type: 'object',
+            properties: {
+              candidatId: { type: 'string', description: 'ID Airtable du candidat', example: 'recC8DfinY52bGCtR' },
+              fileName: { type: 'string', description: 'Nom du fichier PDF généré', example: 'Certificat_Scolarite_CHERIF_Bilal.pdf' },
+              uploadedToAirtable: { type: 'boolean', description: 'Indique si le PDF a été uploadé vers Airtable dans la colonne "certificat de scolarité"', example: true },
+              airtableUrl: { type: 'string', nullable: true, description: 'URL du fichier uploadé dans Airtable (null si upload échoué)', example: 'https://dl.airtable.com/.attachments/...' }
+            }
+          }
         }
       }
     },

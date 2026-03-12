@@ -2290,54 +2290,59 @@ router.post('/candidats/:id/prise-connaissance', async (req: Request, res: Respo
  * @swagger
  * /api/admission/candidats/{id}/certificat-scolarite:
  *   post:
- *     summary: Génère un Certificat de Scolarité
+ *     summary: Génère un Certificat de Scolarité (en alternance)
  *     tags: [PDF]
  *     description: |
- *       Génère le certificat de scolarité en initiale pour un candidat,
- *       remplit Prénom/NOM, date de naissance et lieu de naissance,
- *       puis l'upload vers Airtable dans la colonne "certificat de scolarité".
+ *       Génère le certificat de scolarité **en alternance** pour un candidat à partir
+ *       du template PDF image. Le service :
+ *       1. Récupère les données du candidat depuis Airtable (Prénom, NOM de naissance,
+ *          Date de naissance, Commune de naissance)
+ *       2. Remplit le PDF en superposant le **NOM Prénom** (en gras) suivi de
+ *          **né(e) le : JJ/MM/AAAA à Lieu** sur une seule ligne
+ *       3. Upload le PDF généré vers Airtable dans la table "Liste des candidats",
+ *          colonne **"certificat de scolarité"**
+ *       4. Retourne le résultat avec l'URL Airtable du fichier uploadé
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat
- *         example: rec1BBjsjxhdqEKuq
+ *         description: ID Airtable du candidat (table "Liste des candidats")
+ *         example: recC8DfinY52bGCtR
  *     responses:
  *       200:
  *         description: Certificat de scolarité généré et uploadé avec succès
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Certificat de scolarité généré avec succès"
- *                 data:
- *                   type: object
- *                   properties:
- *                     candidatId:
- *                       type: string
- *                       example: "rec1BBjsjxhdqEKuq"
- *                     fileName:
- *                       type: string
- *                       example: "Certificat_Scolarite_DUPONT_Jean.pdf"
- *                     uploadedToAirtable:
- *                       type: boolean
- *                       example: true
- *                     airtableUrl:
- *                       type: string
- *                       nullable: true
- *                       example: "https://dl.airtable.com/.attachments/..."
+ *               $ref: '#/components/schemas/CertificatScolariteResponse'
+ *             example:
+ *               success: true
+ *               message: "Certificat de scolarité généré avec succès"
+ *               data:
+ *                 candidatId: "recC8DfinY52bGCtR"
+ *                 fileName: "Certificat_Scolarite_CHERIF_Bilal.pdf"
+ *                 uploadedToAirtable: true
+ *                 airtableUrl: "https://dl.airtable.com/.attachments/..."
  *       404:
- *         $ref: '#/components/responses/NotFound'
+ *         description: Candidat non trouvé
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               success: false
+ *               error: "Candidat non trouvé"
  *       500:
- *         $ref: '#/components/responses/ServerError'
+ *         description: Erreur lors de la génération du certificat
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               success: false
+ *               error: "Erreur lors de la génération du certificat de scolarité"
  */
 router.post('/candidats/:id/certificat-scolarite', async (req: Request, res: Response) => {
   try {
