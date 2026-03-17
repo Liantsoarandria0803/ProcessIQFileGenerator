@@ -4,13 +4,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { CandidatRepository, EntrepriseRepository, ResultatPdfRepository, ResultatEntretienRepository } from '../repositories';
-import {
-  CandidatMongoRepository,
-  EntrepriseMongoRepository,
-  ResultatPdfMongoRepository,
-  ResultatEntretienMongoRepository,
-} from '../repositories/mongo';
+import { CandidatMongoRepository, EntrepriseMongoRepository, ResultatPdfMongoRepository, ResultatEntretienMongoRepository, } from '../repositories/mongo';
 import {
   PdfGeneratorService,
   CerfaGeneratorService,
@@ -25,17 +19,11 @@ import { AdmissionService } from '../services/admissionService';
 import logger from '../utils/logger';
 import { InformationsPersonnelles } from '../types/admission';
 import config from '../config';
-import { isMongoConnected } from '../config/database';
+// Remove isMongoConnected import as it's no longer needed
 
 const router = Router();
 
-// Repositories Airtable (fallback / écriture pour les routes non encore migrées)
-const candidatRepo = new CandidatRepository();
-const entrepriseRepo = new EntrepriseRepository();
-const resultatPdfRepo = new ResultatPdfRepository();
-const resultatEntretienRepo = new ResultatEntretienRepository();
-
-// Repositories MongoDB (lecture prioritaire)
+// Repositories MongoDB (seul source de vérité maintenant)
 const candidatMongoRepo = new CandidatMongoRepository();
 const entrepriseMongoRepo = new EntrepriseMongoRepository();
 const resultatPdfMongoRepo = new ResultatPdfMongoRepository();
@@ -46,7 +34,7 @@ mongoose.connection.on('connected', () => {
   entrepriseMongoRepo.ensureIndexes().catch(() => {});
 });
 // Si déjà connecté
-if (isMongoConnected()) {
+if (mongoose.connection.readyState === 1) {
   entrepriseMongoRepo.ensureIndexes().catch(() => {});
 }
 const pdfService = new PdfGeneratorService();
@@ -96,16 +84,14 @@ const upload = multer({
  */
 router.get('/candidats', async (req: Request, res: Response) => {
   try {
-    // MongoDB prioritaire, fallback Airtable
-    const candidats = isMongoConnected()
-      ? await candidatMongoRepo.getAll()
-      : await candidatRepo.getAll();
+    // MongoDB seulement
+    const candidats = await candidatMongoRepo.getAll();
 
     res.json({
       success: true,
+      source: 'mongodb',
       data: candidats,
       count: candidats.length,
-      source: isMongoConnected() ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur récupération candidats:', error);
@@ -175,13 +161,11 @@ router.get('/candidats', async (req: Request, res: Response) => {
  */
 router.get('/candidats-with-documents', async (req: Request, res: Response) => {
   try {
-    const useMongo = isMongoConnected();
-
-    // Récupérer toutes les données en parallèle
+    // Récupérer toutes les données en parallèle (MongoDB seulement)
     const [candidats, resultatsPdf, resultatsEntretien] = await Promise.all([
-      useMongo ? candidatMongoRepo.getAll() : candidatRepo.getAll(),
-      useMongo ? resultatPdfMongoRepo.getAll() : resultatPdfRepo.getAll(),
-      useMongo ? resultatEntretienMongoRepo.getAll() : resultatEntretienRepo.getAll(),
+      candidatMongoRepo.getAll(),
+      resultatPdfMongoRepo.getAll(),
+      resultatEntretienMongoRepo.getAll(),
     ]);
 
     // Indexer les résultats PDF par email
@@ -219,9 +203,9 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
+      source: 'mongodb',
       data: candidatsWithDocuments,
       count: candidatsWithDocuments.length,
-      source: useMongo ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur récupération candidats avec documents:', error);
@@ -287,12 +271,9 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
 router.get('/candidats/:id/with-documents', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const useMongo = isMongoConnected();
 
-    // Récupérer le candidat
-    const candidat = useMongo
-      ? await candidatMongoRepo.getById(id)
-      : await candidatRepo.getById(id);
+    // Récupérer le candidat (MongoDB seulement)
+    const candidat = await candidatMongoRepo.getById(id);
 
     if (!candidat) {
       return res.status(404).json({
@@ -307,10 +288,10 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
     let resultatsEntretien: any[] = [];
 
     if (email) {
-      // Récupérer les documents liés par email en parallèle
+      // Récupérer les documents liés par email en parallèle (MongoDB seulement)
       const [allPdf, allEntretien] = await Promise.all([
-        useMongo ? resultatPdfMongoRepo.getAll() : resultatPdfRepo.getAll(),
-        useMongo ? resultatEntretienMongoRepo.getAll() : resultatEntretienRepo.getAll(),
+        resultatPdfMongoRepo.getAll(),
+        resultatEntretienMongoRepo.getAll(),
       ]);
 
       resultatsPdf = allPdf.filter((r) => r.fields['E-mail'] === email);
@@ -319,13 +300,13 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
 
     res.json({
       success: true,
+      source: 'mongodb',
       data: {
         id: candidat.id,
         fields: candidat.fields,
         resultat_pdf: resultatsPdf,
         suivie_entretien: resultatsEntretien,
       },
-      source: useMongo ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur récupération candidat avec documents:', error);
@@ -372,9 +353,7 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
 router.get('/candidats/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const candidat = isMongoConnected()
-      ? await candidatMongoRepo.getById(id)
-      : await candidatRepo.getById(id);
+    const candidat = await candidatMongoRepo.getById(id);
     
     if (!candidat) {
       return res.status(404).json({
@@ -385,8 +364,8 @@ router.get('/candidats/:id', async (req: Request, res: Response) => {
     
     res.json({
       success: true,
+      source: 'mongodb',
       data: candidat,
-      source: isMongoConnected() ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur récupération candidat:', error);
@@ -433,9 +412,7 @@ router.get('/candidats/:id', async (req: Request, res: Response) => {
 router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const entreprise = isMongoConnected()
-      ? await entrepriseMongoRepo.getByEtudiantId(id)
-      : await entrepriseRepo.getByEtudiantId(id);
+    const entreprise = await entrepriseMongoRepo.getByEtudiantId(id);
     
     if (!entreprise) {
       return res.status(404).json({
@@ -446,8 +423,8 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
     
     res.json({
       success: true,
+      source: 'mongodb',
       data: entreprise,
-      source: isMongoConnected() ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur récupération entreprise:', error);
@@ -511,12 +488,9 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
 router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const useMongo = isMongoConnected();
     
-    // Récupère les données du candidat
-    const candidat = useMongo
-      ? await candidatMongoRepo.getById(id)
-      : await candidatRepo.getById(id);
+    // Récupère les données du candidat (MongoDB seulement)
+    const candidat = await candidatMongoRepo.getById(id);
     if (!candidat) {
       return res.status(404).json({
         success: false,
@@ -524,10 +498,8 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
       });
     }
     
-    // Récupère les données entreprise
-    const entreprise = useMongo
-      ? await entrepriseMongoRepo.getByEtudiantId(id)
-      : await entrepriseRepo.getByEtudiantId(id);
+    // Récupère les données entreprise (MongoDB seulement)
+    const entreprise = await entrepriseMongoRepo.getByEtudiantId(id);
     
     // Génère le PDF
     const result = await pdfService.generatePdf(
@@ -545,50 +517,35 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
     const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
     const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
     const fileName = `Fiche_Renseignement_${nom}_${prenom}.pdf`;
-    let uploaded = false;
-    let downloadUrl: string | null = null;
-    let source: 'mongodb' | 'airtable' = useMongo ? 'mongodb' : 'airtable';
+    let uploadUrl: string | null = null;
 
     try {
-      if (useMongo) {
-        // ── GridFS ──
-        const { uploadBuffer } = await import('../services/gridfsService');
-        const fileInfo = await uploadBuffer(result.pdfBuffer, fileName, 'application/pdf', {
-          candidatId: id,
-          documentType: 'Fiche entreprise',
-          originalFilename: fileName,
-        });
-        // Stocker la référence dans le candidat
-        await candidatMongoRepo.update(id, {
-          'Fiche entreprise': [{
-            fileId: fileInfo.fileId,
-            url: fileInfo.url,
-            filename: fileInfo.filename,
-            contentType: fileInfo.contentType,
-            size: fileInfo.size,
-            uploadedAt: fileInfo.uploadedAt,
-          }],
-        });
-        uploaded = true;
-        downloadUrl = fileInfo.url;
-        logger.info(`✅ Fiche de renseignements uploadée via GridFS pour ${id} (fileId=${fileInfo.fileId})`);
-      } else {
-        // ── Airtable ──
-        const tmpPath = path.join(os.tmpdir(), `fiche_renseignement_${nom}_${prenom}_${Date.now()}.pdf`);
-        fs.writeFileSync(tmpPath, result.pdfBuffer);
-        uploaded = await candidatRepo.uploadDocument(id, 'Fiche entreprise', tmpPath);
-        if (uploaded) {
-          logger.info('✅ Fiche de renseignements uploadée vers Airtable pour ' + id);
-          try {
-            const updatedRecord = await candidatRepo.getById(id);
-            const ficheData = updatedRecord?.fields?.['Fiche entreprise'] as any[] | undefined;
-            downloadUrl = ficheData?.[0]?.url || null;
-          } catch (e) { /* ignore */ }
-        }
-        try { fs.unlinkSync(tmpPath); } catch {}
-      }
-    } catch (uploadError) {
-      logger.warn('Upload fiche renseignement échoué:', uploadError);
+      // Upload vers MongoDB GridFS
+      const { uploadBuffer } = await import('../services/gridfsService');
+      const fileInfo = await uploadBuffer(result.pdfBuffer, fileName, 'application/pdf', {
+        candidatId: id,
+        documentType: 'Fiche entreprise',
+        originalFilename: fileName,
+      });
+      // Stocker la référence dans le candidat
+      await candidatMongoRepo.update(id, {
+        'Fiche entreprise': [{
+          fileId: fileInfo.fileId,
+          url: fileInfo.url,
+          filename: fileInfo.filename,
+          contentType: fileInfo.contentType,
+          size: fileInfo.size,
+          uploadedAt: fileInfo.uploadedAt,
+        }],
+      });
+      uploadUrl = fileInfo.url;
+      logger.info(`✅ Fiche de renseignements uploadée via GridFS pour ${id} (fileId=${fileInfo.fileId})`);
+    } catch (uploadError: any) {
+      logger.warn(`⚠️ Erreur upload Fiche de renseignement vers GridFS: ${uploadError.message}`);
+      return res.status(500).json({
+        success: false,
+        error: 'Erreur lors de l\'upload de la fiche de renseignement en MongoDB'
+      });
     }
     
     res.json({
@@ -597,9 +554,9 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
       data: {
         candidatId: id,
         fileName,
-        uploaded,
-        downloadUrl,
-        source,
+        uploaded: true,
+        downloadUrl: uploadUrl,
+        source: 'mongodb',
       }
     });
     
@@ -670,7 +627,7 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
     const { id } = req.params;
     
     // Récupère les données du candidat
-    const candidat = await candidatRepo.getById(id);
+    const candidat = await candidatMongoRepo.getById(id);
     if (!candidat) {
       return res.status(404).json({
         success: false,
@@ -679,7 +636,7 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
     }
     
     // Récupère les données entreprise (peut être null → champs vides)
-    const entreprise = await entrepriseRepo.getByEtudiantId(id);
+    const entreprise = await entrepriseMongoRepo.getByEtudiantId(id);
     if (!entreprise) {
       logger.warn(`⚠️ Pas de fiche entreprise pour ${id} — CERFA généré avec champs entreprise vides`);
     }
@@ -697,39 +654,38 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
       });
     }
     
-    // Upload vers Airtable dans la colonne "cerfa"
+    // ── Upload vers MongoDB (GridFS) ──
     const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
     const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
     const fileName = `CERFA_FA13_${nom}_${prenom}.pdf`;
-    let uploadedToAirtable = false;
-    let cerfaUrl: string | null = null;
+    let uploadUrl: string | null = null;
 
     try {
-      // Sauvegarder le buffer dans un fichier temporaire pour l'upload
-      const tmpFilePath = path.join(os.tmpdir(), `cerfa_${id}_${Date.now()}.pdf`);
-      fs.writeFileSync(tmpFilePath, result.pdfBuffer);
-      
-      // Upload vers Airtable
-      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'cerfa', tmpFilePath);
-      
-      if (uploadedToAirtable) {
-        logger.info(`✅ CERFA uploadé vers Airtable pour ${id}`);
-        // Récupérer l'URL du fichier uploadé
-        try {
-          const updatedRecord = await candidatRepo.getById(id);
-          const cerfaData = updatedRecord?.fields?.['cerfa'] as any[] | undefined;
-          cerfaUrl = cerfaData?.[0]?.url || null;
-        } catch (e) {
-          // Pas grave si on n'arrive pas à récupérer l'URL
-        }
-      } else {
-        logger.warn(`⚠️ Échec upload CERFA vers Airtable pour ${id}`);
-      }
-      
-      // Nettoyer le fichier temporaire
-      try { fs.unlinkSync(tmpFilePath); } catch (e) { /* ignore */ }
+      const { uploadBuffer } = await import('../services/gridfsService');
+      const fileInfo = await uploadBuffer(result.pdfBuffer, fileName, 'application/pdf', {
+        candidatId: id,
+        documentType: 'CERFA FA13',
+        originalFilename: fileName,
+      });
+      // Stocker la référence dans le candidat
+      await candidatMongoRepo.update(id, {
+        'cerfa': [{
+          fileId: fileInfo.fileId,
+          url: fileInfo.url,
+          filename: fileInfo.filename,
+          contentType: fileInfo.contentType,
+          size: fileInfo.size,
+          uploadedAt: fileInfo.uploadedAt,
+        }],
+      });
+      uploadUrl = fileInfo.url;
+      logger.info(`✅ CERFA uploadé via GridFS pour ${id} (fileId=${fileInfo.fileId})`);
     } catch (uploadError: any) {
-      logger.warn(`⚠️ Erreur upload CERFA vers Airtable: ${uploadError.message}`);
+      logger.warn(`⚠️ Erreur upload CERFA vers GridFS: ${uploadError.message}`);
+      return res.status(500).json({
+        success: false,
+        error: 'Erreur lors de l\'upload du CERFA en MongoDB'
+      });
     }
     
     // Retourne un JSON de succès
@@ -739,8 +695,9 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
       data: {
         candidatId: id,
         fileName,
-        uploadedToAirtable,
-        airtableUrl: cerfaUrl
+        uploadedToMongoDB: true,
+        mongoUrl: uploadUrl,
+        source: 'mongodb'
       }
     });
     
@@ -783,7 +740,7 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
   try {
     const { id } = req.params;
 
-    const candidat = await candidatRepo.getById(id);
+    const candidat = await candidatMongoRepo.getById(id);
     if (!candidat) {
       return res.status(404).json({
         success: false,
@@ -791,7 +748,7 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
       });
     }
 
-    const entreprise = await entrepriseRepo.getByEtudiantId(id);
+    const entreprise = await entrepriseMongoRepo.getByEtudiantId(id);
     if (!entreprise) {
       logger.warn(`⚠️ Pas de fiche entreprise pour ${id} — convention générée avec champs entreprise partiellement vides`);
     }
@@ -812,56 +769,34 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
     const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
     const fileName = result.filename || `Convention_Apprentissage_${nom}_${prenom}.pdf`;
 
-    let uploadedToAirtable = false;
-    let conventionUrl: string | null = null;
+    let uploadUrl: string | null = null;
 
-    const tmpFilePath = path.join(os.tmpdir(), `convention_apprentissage_${id}_${Date.now()}.pdf`);
     try {
-      fs.writeFileSync(tmpFilePath, result.pdfBuffer);
-
-      // Essayer les variantes de nom de colonne Airtable connues
-      const conventionColumns = ['Convention', 'convention', 'Convention apprentissage'] as const;
-      for (const columnName of conventionColumns) {
-        uploadedToAirtable = await candidatRepo.uploadDocument(id, columnName, tmpFilePath);
-        if (uploadedToAirtable) break;
-      }
-
-      if (!uploadedToAirtable) {
-        logger.warn(`⚠️ Echec upload Convention apprentissage vers Airtable pour ${id}`);
-        return res.status(500).json({
-          success: false,
-          error: "Convention generee mais non stockee dans Airtable",
-        });
-      }
-
-      const updatedRecord = await candidatRepo.getById(id);
-      const conventionData =
-        (updatedRecord?.fields?.['Convention'] as any[] | undefined) ||
-        (updatedRecord?.fields?.['convention'] as any[] | undefined) ||
-        (updatedRecord?.fields?.['Convention apprentissage'] as any[] | undefined);
-      conventionUrl = conventionData?.[0]?.url || null;
-
-      if (!conventionUrl) {
-        logger.warn(`⚠️ Convention apprentissage introuvable dans Airtable apres upload pour ${id}`);
-        return res.status(500).json({
-          success: false,
-          error: "Convention generee mais non visible dans Airtable",
-        });
-      }
-
-      logger.info(`✅ Convention apprentissage uploadée vers Airtable pour ${id}`);
+      const { uploadBuffer } = await import('../services/gridfsService');
+      const fileInfo = await uploadBuffer(result.pdfBuffer, fileName, 'application/pdf', {
+        candidatId: id,
+        documentType: 'Convention Apprentissage',
+        originalFilename: fileName,
+      });
+      // Stocker la référence dans le candidat
+      await candidatMongoRepo.update(id, {
+        'Convention apprentissage': [{
+          fileId: fileInfo.fileId,
+          url: fileInfo.url,
+          filename: fileInfo.filename,
+          contentType: fileInfo.contentType,
+          size: fileInfo.size,
+          uploadedAt: fileInfo.uploadedAt,
+        }],
+      });
+      uploadUrl = fileInfo.url;
+      logger.info(`✅ Convention apprentissage uploadée via GridFS pour ${id} (fileId=${fileInfo.fileId})`);
     } catch (uploadError: any) {
-      logger.warn(`⚠️ Erreur upload Convention apprentissage vers Airtable: ${uploadError.message}`);
+      logger.warn(`⚠️ Erreur upload Convention apprentissage vers GridFS: ${uploadError.message}`);
       return res.status(500).json({
         success: false,
-        error: "Erreur lors du stockage Airtable de la convention d'apprentissage",
+        error: "Erreur lors du stockage MongoDB de la convention d'apprentissage",
       });
-    } finally {
-      try {
-        fs.unlinkSync(tmpFilePath);
-      } catch (e) {
-        // ignore
-      }
     }
 
     res.json({
@@ -870,9 +805,10 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
       data: {
         candidatId: id,
         fileName,
-        uploadedToAirtable,
-        airtableUrl: conventionUrl,
+        uploadedToMongoDB: true,
+        mongoUrl: uploadUrl,
         usedTemplate: result.usedTemplate || false,
+        source: 'mongodb'
       },
     });
   } catch (error) {
@@ -923,15 +859,13 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
  */
 router.get('/entreprises', async (req: Request, res: Response) => {
   try {
-    const entreprises = isMongoConnected()
-      ? await entrepriseMongoRepo.getAll()
-      : await entrepriseRepo.getAll();
+    const entreprises = await entrepriseMongoRepo.getAll();
 
     res.json({
       success: true,
+      source: 'mongodb',
       data: entreprises,
       count: entreprises.length,
-      source: isMongoConnected() ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur récupération entreprises:', error);
@@ -1048,7 +982,6 @@ router.get('/entreprises', async (req: Request, res: Response) => {
 router.post('/entreprises', async (req: Request, res: Response) => {
   try {
     const body = req.body;
-    // Le body peut être { fields: { ... } } ou directement les champs
     const fields = body.fields && typeof body.fields === 'object' ? body.fields : body;
     
     if (!fields || Object.keys(fields).length === 0) {
@@ -1058,15 +991,13 @@ router.post('/entreprises', async (req: Request, res: Response) => {
       });
     }
     
-    const useMongo = isMongoConnected();
-    const entreprise = useMongo
-      ? await entrepriseMongoRepo.create(fields)
-      : await entrepriseRepo.create(fields);
+    // MongoDB seulement
+    const entreprise = await entrepriseMongoRepo.create(fields);
 
     res.status(201).json({
       success: true,
+      source: 'mongodb',
       data: entreprise,
-      source: useMongo ? 'mongodb' : 'airtable',
     });
   } catch (error) {
     logger.error('Erreur création entreprise:', error);
@@ -1144,23 +1075,18 @@ router.patch('/entreprises/:id', async (req: Request, res: Response) => {
       });
     }
     
-    const useMongo = isMongoConnected();
-    if (useMongo) {
-      const updated = await entrepriseMongoRepo.update(id, fields);
-      if (!updated) {
-        return res.status(404).json({
-          success: false,
-          error: 'Fiche entreprise non trouvée'
-        });
-      }
-    } else {
-      await entrepriseRepo.update(id, fields);
+    const updated = await entrepriseMongoRepo.update(id, fields);
+    if (!updated) {
+      return res.status(404).json({
+        success: false,
+        error: 'Fiche entreprise non trouvée'
+      });
     }
     
     res.json({
       success: true,
       message: 'Fiche entreprise mise à jour avec succès',
-      source: useMongo ? 'mongodb' : 'airtable',
+      source: 'mongodb',
     });
   } catch (error) {
     logger.error('Erreur mise à jour entreprise:', error);
@@ -1216,10 +1142,7 @@ router.patch('/entreprises/:id', async (req: Request, res: Response) => {
 router.delete('/entreprises/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const useMongo = isMongoConnected();
-    const success = useMongo
-      ? await entrepriseMongoRepo.delete(id)
-      : await entrepriseRepo.delete(id);
+    const success = await entrepriseMongoRepo.delete(id);
     
     if (!success) {
       return res.status(404).json({
@@ -1231,7 +1154,7 @@ router.delete('/entreprises/:id', async (req: Request, res: Response) => {
     res.json({
       success: true,
       message: 'Fiche entreprise supprimée avec succès',
-      source: useMongo ? 'mongodb' : 'airtable',
+      source: 'mongodb',
     });
   } catch (error) {
     logger.error('Erreur suppression entreprise:', error);
@@ -1559,20 +1482,17 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
 router.post('/entreprise', async (req: Request, res: Response) => {
   try {
     const ficheData = req.body;
-    const useMongo = isMongoConnected();
     
     logger.info(`📝 Création entreprise - Données reçues: ${ficheData.identification?.raison_sociale || 'N/A'}`);
     
-    const recordId = useMongo
-      ? await entrepriseMongoRepo.createFicheEntreprise(ficheData)
-      : await entrepriseRepo.createFicheEntreprise(ficheData);
+    const recordId = await entrepriseMongoRepo.createFicheEntreprise(ficheData);
     
     logger.info(`✅ Entreprise créée avec ID: ${recordId}`);
     
     res.json({
       message: 'Fiche entreprise créée avec succès',
       record_id: recordId,
-      source: useMongo ? 'mongodb' : 'airtable',
+      source: 'mongodb',
     });
   } catch (error) {
     logger.error('❌ ERREUR création entreprise:', error);
@@ -2218,53 +2138,29 @@ router.post('/suivie-entretien', upload.single('file'), async (req: Request, res
       });
     }
 
-    const useMongo = isMongoConnected();
-    logger.info(`[Route] POST /suivie-entretien — email: ${email}, fichier: ${req.file.originalname}, source: ${useMongo ? 'mongodb' : 'airtable'}`);
+    logger.info(`[Route] POST /suivie-entretien — email: ${email}, fichier: ${req.file.originalname}, source: mongodb`);
 
-    if (useMongo) {
-      // ── GridFS + collection resultats_entretien ──
-      const { uploadBuffer } = await import('../services/gridfsService');
-      const fileInfo = await uploadBuffer(req.file.buffer, req.file.originalname, req.file.mimetype, {
-        documentType: 'suivie_entretien',
+    // MongoDB GridFS + collection resultats_entretien
+    const { uploadBuffer } = await import('../services/gridfsService');
+    const fileInfo = await uploadBuffer(req.file.buffer, req.file.originalname, req.file.mimetype, {
+      documentType: 'suivie_entretien',
+      email,
+    });
+    const attachment = [{ fileId: fileInfo.fileId, url: fileInfo.url, filename: fileInfo.filename }];
+    const result = await resultatEntretienMongoRepo.create(email, '', req.file.originalname, attachment);
+
+    return res.status(201).json({
+      success: true,
+      message: "Suivi d'entretien enregistré avec succès",
+      data: {
+        record_id: result.id,
         email,
-      });
-      const attachment = [{ fileId: fileInfo.fileId, url: fileInfo.url, filename: fileInfo.filename }];
-      const result = await resultatEntretienMongoRepo.create(email, '', req.file.originalname, attachment);
-
-      return res.status(201).json({
-        success: true,
-        message: "Suivi d'entretien enregistré avec succès",
-        data: {
-          record_id: result.id,
-          email,
-          filename: req.file.originalname,
-          gridfs_file_id: fileInfo.fileId,
-          download_url: fileInfo.url,
-          source: 'mongodb',
-        },
-      });
-    }
-
-    // ── Airtable fallback ──
-    const tmpPath = path.join(os.tmpdir(), `suivie_entretien_${Date.now()}_${req.file.originalname}`);
-    fs.writeFileSync(tmpPath, req.file.buffer);
-
-    try {
-      const result = await resultatEntretienRepo.create(email, tmpPath, req.file.originalname);
-
-      return res.status(201).json({
-        success: true,
-        message: "Suivi d'entretien enregistré avec succès",
-        data: {
-          record_id: result.id,
-          email,
-          filename: req.file.originalname,
-          source: 'airtable',
-        },
-      });
-    } finally {
-      try { fs.unlinkSync(tmpPath); } catch (_) { /* ignore */ }
-    }
+        filename: req.file.originalname,
+        gridfs_file_id: fileInfo.fileId,
+        download_url: fileInfo.url,
+        source: 'mongodb',
+      },
+    });
   } catch (error: any) {
     logger.error("Erreur upload suivi entretien:", error);
     res.status(500).json({
@@ -2352,55 +2248,29 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
       });
     }
 
-    const useMongo = isMongoConnected();
-    logger.info(`[Route] POST /resultats-pdf — email: ${email}, fichier: ${req.file.originalname}, source: ${useMongo ? 'mongodb' : 'airtable'}`);
+    logger.info(`[Route] POST /resultats-pdf - email: ${email}, fichier: ${req.file.originalname}, source: mongodb`);
 
-    if (useMongo) {
-      // ── GridFS + collection resultats_pdf ──
-      const { uploadBuffer } = await import('../services/gridfsService');
-      const fileInfo = await uploadBuffer(req.file.buffer, req.file.originalname, req.file.mimetype, {
-        documentType: 'resultat_pdf',
+    // GridFS + collection resultats_pdf (MongoDB seulement)
+    const { uploadBuffer } = await import('../services/gridfsService');
+    const fileInfo = await uploadBuffer(req.file.buffer, req.file.originalname, req.file.mimetype, {
+      documentType: 'resultat_pdf',
+      email,
+    });
+    const attachment = [{ fileId: fileInfo.fileId, url: fileInfo.url, filename: fileInfo.filename }];
+    const result = await resultatPdfMongoRepo.create(email, '', req.file.originalname, attachment);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Résultat PDF enregistré avec succès',
+      data: {
+        record_id: result.id,
         email,
-      });
-      const attachment = [{ fileId: fileInfo.fileId, url: fileInfo.url, filename: fileInfo.filename }];
-      const result = await resultatPdfMongoRepo.create(email, '', req.file.originalname, attachment);
-
-      return res.status(201).json({
-        success: true,
-        message: 'Résultat PDF enregistré avec succès',
-        data: {
-          record_id: result.id,
-          email,
-          filename: req.file.originalname,
-          gridfs_file_id: fileInfo.fileId,
-          download_url: fileInfo.url,
-          source: 'mongodb',
-        },
-      });
-    }
-
-    // ── Airtable fallback ──
-    const tmpOs = await import('os');
-    const tmpPath = path.join(tmpOs.tmpdir(), `resultat_${Date.now()}_${req.file.originalname}`);
-    fs.writeFileSync(tmpPath, req.file.buffer);
-
-    try {
-      const result = await resultatPdfRepo.create(email, tmpPath, req.file.originalname);
-
-      return res.status(201).json({
-        success: true,
-        message: 'Résultat PDF enregistré avec succès',
-        data: {
-          record_id: result.id,
-          email,
-          filename: req.file.originalname,
-          source: 'airtable',
-        },
-      });
-    } finally {
-      // Nettoyage du fichier temporaire
-      try { fs.unlinkSync(tmpPath); } catch (_) { /* ignore */ }
-    }
+        filename: req.file.originalname,
+        gridfs_file_id: fileInfo.fileId,
+        download_url: fileInfo.url,
+        source: 'mongodb',
+      },
+    });
   } catch (error: any) {
     logger.error('Erreur upload résultat PDF:', error);
     res.status(500).json({

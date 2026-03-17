@@ -1,5 +1,5 @@
 import dns from 'dns';
-// ⚡ Forcer IPv4 globalement - résout les ETIMEDOUT sur connexion mobile
+// Forcer IPv4 globalement - resout les ETIMEDOUT sur connexion mobile
 dns.setDefaultResultOrder('ipv4first');
 
 import express, { Express, Request, Response, NextFunction } from 'express';
@@ -15,7 +15,7 @@ import { connectDB } from './config/database';
 import { ensureDefaultUsers } from './services/default-users.service';
 
 
-// Crée l'application Express
+// Cree l'application Express
 const app: Express = express();
 
 
@@ -23,12 +23,12 @@ const app: Express = express();
 // MIDDLEWARES
 // =====================================================
 
-// Sécurité
+// Securite
 app.use(helmet({
-  contentSecurityPolicy: false, // Désactive CSP pour Swagger UI
+  contentSecurityPolicy: false, // Desactive CSP pour Swagger UI
 }));
 
-// CORS - Configuration étendue pour ngrok et développement
+// CORS - Configuration etendue pour ngrok et developpement
 app.use(cors({
   origin: config.corsOrigin || '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -41,7 +41,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Logging HTTP (en développement)
+// Logging HTTP (en developpement)
 if (config.nodeEnv !== 'production') {
   app.use(morgan('dev'));
 }
@@ -50,7 +50,7 @@ if (config.nodeEnv !== 'production') {
 // ROUTES
 // =====================================================
 
-// Middleware pour ajouter les headers nécessaires à ngrok
+// Middleware pour ajouter les headers necessaires a ngrok
 app.use('/api-docs*', (req: Request, res: Response, next: NextFunction) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
@@ -65,7 +65,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customSiteTitle: 'Process IQ Rush School API Documentation',
   swaggerOptions: {
     requestInterceptor: (req: any) => {
-      // Ajouter le header ngrok-skip-browser-warning pour éviter l'écran d'avertissement
+      // Ajouter le header ngrok-skip-browser-warning pour eviter l'ecran d'avertissement
       req.headers['ngrok-skip-browser-warning'] = 'true';
       return req;
     }
@@ -90,7 +90,7 @@ app.get('/', (req: Request, res: Response) => {
   res.json({
     name: 'Process IQ Rush School API',
     version: '1.0.0',
-    description: 'API pour la génération de documents administratifs',
+    description: 'API pour la generation de documents administratifs',
     documentation: '/api-docs',
     endpoints: {
       health: '/api/health',
@@ -123,14 +123,14 @@ app.get('/', (req: Request, res: Response) => {
 app.use((req: Request, res: Response) => {
   res.status(404).json({
     success: false,
-    error: 'Route non trouvée',
+    error: 'Route non trouvee',
     path: req.path
   });
 });
 
 // Gestionnaire d'erreurs global
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  logger.error('Erreur non gérée:', err);
+  logger.error('Erreur non geree:', err);
   
   res.status(500).json({
     success: false,
@@ -142,39 +142,38 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 });
 
 // =====================================================
-// DÉMARRAGE DU SERVEUR
+// DEMARRAGE DU SERVEUR
 // =====================================================
 
 const PORT = config.port;
 
-// Démarrer le serveur, MongoDB est optionnel (l'API utilise principalement Airtable)
+// Demarrer le serveur (MongoDB requis)
 const startServer = () => {
   app.listen(PORT, () => {
-    logger.info(`Serveur démarré sur le port ${PORT}`);
+    logger.info(`Serveur demarre sur le port ${PORT}`);
     logger.info(` URL: http://localhost:${PORT}`);
     logger.info(` Environnement: ${config.nodeEnv}`);
   });
 };
 
-// Tenter la connexion MongoDB si MONGODB_URI est configuré, sinon démarrer sans
-if (process.env.MONGODB_URI) {
-  connectDB().then(async () => {
-    logger.info(` MongoDB: ✓ Connecté`);
-    logger.info(`  Base: ${process.env.MONGODB_DATABASE || 'processiq'}`);
-    try {
-      await ensureDefaultUsers();
-    } catch (error: any) {
-      logger.warn(' Auth seed: impossible de creer les comptes par defaut:', error?.message || error);
-    }
-
-    startServer();
-  }).catch((error: any) => {
-    logger.warn(' MongoDB non disponible, démarrage sans MongoDB:', error?.message || error);
-    startServer();
-  });
-} else {
-  logger.info(' MongoDB: non configuré (MONGODB_URI absent), démarrage avec Airtable uniquement');
-  startServer();
+if (!process.env.MONGODB_URI) {
+  logger.error(' MongoDB: MONGODB_URI manquant, arret du serveur');
+  process.exit(1);
 }
+
+connectDB().then(async () => {
+  logger.info(` MongoDB: Connecte`);
+  logger.info(`  Base: ${process.env.MONGODB_DATABASE || 'processiq'}`);
+  try {
+    await ensureDefaultUsers();
+  } catch (error: any) {
+    logger.warn(' Auth seed: impossible de creer les comptes par defaut:', error?.message || error);
+  }
+
+  startServer();
+}).catch((error: any) => {
+  logger.error(' MongoDB non disponible, arret du serveur:', error?.message || error);
+  process.exit(1);
+});
 
 export default app;
