@@ -219,11 +219,11 @@ router.get('/candidats', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/candidats-with-documents:
  *   get:
- *     summary: Liste tous les candidats avec leurs documents (Résultat PDF + Suivie entretien)
+ *     summary: Liste tous les candidats avec leurs documents (PDF administratifs)
  *     tags: [Candidats]
  *     description: >
- *       Récupère la liste complète des candidats depuis Airtable avec une jointure
- *       sur l'email pour inclure les documents des tables "Résultats PDF" et "Resultat entretien".
+ *       En MongoDB, combine la collection "Candidats" avec "admission_documents" et
+ *       ajoute les documents résultat PDF + suivie entretien (via email). Airtable en fallback.
  *     responses:
  *       200:
  *         description: Liste des candidats avec documents récupérée avec succès
@@ -275,15 +275,71 @@ router.get('/candidats', async (req: Request, res: Response) => {
 router.get('/candidats-with-documents', async (req: Request, res: Response) => {
   try {
     const useMongo = isMongoConnected();
+    if (useMongo) {
+      const [candidatDocs, admissionDocs, resultatsPdf, resultatsEntretien] = await Promise.all([
+        mongoose.connection.db!.collection('Candidats').find({}).toArray(),
+        mongoose.connection.db!.collection('admission_documents').find({}).toArray(),
+        resultatPdfMongoRepo.getAll(),
+        resultatEntretienMongoRepo.getAll(),
+      ]);
 
-    // Récupérer toutes les données en parallèle
+      const admissionByCandidateId = new Map<string, typeof admissionDocs>();
+      for (const doc of admissionDocs) {
+        const candidateId = doc.candidateId?.toString?.() || String(doc.candidateId || '');
+        if (!candidateId) continue;
+        const existing = admissionByCandidateId.get(candidateId) || [];
+        existing.push(doc);
+        admissionByCandidateId.set(candidateId, existing);
+      }
+
+      const pdfByEmail = new Map<string, typeof resultatsPdf>();
+      for (const pdf of resultatsPdf) {
+        const email = pdf.fields['E-mail'];
+        if (email) {
+          const existing = pdfByEmail.get(email) || [];
+          existing.push(pdf);
+          pdfByEmail.set(email, existing);
+        }
+      }
+
+      const entretienByEmail = new Map<string, typeof resultatsEntretien>();
+      for (const entretien of resultatsEntretien) {
+        const email = entretien.fields['E-mail'];
+        if (email) {
+          const existing = entretienByEmail.get(email) || [];
+          existing.push(entretien);
+          entretienByEmail.set(email, existing);
+        }
+      }
+
+      const candidatsWithDocuments = candidatDocs.map((doc: any) => {
+        const { _id, _airtableId, _airtableCreatedTime, _migratedAt, __v, ...fields } = doc;
+        const email = fields['E-mail'] as string | undefined;
+        const mongoId = _id?.toString?.() || String(_id);
+
+        return {
+          id: _airtableId || mongoId,
+          fields,
+          admission_documents: admissionByCandidateId.get(mongoId) || [],
+          resultat_pdf: email ? (pdfByEmail.get(email) || []) : [],
+          suivie_entretien: email ? (entretienByEmail.get(email) || []) : [],
+        };
+      });
+
+      return res.json({
+        success: true,
+        data: candidatsWithDocuments,
+        count: candidatsWithDocuments.length,
+        source: 'mongodb',
+      });
+    }
+
     const [candidats, resultatsPdf, resultatsEntretien] = await Promise.all([
-      useMongo ? candidatMongoRepo.getAll() : candidatRepo.getAll(),
-      useMongo ? resultatPdfMongoRepo.getAll() : resultatPdfRepo.getAll(),
-      useMongo ? resultatEntretienMongoRepo.getAll() : resultatEntretienRepo.getAll(),
+      candidatRepo.getAll(),
+      resultatPdfRepo.getAll(),
+      resultatEntretienRepo.getAll(),
     ]);
 
-    // Indexer les résultats PDF par email
     const pdfByEmail = new Map<string, typeof resultatsPdf>();
     for (const pdf of resultatsPdf) {
       const email = pdf.fields['E-mail'];
@@ -294,7 +350,6 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
       }
     }
 
-    // Indexer les résultats entretien par email
     const entretienByEmail = new Map<string, typeof resultatsEntretien>();
     for (const entretien of resultatsEntretien) {
       const email = entretien.fields['E-mail'];
@@ -305,12 +360,12 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
       }
     }
 
-    // Jointure : enrichir chaque candidat avec ses documents
     const candidatsWithDocuments = candidats.map((candidat) => {
       const email = (candidat.fields as any)['E-mail'] as string | undefined;
       return {
         id: candidat.id,
         fields: candidat.fields,
+        admission_documents: [],
         resultat_pdf: email ? (pdfByEmail.get(email) || []) : [],
         suivie_entretien: email ? (entretienByEmail.get(email) || []) : [],
       };
@@ -320,7 +375,7 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
       success: true,
       data: candidatsWithDocuments,
       count: candidatsWithDocuments.length,
-      source: useMongo ? 'mongodb' : 'airtable',
+      source: 'airtable',
     });
   } catch (error) {
     logger.error('Erreur récupération candidats avec documents:', error);
@@ -335,11 +390,11 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/candidats/{id}/with-documents:
  *   get:
- *     summary: Récupère un candidat par ID avec ses documents (Résultat PDF + Suivie entretien)
+ *     summary: Récupère un candidat par ID avec ses documents (PDF administratifs)
  *     tags: [Candidats]
  *     description: >
- *       Récupère un candidat spécifique depuis Airtable avec une jointure
- *       sur l'email pour inclure ses documents des tables "Résultats PDF" et "Resultat entretien".
+ *       En MongoDB, combine le candidat de la collection "Candidats" avec
+ *       "admission_documents" et ajoute les documents résultat PDF + suivie entretien.
  *     parameters:
  *       - in: path
  *         name: id
@@ -387,12 +442,51 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
   try {
     const { id } = req.params;
     const useMongo = isMongoConnected();
+    if (useMongo) {
+      const candidatsCollection = mongoose.connection.db!.collection('Candidats');
+      let doc = await candidatsCollection.findOne({ _airtableId: id });
+      if (!doc) {
+        try {
+          doc = await candidatsCollection.findOne({ _id: new mongoose.Types.ObjectId(id) });
+        } catch {
+          // ignore invalid ObjectId
+        }
+      }
 
-    // Récupérer le candidat
-    const candidat = useMongo
-      ? await candidatMongoRepo.getById(id)
-      : await candidatRepo.getById(id);
+      if (!doc) {
+        return res.status(404).json({
+          success: false,
+          error: 'Candidat non trouvé',
+        });
+      }
 
+      const { _id, _airtableId, _airtableCreatedTime, _migratedAt, __v, ...fields } = doc as any;
+      const mongoId = _id?.toString?.() || String(_id);
+      const email = (fields as any)['E-mail'] as string | undefined;
+
+      const [admissionDocs, allPdf, allEntretien] = await Promise.all([
+        mongoose.connection.db!.collection('admission_documents').find({ candidateId: new mongoose.Types.ObjectId(mongoId) }).toArray(),
+        resultatPdfMongoRepo.getAll(),
+        resultatEntretienMongoRepo.getAll(),
+      ]);
+
+      const resultatsPdf = email ? allPdf.filter((r) => r.fields['E-mail'] === email) : [];
+      const resultatsEntretien = email ? allEntretien.filter((r) => r.fields['E-mail'] === email) : [];
+
+      return res.json({
+        success: true,
+        data: {
+          id: _airtableId || mongoId,
+          fields,
+          admission_documents: admissionDocs,
+          resultat_pdf: resultatsPdf,
+          suivie_entretien: resultatsEntretien,
+        },
+        source: 'mongodb',
+      });
+    }
+
+    const candidat = await candidatRepo.getById(id);
     if (!candidat) {
       return res.status(404).json({
         success: false,
@@ -401,15 +495,13 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
     }
 
     const email = (candidat.fields as any)['E-mail'] as string | undefined;
-
     let resultatsPdf: any[] = [];
     let resultatsEntretien: any[] = [];
 
     if (email) {
-      // Récupérer les documents liés par email en parallèle
       const [allPdf, allEntretien] = await Promise.all([
-        useMongo ? resultatPdfMongoRepo.getAll() : resultatPdfRepo.getAll(),
-        useMongo ? resultatEntretienMongoRepo.getAll() : resultatEntretienRepo.getAll(),
+        resultatPdfRepo.getAll(),
+        resultatEntretienRepo.getAll(),
       ]);
 
       resultatsPdf = allPdf.filter((r) => r.fields['E-mail'] === email);
@@ -421,10 +513,11 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
       data: {
         id: candidat.id,
         fields: candidat.fields,
+        admission_documents: [],
         resultat_pdf: resultatsPdf,
         suivie_entretien: resultatsEntretien,
       },
-      source: useMongo ? 'mongodb' : 'airtable',
+      source: 'airtable',
     });
   } catch (error) {
     logger.error('Erreur récupération candidat avec documents:', error);
@@ -2713,7 +2806,7 @@ router.post('/candidats/:id/certificat-scolarite', async (req: Request, res: Res
 
     // 1. Récupérer les données du candidat depuis Airtable
     const candidat = await candidatRepo.getById(id);
-    if (!candidat) {
+    if (!candidat) { 
       return res.status(404).json({
         success: false,
         error: 'Candidat non trouvé',
