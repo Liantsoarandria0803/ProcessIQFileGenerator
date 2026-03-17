@@ -1,15 +1,13 @@
 /**
  * Service d'admission - Équivalent du AdmissionService Python
  * Gère la logique métier pour les candidats
+ * 
+ * ✅ MIGRATION MONGODB COMPLÈTE - Airtable éliminé
  */
 
-import fs from 'fs';
 import path from 'path';
-import { CandidatRepository } from '../repositories/candidatRepository';
-import { EntrepriseRepository } from '../repositories/entrepriseRepository';
 import { CandidatMongoRepository } from '../repositories/mongo/candidatMongoRepository';
-import { isMongoConnected } from '../config/database';
-import * as gridfsService from './gridfsService';
+import { EntrepriseMongoRepository } from '../repositories/mongo/entrepriseMongoRepository';
 import config from '../config';
 import logger from '../utils/logger';
 import {
@@ -25,33 +23,13 @@ import {
 } from '../types/admission';
 import { CandidatFields } from '../types';
 
-// Interface commune pour les deux repos (Airtable & MongoDB)
-type CandidatRepoLike = {
-  getById(id: string): Promise<{ id: string; fields: Record<string, any> } | null>;
-  create(data: Record<string, any>): Promise<{ id: string; fields: Record<string, any> }>;
-  update(id: string, data: Record<string, any>): Promise<{ id: string; fields: Record<string, any> } | null>;
-  delete(id: string): Promise<boolean>;
-  uploadCV(id: string, filePath: string): Promise<boolean>;
-  uploadCIN(id: string, filePath: string): Promise<boolean>;
-  uploadLettreMotivation(id: string, filePath: string): Promise<boolean>;
-  uploadCarteVitale(id: string, filePath: string): Promise<boolean>;
-  uploadDernierDiplome(id: string, filePath: string): Promise<boolean>;
-};
-
 export class AdmissionService {
-  private airtableRepo: CandidatRepository;
-  private mongoRepo: CandidatMongoRepository;
-  private entrepriseRepo: EntrepriseRepository;
+  private candidatRepo: CandidatMongoRepository;
+  private entrepriseRepo: EntrepriseMongoRepository;
 
   constructor() {
-    this.airtableRepo = new CandidatRepository();
-    this.mongoRepo = new CandidatMongoRepository();
-    this.entrepriseRepo = new EntrepriseRepository();
-  }
-
-  /** Retourne le repo actif : MongoDB si connecté, sinon Airtable */
-  private get candidatRepo(): CandidatRepoLike {
-    return isMongoConnected() ? this.mongoRepo : this.airtableRepo;
+    this.candidatRepo = new CandidatMongoRepository();
+    this.entrepriseRepo = new EntrepriseMongoRepository();
   }
 
   /**
@@ -198,12 +176,10 @@ export class AdmissionService {
   }
 
   /**
-   * Récupère tous les candidats
+   * Récupère tous les candidats (MongoDB seulement)
    */
   async getAllCandidates() {
-    return isMongoConnected()
-      ? await this.mongoRepo.getAll()
-      : await this.airtableRepo.getAll();
+    return await this.candidatRepo.getAll();
   }
 
   // =====================================================
@@ -557,41 +533,15 @@ export class AdmissionService {
     }
   }
 
-  /**
-   * Sauvegarde temporairement le fichier sur disque
-   * Retourne le chemin du fichier temporaire
-   */
-  private saveTempFile(file: Express.Multer.File, recordId: string, documentType: string): string {
-    fs.mkdirSync(config.upload.dir, { recursive: true });
-    const tempFilename = `${recordId}_${documentType}_${file.originalname}`;
-    const tempFilePath = path.join(config.upload.dir, tempFilename);
-    fs.writeFileSync(tempFilePath, file.buffer);
-    return tempFilePath;
-  }
-
-  /**
-   * Nettoie le fichier temporaire
-   */
-  private cleanupTempFile(filePath: string): void {
-    try {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    } catch (err: any) {
-      logger.warn(`Erreur suppression fichier temporaire ${filePath}: ${err.message}`);
-    }
-  }
 
   /**
    * Méthode générique d'upload de document.
-   * - Si MongoDB est connecté → GridFS (via mongoRepo.uploadDocumentBuffer)
-   * - Sinon → tmpfiles.org + Airtable (via airtableRepo)
+   * - Stockage GridFS uniquement (MongoDB requis)
    */
   private async uploadDocument(
     recordId: string,
     file: Express.Multer.File,
-    documentType: string,
-    uploadMethod: (recordId: string, filePath: string) => Promise<boolean>
+    documentType: string
   ): Promise<UploadResponse> {
     // Valider le fichier
     this.validateFile(file);
@@ -602,54 +552,30 @@ export class AdmissionService {
       throw new Error(`Candidat avec l'ID ${recordId} non trouvé`);
     }
 
-    // ── Mode GridFS (MongoDB connecté) ──
-    if (isMongoConnected()) {
-      const columnName = this.documentTypeToColumn(documentType);
-      const fileInfo = await this.mongoRepo.uploadDocumentBuffer(
-        recordId,
-        columnName,
-        file.buffer,
-        file.originalname,
-        file.mimetype,
-      );
+    // ── Mode GridFS (MongoDB) ──
+    const columnName = this.documentTypeToColumn(documentType);
+    const fileInfo = await this.candidatRepo.uploadDocumentBuffer(
+      recordId,
+      columnName,
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+    );
 
-      if (fileInfo) {
-        return {
-          success: true,
-          message: `${documentType} uploadé avec succès (GridFS)`,
-          file_name: file.originalname,
-          file_size: file.size,
-          airtable_record_id: recordId,
-          gridfs_file_id: fileInfo.fileId,
-          download_url: fileInfo.url,
-          source: 'mongodb',
-        };
-      } else {
-        throw new Error(`Erreur lors de l'upload vers GridFS`);
-      }
+    if (!fileInfo) {
+      throw new Error(`Erreur lors de l'upload vers GridFS`);
     }
 
-    // ── Mode Airtable (fallback) ──
-    const tempFilePath = this.saveTempFile(file, recordId, documentType);
-
-    try {
-      const success = await uploadMethod(recordId, tempFilePath);
-
-      if (success) {
-        return {
-          success: true,
-          message: `${documentType} uploadé avec succès`,
-          file_name: file.originalname,
-          file_size: file.size,
-          airtable_record_id: recordId,
-          source: 'airtable',
-        };
-      } else {
-        throw new Error(`Erreur lors de l'upload vers Airtable`);
-      }
-    } finally {
-      this.cleanupTempFile(tempFilePath);
-    }
+    return {
+      success: true,
+      message: `${documentType} uploadé avec succès (GridFS)`,
+      file_name: file.originalname,
+      file_size: file.size,
+      airtable_record_id: recordId,
+      gridfs_file_id: fileInfo.fileId,
+      download_url: fileInfo.url,
+      source: 'mongodb',
+    };
   }
 
   /**
@@ -671,34 +597,38 @@ export class AdmissionService {
    * Upload d'un CV
    */
   async uploadCV(recordId: string, file: Express.Multer.File): Promise<UploadResponse> {
-    return this.uploadDocument(recordId, file, 'CV', (rid, fp) => this.candidatRepo.uploadCV(rid, fp));
+    return this.uploadDocument(recordId, file, 'CV');
   }
 
   /**
    * Upload d'une carte d'identité
    */
   async uploadCIN(recordId: string, file: Express.Multer.File): Promise<UploadResponse> {
-    return this.uploadDocument(recordId, file, 'CIN', (rid, fp) => this.candidatRepo.uploadCIN(rid, fp));
+    return this.uploadDocument(recordId, file, 'CIN');
   }
 
   /**
    * Upload d'une lettre de motivation
    */
   async uploadLettreMotivation(recordId: string, file: Express.Multer.File): Promise<UploadResponse> {
-    return this.uploadDocument(recordId, file, 'lettre_motivation', (rid, fp) => this.candidatRepo.uploadLettreMotivation(rid, fp));
+    return this.uploadDocument(recordId, file, 'lettre_motivation');
   }
 
   /**
    * Upload d'une carte vitale
    */
   async uploadCarteVitale(recordId: string, file: Express.Multer.File): Promise<UploadResponse> {
-    return this.uploadDocument(recordId, file, 'carte_vitale', (rid, fp) => this.candidatRepo.uploadCarteVitale(rid, fp));
+    return this.uploadDocument(recordId, file, 'carte_vitale');
   }
 
   /**
    * Upload d'un dernier diplôme
    */
   async uploadDernierDiplome(recordId: string, file: Express.Multer.File): Promise<UploadResponse> {
-    return this.uploadDocument(recordId, file, 'dernier_diplome', (rid, fp) => this.candidatRepo.uploadDernierDiplome(rid, fp));
+    return this.uploadDocument(recordId, file, 'dernier_diplome');
   }
 }
+
+
+
+

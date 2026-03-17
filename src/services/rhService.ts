@@ -3,8 +3,8 @@
  * Gère le suivi des fiches de renseignement et CERFA des étudiants
  */
 
-import { CandidatRepository } from '../repositories/candidatRepository';
-import { EntrepriseRepository } from '../repositories/entrepriseRepository';
+import { CandidatMongoRepository } from '../repositories/mongo/candidatMongoRepository';
+import { EntrepriseMongoRepository } from '../repositories/mongo/entrepriseMongoRepository';
 import logger from '../utils/logger';
 import {
   FicheInfo,
@@ -15,12 +15,12 @@ import {
 } from '../types/rh';
 
 export class RhService {
-  private candidatRepo: CandidatRepository;
-  private entrepriseRepo: EntrepriseRepository;
+  private candidatRepo: CandidatMongoRepository;
+  private entrepriseRepo: EntrepriseMongoRepository;
 
   constructor() {
-    this.candidatRepo = new CandidatRepository();
-    this.entrepriseRepo = new EntrepriseRepository();
+    this.candidatRepo = new CandidatMongoRepository();
+    this.entrepriseRepo = new EntrepriseMongoRepository();
   }
 
   // =====================================================

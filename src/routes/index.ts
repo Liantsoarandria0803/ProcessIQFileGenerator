@@ -13,10 +13,8 @@ import gridfsDocumentRoutes from './gridfsDocuments';
 import authRoutes from './auth.routes';
 import { authenticateRequest } from '../middlewares/auth.middleware';
 import { isMongoConnected } from '../config/database';
-import { AdmissionService } from '../services/admissionService';
 
 const router = Router();
-const admissionService = new AdmissionService();
 
 const requireMongoConnection = (_req: any, res: any, next: any): void => {
   if (!isMongoConnected()) {
@@ -47,37 +45,6 @@ router.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     version: '1.0.0'
   });
-});
-
-// Compatibilité: fallback Airtable si MongoDB est indisponible
-router.get('/candidates/:id', async (req, res, next) => {
-  const { id } = req.params;
-  const isAirtableRecordId = /^rec[a-zA-Z0-9]+$/.test(id);
-
-  if (isMongoConnected() || !isAirtableRecordId) {
-    return next();
-  }
-
-  try {
-    const profile = await admissionService.getCandidateProfile(id);
-
-    if (!profile) {
-      return res.status(404).json({
-        success: false,
-        error: 'Candidat non trouvé'
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      data: profile
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur lors de la récupération du candidat'
-    });
-  }
 });
 
 // Routes protegees (session requise)

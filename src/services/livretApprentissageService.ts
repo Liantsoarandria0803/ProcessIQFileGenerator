@@ -7,8 +7,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+<<<<<<< HEAD
+=======
 import { CandidatRepository } from '../repositories/candidatRepository';
 import { EntrepriseRepository } from '../repositories/entrepriseRepository';
+>>>>>>> d30a7683eebe75ae6e90ae127fae6205a166ca3b
 import { CandidatMongoRepository } from '../repositories/mongo/candidatMongoRepository';
 import { EntrepriseMongoRepository } from '../repositories/mongo/entrepriseMongoRepository';
 import logger from '../utils/logger';
@@ -36,6 +39,15 @@ export interface LivretGenerationResult {
 }
 
 export class LivretApprentissageService {
+<<<<<<< HEAD
+  private candidatRepo: CandidatMongoRepository;
+  private entrepriseRepo: EntrepriseMongoRepository;
+  private templatesDir: string;
+
+  constructor() {
+    this.candidatRepo = new CandidatMongoRepository();
+    this.entrepriseRepo = new EntrepriseMongoRepository();
+=======
   private candidatRepo: CandidatRepository;
   private entrepriseRepo: EntrepriseRepository;
   private candidatMongoRepo: CandidatMongoRepository;
@@ -47,6 +59,7 @@ export class LivretApprentissageService {
     this.entrepriseRepo = new EntrepriseRepository();
     this.candidatMongoRepo = new CandidatMongoRepository();
     this.entrepriseMongoRepo = new EntrepriseMongoRepository();
+>>>>>>> d30a7683eebe75ae6e90ae127fae6205a166ca3b
     this.templatesDir = path.resolve(
       __dirname,
       '../../assets/templates_pdf/Livret dapprentissage'
