@@ -16,3 +16,4 @@ export { LivretApprentissageService } from './livretApprentissageService';
 export { ConventionApprentissageGeneratorService } from './conventionApprentissageGeneratorService';
 export { RhService } from './rhService';
 export { PriseConnaissanceGeneratorService } from './priseConnaissanceGeneratorService';
+export { CertificatScolariteGeneratorService } from './certificatScolariteGeneratorService';

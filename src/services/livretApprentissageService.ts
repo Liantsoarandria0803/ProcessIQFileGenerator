@@ -1,14 +1,21 @@
 /**
  * Service de génération du Livret d'Apprentissage
  * Sélectionne le bon template PDF selon la formation de l'étudiant
- * et l'upload sur Airtable dans la colonne "livret dapprentissage"
+ * et l'upload sur MongoDB (GridFS) en priorité, fallback Airtable
+ * dans la colonne "livret dapprentissage"
  */
 import * as fs from 'fs';
 import * as path from 'path';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+<<<<<<< HEAD
+=======
+import { CandidatRepository } from '../repositories/candidatRepository';
+import { EntrepriseRepository } from '../repositories/entrepriseRepository';
+>>>>>>> d30a7683eebe75ae6e90ae127fae6205a166ca3b
 import { CandidatMongoRepository } from '../repositories/mongo/candidatMongoRepository';
 import { EntrepriseMongoRepository } from '../repositories/mongo/entrepriseMongoRepository';
 import logger from '../utils/logger';
+import { isMongoConnected } from '../config/database';
 const { promises: fsPromises } = fs;
 
 // Colonne Airtable pour le livret d'apprentissage
@@ -32,6 +39,7 @@ export interface LivretGenerationResult {
 }
 
 export class LivretApprentissageService {
+<<<<<<< HEAD
   private candidatRepo: CandidatMongoRepository;
   private entrepriseRepo: EntrepriseMongoRepository;
   private templatesDir: string;
@@ -39,6 +47,19 @@ export class LivretApprentissageService {
   constructor() {
     this.candidatRepo = new CandidatMongoRepository();
     this.entrepriseRepo = new EntrepriseMongoRepository();
+=======
+  private candidatRepo: CandidatRepository;
+  private entrepriseRepo: EntrepriseRepository;
+  private candidatMongoRepo: CandidatMongoRepository;
+  private entrepriseMongoRepo: EntrepriseMongoRepository;
+  private templatesDir: string;
+
+  constructor() {
+    this.candidatRepo = new CandidatRepository();
+    this.entrepriseRepo = new EntrepriseRepository();
+    this.candidatMongoRepo = new CandidatMongoRepository();
+    this.entrepriseMongoRepo = new EntrepriseMongoRepository();
+>>>>>>> d30a7683eebe75ae6e90ae127fae6205a166ca3b
     this.templatesDir = path.resolve(
       __dirname,
       '../../assets/templates_pdf/Livret dapprentissage'
@@ -97,15 +118,29 @@ export class LivretApprentissageService {
   }
 
   /**
-   * Génère le livret d'apprentissage (copie du template) et l'upload sur Airtable
-   * @param idEtudiant - Airtable record ID du candidat
+   * Génère le livret d'apprentissage (copie du template) et l'upload sur MongoDB (GridFS)
+   * avec fallback Airtable si nécessaire.
+   * @param idEtudiant - ID candidat (ObjectId MongoDB ou recordId Airtable)
    */
   async generateAndUpload(idEtudiant: string): Promise<LivretGenerationResult> {
     try {
       logger.info(`[LivretApprentissage] Début génération pour candidat: ${idEtudiant}`);
 
-      // 1. Récupérer le candidat depuis Airtable
-      const candidat = await this.candidatRepo.getById(idEtudiant);
+      // 1. Récupérer le candidat (MongoDB prioritaire)
+      const mongoConnected = isMongoConnected();
+      let candidat: any = null;
+      let useMongo = false;
+      if (mongoConnected) {
+        try {
+          candidat = await this.candidatMongoRepo.getById(idEtudiant);
+          useMongo = !!candidat;
+        } catch (error) {
+          logger.warn(`[LivretApprentissage] Fallback Airtable (candidat): ${(error as Error).message}`);
+        }
+      }
+      if (!candidat) {
+        candidat = await this.candidatRepo.getById(idEtudiant);
+      }
       if (!candidat) {
         return {
           success: false,
@@ -155,6 +190,20 @@ export class LivretApprentissageService {
       }
       logger.info(`[LivretApprentissage] Template chargé, taille: ${pdfBuffer.length} bytes`);
 
+      // Charger les données entreprise liées à cet étudiant (MongoDB prioritaire)
+      let entrepriseFields: Record<string, any> = {};
+      try {
+        if (useMongo) {
+          const entreprise = await this.entrepriseMongoRepo.getByEtudiantId(idEtudiant);
+          entrepriseFields = entreprise?.fields || {};
+        } else {
+          const entreprise = await this.entrepriseRepo.getByEtudiantId(idEtudiant);
+          entrepriseFields = entreprise?.fields || {};
+        }
+      } catch (error) {
+        logger.warn(`[LivretApprentissage] Données entreprise non récupérées: ${(error as Error).message}`);
+      }
+
       // If template is mapped, render fields onto the template before upload
       let finalPdfBuffer = pdfBuffer;
       const templateKeyword = template.keyword.toUpperCase();
@@ -167,11 +216,7 @@ export class LivretApprentissageService {
           const pages = pdfDoc.getPages();
           const candidatFields = candidat.fields || {};
 
-          // Charger les données de la fiche entreprise liée à cet étudiant
-          const entreprise = await this.entrepriseRepo.getByEtudiantId(idEtudiant);
-          const entrepriseFields = entreprise?.fields || {};
-
-          logger.info(`[LivretApprentissage] Données entreprise chargées: ${entreprise ? 'oui' : 'non'}`);
+          logger.info(`[LivretApprentissage] Données entreprise chargées: ${Object.keys(entrepriseFields).length ? 'oui' : 'non'}`);
 
           // Calculer l'année scolaire (fallback si pas dans Airtable)
           const computeAnneeScolaire = (): string => {
@@ -252,31 +297,49 @@ export class LivretApprentissageService {
       const prenomSanitized = (prenom as string).replace(/[^a-zA-ZÀ-ÿ0-9]/g, '_');
       const filename = `Livret_Apprentissage_${template.keyword}_${nomSanitized}_${prenomSanitized}.pdf`;
 
-      // 5. Sauvegarder en fichier temporaire pour l'upload
-      const tmpDir = path.join(__dirname, '../tmp');
-      await fsPromises.mkdir(tmpDir, { recursive: true });
-      const tmpPath = path.join(tmpDir, filename);
-      await fsPromises.writeFile(tmpPath, finalPdfBuffer);
-
-      logger.info(`[LivretApprentissage] Fichier temporaire: ${tmpPath}`);
-
+      // 5. Upload (MongoDB priorité / Airtable fallback)
       let uploadSuccess = false;
-      try {
-        // 6. Upload vers Airtable
-        logger.info(`[LivretApprentissage] Upload vers Airtable colonne: "${LIVRET_AIRTABLE_COLUMN}"`);
-        uploadSuccess = await this.candidatRepo.uploadDocument(
-          idEtudiant,
-          LIVRET_AIRTABLE_COLUMN,
-          tmpPath
-        );
-      } finally {
-        // 7. Nettoyer le fichier temporaire
+      if (useMongo) {
         try {
-          await fsPromises.unlink(tmpPath);
-          logger.info(`[LivretApprentissage] Fichier temporaire supprimé: ${tmpPath}`);
-        } catch (error: any) {
-          if (error?.code !== 'ENOENT') {
-            logger.warn(`[LivretApprentissage] Impossible de supprimer le fichier temporaire: ${tmpPath}`, error);
+          const fileInfo = await this.candidatMongoRepo.uploadDocumentBuffer(
+            idEtudiant,
+            LIVRET_AIRTABLE_COLUMN,
+            finalPdfBuffer,
+            filename,
+            'application/pdf'
+          );
+          uploadSuccess = !!fileInfo;
+          if (uploadSuccess) {
+            logger.info(`[LivretApprentissage] ✅ Upload GridFS OK (fileId=${fileInfo?.fileId})`);
+          }
+        } catch (error) {
+          logger.warn(`[LivretApprentissage] Upload GridFS échoué, fallback Airtable: ${(error as Error).message}`);
+        }
+      }
+
+      if (!uploadSuccess) {
+        const tmpDir = path.join(__dirname, '../tmp');
+        await fsPromises.mkdir(tmpDir, { recursive: true });
+        const tmpPath = path.join(tmpDir, filename);
+        await fsPromises.writeFile(tmpPath, finalPdfBuffer);
+
+        logger.info(`[LivretApprentissage] Fichier temporaire: ${tmpPath}`);
+
+        try {
+          logger.info(`[LivretApprentissage] Upload vers Airtable colonne: "${LIVRET_AIRTABLE_COLUMN}"`);
+          uploadSuccess = await this.candidatRepo.uploadDocument(
+            idEtudiant,
+            LIVRET_AIRTABLE_COLUMN,
+            tmpPath
+          );
+        } finally {
+          try {
+            await fsPromises.unlink(tmpPath);
+            logger.info(`[LivretApprentissage] Fichier temporaire supprimé: ${tmpPath}`);
+          } catch (error: any) {
+            if (error?.code !== 'ENOENT') {
+              logger.warn(`[LivretApprentissage] Impossible de supprimer le fichier temporaire: ${tmpPath}`, error);
+            }
           }
         }
       }
@@ -290,13 +353,13 @@ export class LivretApprentissageService {
           formation: String(formation),
           templateUsed: template.filename,
         };
-      } else {
-        logger.error(`[LivretApprentissage] ❌ Upload échoué`);
-        return {
-          success: false,
-          error: "Échec de l'upload du PDF vers Airtable",
-        };
       }
+
+      logger.error(`[LivretApprentissage] ❌ Upload échoué`);
+      return {
+        success: false,
+        error: "Échec de l'upload du PDF",
+      };
     } catch (error: any) {
       logger.error(`[LivretApprentissage] Erreur:`, error);
       return {
