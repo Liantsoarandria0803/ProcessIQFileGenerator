@@ -59,6 +59,7 @@ export interface EntrepriseFields {
   'Téléphone entreprise'?: string;
   'Email entreprise'?: string;
   'Type demployeur'?: string;
+  'Employeur specifique'?: string;
   'Effectif salarié de l\'entreprise'?: number;
   'Code APE/NAF'?: string;
   'Convention collective'?: string;
@@ -78,11 +79,15 @@ export interface EntrepriseFields {
   // Contrat
   'Type de contrat'?: string;
   'Type de dérogation'?: string;
+  'Date de début de formation pratique chez employeur'?: string;
   'Date de début exécution'?: string;
   'Fin du contrat apprentissage'?: string;
   'Durée hebdomadaire'?: string;
   'Poste occupé'?: string;
+  'Lieu dexécution du contrat (si différent du siège)'?: string;
   'Formation de lalternant(e) (pour les missions)'?: string;
+  'Date de conclusion'?: string;
+  'Travail sur machines dangereuses ou exposition à des risques particuliers'?: string;
   
   // Rémunération
   'Pourcentage du SMIC 1'?: number;
@@ -111,6 +116,21 @@ export interface EntrepriseFields {
   'date_fin_2periode_3eme_annee'?: string;
   'date_debut_1periode_4eme_annee'?: string;
   'date_fin_1periode_4eme_annee'?: string;
+
+  // Formation / CFA / missions
+  'Formation de lalternant'?: string;
+  'Formation choisie'?: string;
+  'Code RNCP'?: string;
+  'Code diplôme'?: string;
+  'Nombre heure formation'?: number;
+  'Missions'?: string;
+  'CFA entreprise'?: string;
+  'Dénomination CFA'?: string;
+  'N° UAI du CFA'?: string;
+  'N° SIRET CFA'?: string;
+  'Voie Adresse CFA'?: string;
+  'Code postal CFA'?: number;
+  'Commune CFA'?: string;
   
   [key: string]: any;
 }

@@ -152,6 +152,12 @@ class AirtableClient {
       };
     } catch (error: any) {
       const status = error.response?.status;
+      const errorType = error.response?.data?.error?.type;
+
+      if (status === 422 && errorType === 'UNKNOWN_FIELD_NAME') {
+        throw error;
+      }
+
       if (status === 404 || status === 403 || status === 422) {
         logger.warn(`⚠️ Update impossible: record ${recordId} non accessible (HTTP ${status}) dans ${tableName}`);
         return null;

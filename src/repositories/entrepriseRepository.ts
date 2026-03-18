@@ -6,7 +6,36 @@ import { Entreprise, EntrepriseFields, FicheRenseignementEntreprise } from '../t
 export class EntrepriseRepository {
   private tableName: string;
   private readonly fieldAliases: Record<string, string[]> = {
-    'Raison sociale': ['Raison Sociale', 'Raison sociale ', 'Raison Sociale ', 'Entreprise', 'Nom entreprise']
+    'Raison sociale': ['Raison Sociale', 'Raison sociale ', 'Raison Sociale ', 'Entreprise', 'Nom entreprise'],
+    'Numéro SIRET': ['Numero SIRET', 'Numéro de SIRET'],
+    'Numéro entreprise': ['Numero entreprise', 'N° entreprise'],
+    'Voie entreprise': ['Voie Entreprise'],
+    'Complément dadresse entreprise': ["Complément d'adresse entreprise", 'Complement adresse entreprise', 'Complément adresse entreprise'],
+    'Code postal entreprise': ['Code postal Entreprise', 'Code Postal entreprise'],
+    'Ville entreprise': ['Ville Entreprise'],
+    'Téléphone entreprise': ['Telephone entreprise', 'Téléphone Entreprise'],
+    'Email entreprise': ['E-mail entreprise', 'Email Entreprise', 'E-mail Entreprise'],
+    'Type demployeur': ["Type d'employeur", 'Type employeur'],
+    'Employeur specifique': ['Employeur spécifique', 'Employeur specifique ', 'Employeur spécifique '],
+    'Date de début de formation pratique chez employeur': [
+      'Date de début formation pratique chez employeur',
+      'Date de début formation pratique',
+      'Date début formation pratique chez employeur'
+    ],
+    'Lieu dexécution du contrat (si différent du siège)': [
+      "Lieu d'exécution du contrat (si différent du siège)",
+      "Lieu d'exécution du contrat",
+      'Lieu execution du contrat (si différent du siège)'
+    ],
+    'Formation de lalternant': ["Formation de l'alternant", "Formation de l alternant"],
+    'Code diplôme': ['Code diplome'],
+    'CFA entreprise': ['CFA Entreprise'],
+    'Dénomination CFA': ['Denomination CFA'],
+    'N° UAI du CFA': ['N° UAI CFA', 'No UAI du CFA', 'Numéro UAI du CFA'],
+    'N° SIRET CFA': ['N° SIRET du CFA', 'Numéro SIRET CFA', 'No SIRET CFA'],
+    'Voie Adresse CFA': ['Adresse CFA', 'Adresse du CFA', 'Voie adresse CFA'],
+    'Code postal CFA': ['Code Postal CFA'],
+    'Commune CFA': ['Ville CFA']
   };
 
   constructor() {
@@ -32,7 +61,10 @@ export class EntrepriseRepository {
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        await airtableClient.update<EntrepriseFields>(this.tableName, recordId, payload);
+        const result = await airtableClient.update<EntrepriseFields>(this.tableName, recordId, payload);
+        if (!result) {
+          throw new Error(`Update impossible: record ${recordId} non accessible dans ${this.tableName}`);
+        }
         return;
       } catch (error: any) {
         const unknownField = this.extractUnknownFieldName(error);
