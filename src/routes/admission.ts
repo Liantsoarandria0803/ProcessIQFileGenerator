@@ -3,7 +3,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { CandidatRepository, EntrepriseRepository, ResultatPdfRepository, ResultatEntretienRepository } from '../repositories';
+import { CandidatRepository, EntrepriseRepository, ResultatPdfRepository, ResultatEntretienRepository, ProjetProRepository } from '../repositories';
 import {
   PdfGeneratorService,
   CerfaGeneratorService,
@@ -25,6 +25,7 @@ const candidatRepo = new CandidatRepository();
 const entrepriseRepo = new EntrepriseRepository();
 const resultatPdfRepo = new ResultatPdfRepository();
 const resultatEntretienRepo = new ResultatEntretienRepository();
+const projetProRepo = new ProjetProRepository();
 const pdfService = new PdfGeneratorService();
 const cerfaService = new CerfaGeneratorService();
 const atreService = new AtreGeneratorService();
@@ -92,11 +93,11 @@ router.get('/candidats', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/candidats-with-documents:
  *   get:
- *     summary: Liste tous les candidats avec leurs documents (Résultat PDF + Suivie entretien)
+ *     summary: Liste tous les candidats avec leurs documents (Résultat PDF + Suivie entretien + Projet pro)
  *     tags: [Candidats]
  *     description: >
  *       Récupère la liste complète des candidats depuis Airtable avec une jointure
- *       sur l'email pour inclure les documents des tables "Résultats PDF" et "Resultat entretien".
+ *       sur l'email pour inclure les documents des tables "Résultats PDF", "Resultat entretien" et "projet pro".
  *     responses:
  *       200:
  *         description: Liste des candidats avec documents récupérée avec succès
@@ -139,6 +140,16 @@ router.get('/candidats', async (req: Request, res: Response) => {
  *                               type: string
  *                             fields:
  *                               type: object
+ *                       projet_pro:
+ *                         type: array
+ *                         description: Documents projet pro associés via email
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: string
+ *                             fields:
+ *                               type: object
  *                 count:
  *                   type: integer
  *                   description: Nombre total de candidats
@@ -148,10 +159,11 @@ router.get('/candidats', async (req: Request, res: Response) => {
 router.get('/candidats-with-documents', async (req: Request, res: Response) => {
   try {
     // Récupérer toutes les données en parallèle
-    const [candidats, resultatsPdf, resultatsEntretien] = await Promise.all([
+    const [candidats, resultatsPdf, resultatsEntretien, projetsPro] = await Promise.all([
       candidatRepo.getAll(),
       resultatPdfRepo.getAll(),
       resultatEntretienRepo.getAll(),
+      projetProRepo.getAll(),
     ]);
 
     // Indexer les résultats PDF par email
@@ -176,6 +188,17 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
       }
     }
 
+    // Indexer les projets pro par email
+    const projetProByEmail = new Map<string, typeof projetsPro>();
+    for (const projet of projetsPro) {
+      const email = projet.fields['E-mail'];
+      if (email) {
+        const existing = projetProByEmail.get(email) || [];
+        existing.push(projet);
+        projetProByEmail.set(email, existing);
+      }
+    }
+
     // Jointure : enrichir chaque candidat avec ses documents
     const candidatsWithDocuments = candidats.map((candidat) => {
       const email = (candidat.fields as any)['E-mail'] as string | undefined;
@@ -184,6 +207,7 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
         fields: candidat.fields,
         resultat_pdf: email ? (pdfByEmail.get(email) || []) : [],
         suivie_entretien: email ? (entretienByEmail.get(email) || []) : [],
+        projet_pro: email ? (projetProByEmail.get(email) || []) : [],
       };
     });
 
@@ -2208,6 +2232,112 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
     res.status(500).json({
       success: false,
       error: error.message || "Erreur lors de l'enregistrement du résultat PDF",
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admission/projet-pro:
+ *   post:
+ *     summary: Envoie un PDF projet pro et l'enregistre dans la table "projet pro"
+ *     tags: [Candidats]
+ *     description: >
+ *       Reçoit un fichier PDF et un email, upload le PDF et crée un enregistrement
+ *       dans la table Airtable "projet pro" avec les colonnes "E-mail" et "projet".
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - file
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Adresse email associée au projet pro
+ *                 example: "etudiant@example.com"
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Fichier PDF du projet pro
+ *     responses:
+ *       201:
+ *         description: Projet pro créé avec succès dans Airtable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Projet pro enregistré avec succès"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     record_id:
+ *                       type: string
+ *                       example: "recXXXXXXXXXXXXXX"
+ *                     email:
+ *                       type: string
+ *                       example: "etudiant@example.com"
+ *                     filename:
+ *                       type: string
+ *                       example: "projet_pro_Jean_Dupont.pdf"
+ *       400:
+ *         description: Email ou fichier manquant
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/projet-pro', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Un email valide est requis',
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Un fichier PDF est requis',
+      });
+    }
+
+    logger.info(`[Route] POST /projet-pro — email: ${email}, fichier: ${req.file.originalname}`);
+
+    const tmpPath = path.join(os.tmpdir(), `projet_pro_${Date.now()}_${req.file.originalname}`);
+    fs.writeFileSync(tmpPath, req.file.buffer);
+
+    try {
+      const result = await projetProRepo.create(email, tmpPath, req.file.originalname);
+
+      return res.status(201).json({
+        success: true,
+        message: 'Projet pro enregistré avec succès',
+        data: {
+          record_id: result.id,
+          email,
+          filename: req.file.originalname,
+        },
+      });
+    } finally {
+      try { fs.unlinkSync(tmpPath); } catch (_) { /* ignore */ }
+    }
+  } catch (error: any) {
+    logger.error('Erreur upload projet pro:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Erreur lors de l'enregistrement du projet pro",
     });
   }
 });
