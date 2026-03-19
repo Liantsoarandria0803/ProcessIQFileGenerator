@@ -8,6 +8,8 @@ export class EntrepriseRepository {
   private readonly fieldAliases: Record<string, string[]> = {
     'Raison sociale': ['Raison Sociale', 'Raison sociale ', 'Raison Sociale ', 'Entreprise', 'Nom entreprise'],
     'Numéro SIRET': ['Numero SIRET', 'Numéro de SIRET'],
+    'Utilisateur': ['utilisateur', 'Utilisateur '],
+    'Validation': ['validation', 'Validation '],
     'Numéro entreprise': ['Numero entreprise', 'N° entreprise'],
     'Voie entreprise': ['Voie Entreprise'],
     'Complément dadresse entreprise': ["Complément d'adresse entreprise", 'Complement adresse entreprise', 'Complément adresse entreprise'],
@@ -363,6 +365,14 @@ export class EntrepriseRepository {
       airtableData['recordIdetudiant'] = fiche.record_id_etudiant;
     }
 
+    // Section 12: Suivi interne
+    if (fiche.utilisateur) {
+      airtableData['Utilisateur'] = fiche.utilisateur;
+    }
+    if (fiche.validation) {
+      airtableData['Validation'] = fiche.validation;
+    }
+
     return airtableData;
   }
 
@@ -438,6 +448,36 @@ export class EntrepriseRepository {
       return true;
     } catch (error) {
       logger.error('❌ Erreur mise à jour fiche entreprise:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Met à jour une fiche entreprise avec des champs Airtable bruts
+   */
+  async updateRawFields(recordId: string, data: Partial<EntrepriseFields>): Promise<boolean> {
+    try {
+      logger.info(`🔄 Mise à jour fiche entreprise (champs bruts): ${recordId}`);
+
+      const existing = await this.getById(recordId);
+      if (!existing) {
+        throw new Error(`Fiche entreprise ${recordId} non trouvée`);
+      }
+
+      const cleanedData = Object.fromEntries(
+        Object.entries(data).filter(([_, v]) => v !== undefined)
+      ) as Partial<EntrepriseFields>;
+
+      if (Object.keys(cleanedData).length === 0) {
+        throw new Error('Aucune donnée valide à mettre à jour');
+      }
+
+      await this.updateWithFieldFallbacks(recordId, cleanedData);
+
+      logger.info(`✅ Fiche entreprise mise à jour (champs bruts): ${recordId}`);
+      return true;
+    } catch (error) {
+      logger.error('❌ Erreur mise à jour fiche entreprise (champs bruts):', error);
       throw error;
     }
   }

@@ -129,6 +129,8 @@ export interface FicheRenseignementEntreprise {
   contrat?: InformationsContrat;
   formation_missions?: FormationMissions;
   record_id_etudiant?: string;
+  utilisateur?: string;
+  validation?: 'Validé' | 'En attente';
 }
 
 // =====================================================

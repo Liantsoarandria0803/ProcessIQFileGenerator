@@ -188,6 +188,10 @@ interface InformationsPersonnelles {
   // Section 6: Informations supplémentaires
   connaissance_rush_how?: string;
   motivation_projet_professionnel?: string;
+
+  // Section 7: Suivi interne
+  utilisateur?: string;
+  validation?: 'Validé' | 'En attente';
 }
 ```
 

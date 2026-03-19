@@ -16,6 +16,7 @@ import {
   CertificatScolariteGeneratorService,
 } from '../services';
 import { AdmissionService } from '../services/admissionService';
+import { HistoryService } from '../services/historyService';
 import logger from '../utils/logger';
 import { InformationsPersonnelles } from '../types/admission';
 import config from '../config';
@@ -36,6 +37,7 @@ const conventionService = new ConventionApprentissageGeneratorService();
 const priseConnaissanceService = new PriseConnaissanceGeneratorService();
 const certificatScolariteService = new CertificatScolariteGeneratorService();
 const admissionService = new AdmissionService();
+const historyService = new HistoryService();
 
 // Configuration multer : stockage en mémoire (buffer)
 const upload = multer({
@@ -85,6 +87,46 @@ router.get('/candidats', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Erreur lors de la récupération des candidats'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admission/historique-utilisateurs:
+ *   get:
+ *     summary: Historique des utilisateurs (candidats + entreprises)
+ *     tags: [Candidats]
+ *     description: |
+ *       Retourne la liste des utilisateurs (colonne "Utilisateur") et les élèves/entreprises associés.
+ *       Par défaut, les entrées sans utilisateur sont ignorées.
+ *     parameters:
+ *       - in: query
+ *         name: includeUnknown
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         description: Inclure les enregistrements sans utilisateur ("Non renseigné").
+ *     responses:
+ *       200:
+ *         description: Historique utilisateur récupéré avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserHistoryResponse'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/historique-utilisateurs', async (req: Request, res: Response) => {
+  try {
+    const includeUnknown = String(req.query.includeUnknown).toLowerCase() === 'true';
+    const result = await historyService.getUserHistory({ includeUnknown });
+    res.json(result);
+  } catch (error) {
+    logger.error('Erreur récupération historique utilisateurs:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la récupération de l\'historique utilisateurs'
     });
   }
 });
@@ -1058,7 +1100,21 @@ router.patch('/entreprises/:id', async (req: Request, res: Response) => {
       });
     }
     
-    const success = await entrepriseRepo.update(id, fields);
+    const hasStructuredKeys = [
+      'identification',
+      'adresse',
+      'maitre_apprentissage',
+      'opco',
+      'contrat',
+      'formation_missions',
+      'record_id_etudiant',
+      'utilisateur',
+      'validation'
+    ].some((key) => Object.prototype.hasOwnProperty.call(fields, key));
+
+    const success = hasStructuredKeys
+      ? await entrepriseRepo.update(id, fields)
+      : await entrepriseRepo.updateRawFields(id, fields);
     
     res.json({
       success: true,
@@ -1149,6 +1205,22 @@ router.delete('/entreprises/:id', async (req: Request, res: Response) => {
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/InformationsPersonnelles'
+ *           example:
+ *             prenom: Jean
+ *             nom_naissance: Dupont
+ *             sexe: Masculin
+ *             date_naissance: "2004-03-15"
+ *             nationalite: Française
+ *             commune_naissance: Paris
+ *             departement: Paris
+ *             adresse_residence: "12 Rue de la Paix"
+ *             code_postal: 75001
+ *             ville: Paris
+ *             email: jean.dupont@example.com
+ *             telephone: "0601020304"
+ *             bac: "Général"
+ *             utilisateur: "agent.admission"
+ *             validation: "En attente"
  *     responses:
  *       200:
  *         description: Candidat créé avec succès
@@ -1161,7 +1233,10 @@ router.delete('/entreprises/:id', async (req: Request, res: Response) => {
  */
 router.post('/candidates', async (req: Request, res: Response) => {
   try {
-    const informations: InformationsPersonnelles = req.body;
+    const informations: InformationsPersonnelles = {
+      ...req.body,
+      validation: req.body?.validation ?? 'En attente'
+    };
     const result = await admissionService.createCandidateWithInfo(informations);
     
     res.json(result);

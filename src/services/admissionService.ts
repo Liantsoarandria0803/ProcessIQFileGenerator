@@ -38,11 +38,16 @@ export class AdmissionService {
     informations: InformationsPersonnelles
   ): Promise<InformationsPersonnellesResponse> {
     try {
+      const enrichedInformations: InformationsPersonnelles = {
+        ...informations,
+        validation: informations.validation ?? 'En attente'
+      };
+
       // Valider les informations
-      this.validateInformationsPersonnelles(informations);
+      this.validateInformationsPersonnelles(enrichedInformations);
 
       // Préparer les données pour Airtable (numéro d'inscription généré automatiquement par Airtable)
-      const airtableData = this.mapInformationsToAirtable(informations);
+      const airtableData = this.mapInformationsToAirtable(enrichedInformations);
 
       // Créer le candidat
       const candidat = await this.candidatRepo.create(airtableData);
@@ -324,6 +329,10 @@ export class AdmissionService {
     if (info.connaissance_rush_how !== undefined) airtableData['connaissance rush'] = info.connaissance_rush_how;
     if (info.motivation_projet_professionnel !== undefined) airtableData['motivation projet perso'] = info.motivation_projet_professionnel;
 
+    // Section 10: Suivi interne
+    if (info.utilisateur !== undefined) airtableData['Utilisateur'] = info.utilisateur;
+    if (info.validation !== undefined) airtableData['Validation'] = info.validation;
+
     return airtableData;
   }
 
@@ -399,7 +408,11 @@ export class AdmissionService {
 
       // Section 9: Informations supplémentaires
       'connaissance rush': info.connaissance_rush_how,
-      'motivation projet perso': info.motivation_projet_professionnel
+      'motivation projet perso': info.motivation_projet_professionnel,
+
+      // Section 10: Suivi interne
+      'Utilisateur': info.utilisateur,
+      'Validation': info.validation
     };
 
     // Supprimer les valeurs undefined, null, chaînes vides, et 0 pour les codes postaux
@@ -484,7 +497,9 @@ export class AdmissionService {
       entreprise_d_accueil: fields['Entreprise daccueil'],
 
       connaissance_rush_how: fields['connaissance rush'],
-      motivation_projet_professionnel: fields['motivation projet perso']
+      motivation_projet_professionnel: fields['motivation projet perso'],
+      utilisateur: fields['Utilisateur'],
+      validation: fields['Validation'] as 'Validé' | 'En attente' | undefined
     };
   }
 

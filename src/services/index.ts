@@ -18,3 +18,4 @@ export { RhService } from './rhService';
 export { PriseConnaissanceGeneratorService } from './priseConnaissanceGeneratorService';
 export * from './certificatScolariteGeneratorService';
 export { CertificatScolariteGeneratorService } from './certificatScolariteGeneratorService';
+export { HistoryService } from './historyService';

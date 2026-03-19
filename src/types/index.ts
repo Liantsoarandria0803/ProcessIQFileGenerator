@@ -30,6 +30,8 @@ export interface CandidatFields {
   'Déclare bénéficier de la reconnaissance travailleur handicapé'?: string;
   'Déclare être inscrits sur la liste des sportifs de haut niveau'?: string;
   'Déclare avoir un projet de création ou de reprise dentreprise'?: string;
+  'Utilisateur'?: string;
+  'Validation'?: string;
   'Fiche entreprise'?: Attachment[];
   'Convention'?: Attachment[];
   'cerfa'?: Attachment[];
@@ -51,6 +53,8 @@ export interface EntrepriseFields {
   'recordIdetudiant'?: string;
   'Raison sociale'?: string;
   'Numéro SIRET'?: number;
+  'Utilisateur'?: string;
+  'Validation'?: string;
   'Numéro entreprise'?: string;
   'Voie entreprise'?: string;
   'Complément dadresse entreprise'?: string;

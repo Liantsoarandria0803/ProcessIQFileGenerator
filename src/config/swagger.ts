@@ -200,7 +200,11 @@ const swaggerDefinition: SwaggerDefinition = {
           
           // Section 6: Informations supplémentaires
           connaissance_rush_how: { type: 'string', nullable: true, description: 'Comment avez-vous connu Rush School?', example: 'Salon étudiant' },
-          motivation_projet_professionnel: { type: 'string', nullable: true, description: 'Motivation et projet professionnel', example: 'Passionné par le commerce...' }
+          motivation_projet_professionnel: { type: 'string', nullable: true, description: 'Motivation et projet professionnel', example: 'Passionné par le commerce...' },
+
+          // Section 7: Suivi interne
+          utilisateur: { type: 'string', nullable: true, description: 'Utilisateur ayant créé/mis à jour', example: 'agent.admission' },
+          validation: { type: 'string', nullable: true, enum: ['Validé', 'En attente'], description: 'Statut de validation', example: 'En attente' }
         }
       },
       InformationsPersonnellesResponse: {
@@ -248,6 +252,56 @@ const swaggerDefinition: SwaggerDefinition = {
           message: { type: 'string', description: 'Message de confirmation', example: 'Candidature supprimée avec succès' },
           record_id: { type: 'string', description: 'ID du candidat supprimé', example: 'rec1BBjsjxhdqEKuq' },
           deleted_files: { type: 'integer', nullable: true, description: 'Nombre de fichiers supprimés', example: 5 }
+        }
+      },
+      UserHistoryResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean', example: true },
+          data: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/UserHistoryEntry' }
+          },
+          count: { type: 'integer', example: 3 },
+          totals: {
+            type: 'object',
+            properties: {
+              eleves: { type: 'integer', example: 12 },
+              entreprises: { type: 'integer', example: 4 }
+            }
+          }
+        }
+      },
+      UserHistoryEntry: {
+        type: 'object',
+        properties: {
+          utilisateur: { type: 'string', example: 'agent.admission' },
+          eleves: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/UserHistoryCandidate' }
+          },
+          entreprises: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/UserHistoryEntreprise' }
+          }
+        }
+      },
+      UserHistoryCandidate: {
+        type: 'object',
+        properties: {
+          record_id: { type: 'string', example: 'rec1BBjsjxhdqEKuq' },
+          nom: { type: 'string', example: 'Dupont' },
+          prenom: { type: 'string', example: 'Jean' },
+          email: { type: 'string', format: 'email', example: 'jean.dupont@email.com' }
+        }
+      },
+      UserHistoryEntreprise: {
+        type: 'object',
+        properties: {
+          record_id: { type: 'string', example: 'recXXXXXXXXXXXXXX' },
+          raison_sociale: { type: 'string', example: 'ACME Corporation' },
+          siret: { type: 'number', example: 12345678901234 },
+          record_id_etudiant: { type: 'string', example: 'rec1BBjsjxhdqEKuq' }
         }
       },
       // ========================================
@@ -336,7 +390,9 @@ const swaggerDefinition: SwaggerDefinition = {
             missions: 'Gestion clientèle et développement commercial',
             cfaEnterprise: false
           },
-          record_id_etudiant: 'rec1BBjsjxhdqEKuq'
+          record_id_etudiant: 'rec1BBjsjxhdqEKuq',
+          utilisateur: 'agent.admission',
+          validation: 'En attente'
         },
         properties: {
           identification: {
@@ -361,6 +417,19 @@ const swaggerDefinition: SwaggerDefinition = {
             type: 'string',
             description: 'ID Airtable du candidat lié à cette fiche entreprise',
             example: 'rec1BBjsjxhdqEKuq'
+          },
+          utilisateur: {
+            type: 'string',
+            nullable: true,
+            description: 'Utilisateur ayant créé/mis à jour la fiche',
+            example: 'agent.admission'
+          },
+          validation: {
+            type: 'string',
+            nullable: true,
+            enum: ['Validé', 'En attente'],
+            description: 'Statut de validation de la fiche',
+            example: 'En attente'
           }
         }
       },
