@@ -44,6 +44,18 @@ export class EntrepriseRepository {
     this.tableName = config.airtable.tables.entreprise;
   }
 
+  private normalizeValidationMultiSelect(data: Record<string, any>): void {
+    const normalize = (key: string) => {
+      const value = data[key];
+      if (typeof value === 'string') {
+        data[key] = [value];
+      }
+    };
+
+    normalize('Validation');
+    normalize('validation');
+  }
+
   private extractUnknownFieldName(error: any): string | null {
     const type = error?.response?.data?.error?.type;
     const message = error?.response?.data?.error?.message;
@@ -466,13 +478,15 @@ export class EntrepriseRepository {
 
       const cleanedData = Object.fromEntries(
         Object.entries(data).filter(([_, v]) => v !== undefined)
-      ) as Partial<EntrepriseFields>;
+      ) as Record<string, any>;
+
+      this.normalizeValidationMultiSelect(cleanedData);
 
       if (Object.keys(cleanedData).length === 0) {
         throw new Error('Aucune donnée valide à mettre à jour');
       }
 
-      await this.updateWithFieldFallbacks(recordId, cleanedData);
+  await this.updateWithFieldFallbacks(recordId, cleanedData as Partial<EntrepriseFields>);
 
       logger.info(`✅ Fiche entreprise mise à jour (champs bruts): ${recordId}`);
       return true;
