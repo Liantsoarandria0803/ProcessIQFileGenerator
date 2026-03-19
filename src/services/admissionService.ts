@@ -331,7 +331,7 @@ export class AdmissionService {
 
     // Section 10: Suivi interne
     if (info.utilisateur !== undefined) airtableData['Utilisateur'] = info.utilisateur;
-    if (info.validation !== undefined) airtableData['Validation'] = info.validation;
+  if (info.validation !== undefined) airtableData['Validation'] = this.normalizeValidationMultiSelect(info.validation);
 
     return airtableData;
   }
@@ -412,7 +412,7 @@ export class AdmissionService {
 
       // Section 10: Suivi interne
       'Utilisateur': info.utilisateur,
-      'Validation': info.validation
+      'Validation': this.normalizeValidationMultiSelect(info.validation)
     };
 
     // Supprimer les valeurs undefined, null, chaînes vides, et 0 pour les codes postaux
@@ -499,8 +499,26 @@ export class AdmissionService {
       connaissance_rush_how: fields['connaissance rush'],
       motivation_projet_professionnel: fields['motivation projet perso'],
       utilisateur: fields['Utilisateur'],
-      validation: fields['Validation'] as 'Validé' | 'En attente' | undefined
+      validation: this.parseValidationMultiSelect(fields['Validation'])
     };
+  }
+
+  private normalizeValidationMultiSelect(
+    value: InformationsPersonnelles['validation']
+  ): string[] | undefined {
+    if (!value) {
+      return undefined;
+    }
+    return [value];
+  }
+
+  private parseValidationMultiSelect(
+    value: CandidatFields['Validation']
+  ): InformationsPersonnelles['validation'] {
+    if (Array.isArray(value)) {
+      return value[0] as InformationsPersonnelles['validation'];
+    }
+    return value as InformationsPersonnelles['validation'];
   }
 
   /**

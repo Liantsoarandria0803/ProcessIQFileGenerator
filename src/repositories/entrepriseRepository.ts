@@ -370,7 +370,7 @@ export class EntrepriseRepository {
       airtableData['Utilisateur'] = fiche.utilisateur;
     }
     if (fiche.validation) {
-      airtableData['Validation'] = fiche.validation;
+      airtableData['Validation'] = [fiche.validation];
     }
 
     return airtableData;

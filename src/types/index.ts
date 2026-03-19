@@ -31,7 +31,7 @@ export interface CandidatFields {
   'Déclare être inscrits sur la liste des sportifs de haut niveau'?: string;
   'Déclare avoir un projet de création ou de reprise dentreprise'?: string;
   'Utilisateur'?: string;
-  'Validation'?: string;
+  'Validation'?: string[] | string;
   'Fiche entreprise'?: Attachment[];
   'Convention'?: Attachment[];
   'cerfa'?: Attachment[];
@@ -54,7 +54,7 @@ export interface EntrepriseFields {
   'Raison sociale'?: string;
   'Numéro SIRET'?: number;
   'Utilisateur'?: string;
-  'Validation'?: string;
+  'Validation'?: string[] | string;
   'Numéro entreprise'?: string;
   'Voie entreprise'?: string;
   'Complément dadresse entreprise'?: string;
