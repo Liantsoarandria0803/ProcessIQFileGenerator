@@ -16,6 +16,18 @@ interface BugRecordFields {
 }
 
 const SUPPORT_TABLE = process.env.AIRTABLE_SUPPORT_TABLE || 'Support Bugs';
+const SUPPORT_TABLE_CANDIDATES = Array.from(
+  new Set(
+    [
+      SUPPORT_TABLE,
+      'Support Bugs',
+      'Support Bug',
+      'Support',
+      'Bugs',
+      'Bug Reports',
+    ].filter((t) => String(t || '').trim())
+  )
+);
 
 const FIELD_SETS = [
   {
@@ -98,6 +110,32 @@ const ensureAirtableConfigured = (): string | null => {
   return null;
 };
 
+const isRetryableTableError = (error: any): boolean => {
+  const type = String(error?.response?.data?.error?.type || '');
+  const message = String(error?.response?.data?.error?.message || error?.message || '');
+  return (
+    type === 'NOT_FOUND' ||
+    type === 'TABLE_NOT_FOUND' ||
+    /table/i.test(message)
+  );
+};
+
+const withSupportTableFallback = async <T>(operation: (tableName: string) => Promise<T>): Promise<T> => {
+  let lastError: any = null;
+  for (const tableName of SUPPORT_TABLE_CANDIDATES) {
+    try {
+      return await operation(tableName);
+    } catch (error: any) {
+      lastError = error;
+      if (!isRetryableTableError(error)) {
+        throw error;
+      }
+      logger.warn(`[Support] table "${tableName}" unavailable, trying next candidate table`);
+    }
+  }
+  throw lastError || new Error('Aucune table support Airtable accessible');
+};
+
 const toOutputRecord = (record: { id: string; fields: BugRecordFields }): any => {
   const f = record.fields || {};
   const s = FIELD_SETS[0];
@@ -150,14 +188,20 @@ const buildCreateFields = (setIndex: number, input: any): Record<string, any> =>
 
 const createBugWithFallbackFieldSets = async (payload: any) => {
   let lastError: any = null;
-  for (let idx = 0; idx < FIELD_SETS.length; idx += 1) {
-    try {
-      return await airtableClient.create<BugRecordFields>(SUPPORT_TABLE, buildCreateFields(idx, payload));
-    } catch (error: any) {
-      lastError = error;
-      const code = error?.response?.data?.error?.type;
-      if (code !== 'UNKNOWN_FIELD_NAME' && code !== 'INVALID_VALUE_FOR_COLUMN') throw error;
-      logger.warn(`[Support] Airtable create fallback field-set ${idx + 1} failed (${code}), trying next.`);
+  for (const tableName of SUPPORT_TABLE_CANDIDATES) {
+    for (let idx = 0; idx < FIELD_SETS.length; idx += 1) {
+      try {
+        return await airtableClient.create<BugRecordFields>(tableName, buildCreateFields(idx, payload));
+      } catch (error: any) {
+        lastError = error;
+        const code = error?.response?.data?.error?.type;
+        if (isRetryableTableError(error)) {
+          logger.warn(`[Support] table "${tableName}" not usable for create, trying next table`);
+          break;
+        }
+        if (code !== 'UNKNOWN_FIELD_NAME' && code !== 'INVALID_VALUE_FOR_COLUMN') throw error;
+        logger.warn(`[Support] Airtable create fallback field-set ${idx + 1} failed (${code}), trying next.`);
+      }
     }
   }
   throw lastError || new Error('Impossible de creer le ticket dans Airtable');
@@ -165,15 +209,21 @@ const createBugWithFallbackFieldSets = async (payload: any) => {
 
 const updateStatusWithFallbackFieldSets = async (recordId: string, status: BugStatus) => {
   let lastError: any = null;
-  for (const s of FIELD_SETS) {
-    try {
-      const updated = await airtableClient.update<BugRecordFields>(SUPPORT_TABLE, recordId, { [s.status]: status });
-      if (updated) return updated;
-      return null;
-    } catch (error: any) {
-      lastError = error;
-      const code = error?.response?.data?.error?.type;
-      if (code !== 'UNKNOWN_FIELD_NAME') throw error;
+  for (const tableName of SUPPORT_TABLE_CANDIDATES) {
+    for (const s of FIELD_SETS) {
+      try {
+        const updated = await airtableClient.update<BugRecordFields>(tableName, recordId, { [s.status]: status });
+        if (updated) return updated;
+        return null;
+      } catch (error: any) {
+        lastError = error;
+        if (isRetryableTableError(error)) {
+          logger.warn(`[Support] table "${tableName}" not usable for update, trying next table`);
+          break;
+        }
+        const code = error?.response?.data?.error?.type;
+        if (code !== 'UNKNOWN_FIELD_NAME') throw error;
+      }
     }
   }
   throw lastError || new Error('Impossible de mettre a jour le statut dans Airtable');
@@ -249,7 +299,9 @@ router.get(
       const filterPriority = req.query.priority ? String(req.query.priority) : '';
       const search = String(req.query.search || '').trim().toLowerCase();
 
-      const records = await airtableClient.getAll<BugRecordFields>(SUPPORT_TABLE);
+      const records = await withSupportTableFallback((tableName) =>
+        airtableClient.getAll<BugRecordFields>(tableName)
+      );
       let rows = records.map(toOutputRecord);
 
       if (scope === 'all' && canAccessGlobalSupport(requesterRole)) {
