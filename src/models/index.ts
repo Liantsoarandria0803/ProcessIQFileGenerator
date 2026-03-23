@@ -14,6 +14,7 @@ export * from './company.model'
 export * from './interview.model'
 export * from './dashboard-stats.model'
 export * from './test.model'
+export * from './bug-report.model'
 
 
 // Connexion MongoDB
