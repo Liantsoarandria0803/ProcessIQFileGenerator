@@ -95,15 +95,19 @@ export interface EntrepriseFields {
   
   // Rémunération
   'Pourcentage du SMIC 1'?: number;
+  'Pourcentage smic 1 2'?: number;
   'SMIC 1'?: number;
   'Salaire brut mensuel 1'?: number;
   'Pourcentage smic 2'?: number;
+  'Pourcentage smic 2 2'?: number;
   'smic 2'?: number;
   'Salaire brut mensuel 2'?: number;
   'Pourcentage smic 3'?: number;
+  'Pourcentage smic 3 2'?: number;
   'smic 3'?: number;
   'Salaire brut mensuel 3'?: number;
   'Pourcentage smic 4'?: number;
+  'Pourcentage smic 4 2'?: number;
   'smic 4'?: number;
   'Salaire brut mensuel 4'?: number;
   

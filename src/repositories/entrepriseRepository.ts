@@ -226,11 +226,17 @@ export class EntrepriseRepository {
       if (fiche.contrat.pourcentage_smic1 != null) {
         airtableData['Pourcentage du SMIC 1'] = Number(fiche.contrat.pourcentage_smic1);
       }
+      if (fiche.contrat.pourcentage_smic1_2 != null) {
+        airtableData['Pourcentage smic 1 2'] = Number(fiche.contrat.pourcentage_smic1_2);
+      }
       if (fiche.contrat.smic1 != null) {
         airtableData['SMIC 1'] = fiche.contrat.smic1;
       }
       if (fiche.contrat.pourcentage_smic2 != null) {
         airtableData['Pourcentage smic 2'] = Number(fiche.contrat.pourcentage_smic2);
+      }
+      if (fiche.contrat.pourcentage_smic2_2 != null) {
+        airtableData['Pourcentage smic 2 2'] = Number(fiche.contrat.pourcentage_smic2_2);
       }
       if (fiche.contrat.smic2 != null) {
         airtableData['smic 2'] = fiche.contrat.smic2;
@@ -238,11 +244,17 @@ export class EntrepriseRepository {
       if (fiche.contrat.pourcentage_smic3 != null) {
         airtableData['Pourcentage smic 3'] = Number(fiche.contrat.pourcentage_smic3);
       }
+      if (fiche.contrat.pourcentage_smic3_2 != null) {
+        airtableData['Pourcentage smic 3 2'] = Number(fiche.contrat.pourcentage_smic3_2);
+      }
       if (fiche.contrat.smic3 != null) {
         airtableData['smic 3'] = fiche.contrat.smic3;
       }
       if (fiche.contrat.pourcentage_smic4 != null) {
         airtableData['Pourcentage smic 4'] = Number(fiche.contrat.pourcentage_smic4);
+      }
+      if (fiche.contrat.pourcentage_smic4_2 != null) {
+        airtableData['Pourcentage smic 4 2'] = Number(fiche.contrat.pourcentage_smic4_2);
       }
       if (fiche.contrat.smic4 != null) {
         airtableData['smic 4'] = fiche.contrat.smic4;

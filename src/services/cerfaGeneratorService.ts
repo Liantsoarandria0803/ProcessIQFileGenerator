@@ -109,6 +109,27 @@ export class CerfaGeneratorService {
     }
   }
 
+  private splitWeeklyDuration(value: any): [string, string] {
+    if (value === undefined || value === null || value === '') return ['', ''];
+
+    const raw = String(value).trim();
+    const normalized = raw.replace(',', '.');
+
+    // Match formats like "35h00", "35h", "35:00", "35.5", "35"
+    const match = normalized.match(/^(\d{1,2})(?:\s*h\s*|\s*:\s*|\s*)(\d{0,2})?$/i);
+    if (match) {
+      const hours = match[1] ?? '';
+      const minutes = match[2] ?? '00';
+      return [hours, minutes.padStart(2, '0')];
+    }
+
+    // Fallback: extract numbers
+    const numbers = normalized.match(/\d+/g) || [];
+    const hours = numbers[0] ?? '';
+    const minutes = numbers[1] ?? '00';
+    return [hours, String(minutes).padStart(2, '0')];
+  }
+
   private parseAddress(addressStr: string | undefined | null): ParsedAddress {
     const empty: ParsedAddress = { numero: '', voie: '', complement: '', code_postal: '', commune: '' };
     if (!addressStr) return empty;
@@ -297,11 +318,17 @@ export class CerfaGeneratorService {
     if (!nationaliteStr) return '';
     const n = String(nationaliteStr).trim();
     if (/^[123]$/.test(n)) return n;
+    const normalized = n.toLowerCase();
+
+    if (normalized.includes('française') || normalized.includes('francaise')) return '1';
+    if (normalized.includes('union européenne') || normalized.includes('union europeenne') || normalized.includes('ue')) return '2';
+    if (normalized.includes('étranger') || normalized.includes('etranger')) return '3';
+
     for (const pf of PAYS_FRANCE) {
-      if (n.toLowerCase().includes(pf.toLowerCase())) return '1';
+      if (normalized.includes(pf.toLowerCase())) return '1';
     }
     for (const pu of PAYS_UE) {
-      if (n.toLowerCase().includes(pu.toLowerCase())) return '2';
+      if (normalized.includes(pu.toLowerCase())) return '2';
     }
     return '3';
   }
@@ -827,6 +854,10 @@ export class CerfaGeneratorService {
                 const salaireComplet = entrepriseData['Salaire brut mensuel 1'] || '';
                 const [, centimes] = this.splitPrice(salaireComplet);
                 value = centimes;
+              } else if ((matchName === 'Zone de texte 8_68' || matchName === 'Zone de texte 8_69') && key === 'Durée hebdomadaire') {
+                const dureeComplet = entrepriseData['Durée hebdomadaire'] || '';
+                const [heures, minutes] = this.splitWeeklyDuration(dureeComplet);
+                value = matchName === 'Zone de texte 8_68' ? heures : minutes;
               }
 
               // Draw field if value is present. Treat empty string/undefined/'None'/'undefined' as missing.

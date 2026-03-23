@@ -554,6 +554,7 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
   "Zone de texte 8_70": ["entreprise", "Type de dérogation"],
   "Zone de texte 8_55": ["entreprise", "Numéro DECA de ancien contrat"],
   "Zone de texte 8_68": ["entreprise", "Durée hebdomadaire"],
+  "Zone de texte 8_69": ["entreprise", "Durée hebdomadaire"],
 
   // =====================================================
   // RÉMUNÉRATION
@@ -567,25 +568,25 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
   "Zone de texte 8_95": ["entreprise", "Pourcentage du SMIC 1"],
   "Zone de texte 8_96": ["entreprise", "SMIC 1"],
   // 1ère année - 2ème période
-  "Zone de texte 8_97": ["entreprise", "Pourcentage du SMIC 1"],
+  "Zone de texte 8_97": ["entreprise", "Pourcentage smic 1 2"],
   "Zone de texte 8_98": ["entreprise", "SMIC 1"],
   // 2ème année - 1ère période
   "Zone de texte 8_56": ["entreprise", "Pourcentage smic 2"],
   "Zone de texte 8_57": ["entreprise", "smic 2"],
   // 2ème année - 2ème période
-  "Zone de texte 8_58": ["entreprise", "Pourcentage smic 2"],
+  "Zone de texte 8_58": ["entreprise", "Pourcentage smic 2 2"],
   "Zone de texte 8_59": ["entreprise", "smic 2"],
   // 3ème année - 1ère période
   "Zone de texte 8_60": ["entreprise", "Pourcentage smic 3"],
   "Zone de texte 8_61": ["entreprise", "smic 3"],
   // 3ème année - 2ème période
-  "Zone de texte 8_62": ["entreprise", "Pourcentage smic 3"],
+  "Zone de texte 8_62": ["entreprise", "Pourcentage smic 3 2"],
   "Zone de texte 8_63": ["entreprise", "smic 3"],
   // 4ème année - 1ère période
   "Zone de texte 8_64": ["entreprise", "Pourcentage smic 4"],
   "Zone de texte 8_65": ["entreprise", "smic 4"],
   // 4ème année - 2ème période
-  "Zone de texte 8_66": ["entreprise", "Pourcentage smic 4"],
+  "Zone de texte 8_66": ["entreprise", "Pourcentage smic 4 2"],
   "Zone de texte 8_67": ["entreprise", "smic 4"],
   "Zone de texte 8_72": ["entreprise", "Salaire brut mensuel 1"],
   "Zone de texte 21_73": ["entreprise", "Salaire brut mensuel 1"],

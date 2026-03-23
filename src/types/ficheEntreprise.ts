@@ -53,12 +53,16 @@ export interface InformationsContrat {
   
   // SMIC et salaires
   pourcentage_smic1?: number;
+  pourcentage_smic1_2?: number;
   smic1?: number;
   pourcentage_smic2?: number;
+  pourcentage_smic2_2?: number;
   smic2?: number;
   pourcentage_smic3?: number;
+  pourcentage_smic3_2?: number;
   smic3?: number;
   pourcentage_smic4?: number;
+  pourcentage_smic4_2?: number;
   smic4?: number;
   montant_salaire_brut1?: number;
   montant_salaire_brut2?: number;

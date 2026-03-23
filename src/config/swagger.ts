@@ -73,8 +73,15 @@ const swaggerDefinition: SwaggerDefinition = {
               'Formation': { type: 'string', example: 'BTS MCO' },
               'NIR': { type: 'string', example: '123456789012345' },
               'Sexe': { type: 'string', enum: ['Masculin', 'Féminin'] },
-              'Nationalité': { type: 'string', example: 'Française' }
-            }
+              'Nationalité': { type: 'string', example: 'Française' },
+              'Utilisateur': { type: 'string', example: 'agent.admission' },
+              'Validation': {
+                type: 'array',
+                items: { type: 'string', enum: ['Validé', 'En attente'] },
+                example: ['En attente']
+              }
+            },
+            additionalProperties: true
           }
         }
       },
@@ -96,8 +103,15 @@ const swaggerDefinition: SwaggerDefinition = {
               'Email entreprise': { type: 'string', format: 'email', example: 'contact@acme.com' },
               'Nom OPCO': { type: 'string', example: 'OPCO EP' },
               'Nom Maître apprentissage': { type: 'string', example: 'Martin' },
-              'Prénom Maître apprentissage': { type: 'string', example: 'Sophie' }
-            }
+              'Prénom Maître apprentissage': { type: 'string', example: 'Sophie' },
+              'Utilisateur': { type: 'string', example: 'agent.admission' },
+              'Validation': {
+                type: 'array',
+                items: { type: 'string', enum: ['Validé', 'En attente'] },
+                example: ['En attente']
+              }
+            },
+            additionalProperties: true
           }
         }
       },
@@ -350,11 +364,13 @@ const swaggerDefinition: SwaggerDefinition = {
             poste_occupe: 'Assistant commercial',
             lieu_execution: 'Paris 75001',
             pourcentage_smic1: 53,
+            pourcentage_smic1_2: 61,
             smic1: 966.21,
             montant_salaire_brut1: 966.21,
             date_debut_2periode_1er_annee: '2027-01-01',
             date_fin_2periode_1er_annee: '2027-08-31',
             pourcentage_smic2: 61,
+            pourcentage_smic2_2: 78,
             smic2: 1112.01,
             montant_salaire_brut2: 1112.01,
             date_debut_1periode_2eme_annee: '2027-09-01',
@@ -362,6 +378,7 @@ const swaggerDefinition: SwaggerDefinition = {
             date_debut_2periode_2eme_annee: '2028-01-01',
             date_fin_2periode_2eme_annee: '2028-08-31',
             pourcentage_smic3: 78,
+            pourcentage_smic3_2: 90,
             smic3: 1421.97,
             montant_salaire_brut3: 1421.97,
             date_debut_1periode_3eme_annee: '2028-09-01',
@@ -369,6 +386,7 @@ const swaggerDefinition: SwaggerDefinition = {
             date_debut_2periode_3eme_annee: '2029-01-01',
             date_fin_2periode_3eme_annee: '2029-08-31',
             pourcentage_smic4: 100,
+            pourcentage_smic4_2: 100,
             smic4: 1823.07,
             montant_salaire_brut4: 1823.07,
             date_debut_1periode_4eme_annee: '2029-09-01',
@@ -491,11 +509,13 @@ const swaggerDefinition: SwaggerDefinition = {
           poste_occupe: 'Assistant commercial',
           lieu_execution: 'Paris 75001',
           pourcentage_smic1: 53,
+          pourcentage_smic1_2: 61,
           smic1: 966.21,
           montant_salaire_brut1: 966.21,
           date_debut_2periode_1er_annee: '2027-01-01',
           date_fin_2periode_1er_annee: '2027-08-31',
           pourcentage_smic2: 61,
+          pourcentage_smic2_2: 78,
           smic2: 1112.01,
           montant_salaire_brut2: 1112.01,
           date_debut_1periode_2eme_annee: '2027-09-01',
@@ -503,6 +523,7 @@ const swaggerDefinition: SwaggerDefinition = {
           date_debut_2periode_2eme_annee: '2028-01-01',
           date_fin_2periode_2eme_annee: '2028-08-31',
           pourcentage_smic3: 78,
+          pourcentage_smic3_2: 90,
           smic3: 1421.97,
           montant_salaire_brut3: 1421.97,
           date_debut_1periode_3eme_annee: '2028-09-01',
@@ -510,6 +531,7 @@ const swaggerDefinition: SwaggerDefinition = {
           date_debut_2periode_3eme_annee: '2029-01-01',
           date_fin_2periode_3eme_annee: '2029-08-31',
           pourcentage_smic4: 100,
+          pourcentage_smic4_2: 100,
           smic4: 1823.07,
           montant_salaire_brut4: 1823.07,
           date_debut_1periode_4eme_annee: '2029-09-01',
@@ -531,18 +553,22 @@ const swaggerDefinition: SwaggerDefinition = {
           lieu_execution: { type: 'string', description: 'Lieu d\'exécution si différent du siège', example: 'Paris 75001' },
           // Rémunération - 1ère année (OBLIGATOIRE pour tous les contrats)
           pourcentage_smic1: { type: 'number', description: '[OBLIGATOIRE] Pourcentage du SMIC - 1ère année / 1ère période', example: 53 },
+          pourcentage_smic1_2: { type: 'number', nullable: true, description: '[OPTIONNEL] Pourcentage du SMIC - 1ère année / 2ème période. Renseigner si la 1ère année comporte une 2ème période.', example: 61 },
           smic1: { type: 'number', description: '[OBLIGATOIRE] Montant SMIC - 1ère année / 1ère période', example: 966.21 },
           montant_salaire_brut1: { type: 'number', description: '[OBLIGATOIRE] Salaire brut mensuel - 1ère année', example: 966.21 },
           // Rémunération - 2ème année (OPTIONNEL - uniquement si contrat >= 2 ans)
           pourcentage_smic2: { type: 'number', nullable: true, description: '[OPTIONNEL] Pourcentage du SMIC - 2ème année / 1ère période. Renseigner uniquement si le contrat dure 2 ans ou plus.', example: 61 },
+          pourcentage_smic2_2: { type: 'number', nullable: true, description: '[OPTIONNEL] Pourcentage du SMIC - 2ème année / 2ème période. Renseigner si la 2ème année comporte une 2ème période.', example: 78 },
           smic2: { type: 'number', nullable: true, description: '[OPTIONNEL] Montant SMIC - 2ème année / 1ère période. Renseigner uniquement si le contrat dure 2 ans ou plus.', example: 1112.01 },
           montant_salaire_brut2: { type: 'number', nullable: true, description: '[OPTIONNEL] Salaire brut mensuel - 2ème année. Renseigner uniquement si le contrat dure 2 ans ou plus.', example: 1112.01 },
           // Rémunération - 3ème année (OPTIONNEL - uniquement si contrat >= 3 ans)
           pourcentage_smic3: { type: 'number', nullable: true, description: '[OPTIONNEL] Pourcentage du SMIC - 3ème année / 1ère période. Renseigner uniquement si le contrat dure 3 ans ou plus.', example: 78 },
+          pourcentage_smic3_2: { type: 'number', nullable: true, description: '[OPTIONNEL] Pourcentage du SMIC - 3ème année / 2ème période. Renseigner si la 3ème année comporte une 2ème période.', example: 90 },
           smic3: { type: 'number', nullable: true, description: '[OPTIONNEL] Montant SMIC - 3ème année / 1ère période. Renseigner uniquement si le contrat dure 3 ans ou plus.', example: 1421.97 },
           montant_salaire_brut3: { type: 'number', nullable: true, description: '[OPTIONNEL] Salaire brut mensuel - 3ème année. Renseigner uniquement si le contrat dure 3 ans ou plus.', example: 1421.97 },
           // Rémunération - 4ème année (OPTIONNEL - uniquement si contrat = 4 ans)
           pourcentage_smic4: { type: 'number', nullable: true, description: '[OPTIONNEL] Pourcentage du SMIC - 4ème année / 1ère période. Renseigner uniquement si le contrat dure 4 ans.', example: 100 },
+          pourcentage_smic4_2: { type: 'number', nullable: true, description: '[OPTIONNEL] Pourcentage du SMIC - 4ème année / 2ème période. Renseigner si la 4ème année comporte une 2ème période.', example: 100 },
           smic4: { type: 'number', nullable: true, description: '[OPTIONNEL] Montant SMIC - 4ème année / 1ère période. Renseigner uniquement si le contrat dure 4 ans.', example: 1823.07 },
           montant_salaire_brut4: { type: 'number', nullable: true, description: '[OPTIONNEL] Salaire brut mensuel - 4ème année. Renseigner uniquement si le contrat dure 4 ans.', example: 1823.07 },
           // Dates des périodes - 1ère année (2ème période) - OPTIONNEL
