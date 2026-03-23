@@ -21,9 +21,10 @@ export const config = {
     apiToken: process.env.AIRTABLE_API_TOKEN || '',
     baseId: process.env.AIRTABLE_BASE_ID || '',
     tables: {
-      etudiants: 'Ã‰tudiants',
-      candidats: 'Liste des candidats',
-      entreprise: 'Fiche entreprise'
+      etudiants: process.env.AIRTABLE_TABLE_ETUDIANTS || 'Étudiants',
+      candidats: process.env.AIRTABLE_TABLE_CANDIDATS || 'Liste des candidats',
+      entreprise: process.env.AIRTABLE_TABLE_ENTREPRISE || 'Fiche entreprise',
+      support: process.env.AIRTABLE_SUPPORT_TABLE || 'Support Bugs'
     }
   },
   
@@ -85,3 +86,4 @@ export const config = {
 };
 
 export default config;
+

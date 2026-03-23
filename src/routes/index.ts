@@ -10,6 +10,7 @@ import appointmentRoutes from './appointment.routes';
 import documentRoutes from './document.routes';
 import questionnaireRoutes from './questionnaire.routes';
 import authRoutes from './auth.routes';
+import supportRoutes from './support.routes';
 import { authenticateRequest } from '../middlewares/auth.middleware';
 import { isMongoConnected } from '../config/database';
 import { AdmissionService } from '../services/admissionService';
@@ -85,5 +86,6 @@ router.use('/events', requireMongoConnection, authenticateRequest, eventRoutes);
 router.use('/appointments', requireMongoConnection, authenticateRequest, appointmentRoutes);
 router.use('/documents', requireMongoConnection, authenticateRequest, documentRoutes);
 router.use('/questionnaires', requireMongoConnection, authenticateRequest, questionnaireRoutes);
+router.use('/support', supportRoutes);
 
 export default router;

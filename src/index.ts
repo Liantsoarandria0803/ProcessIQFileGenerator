@@ -111,7 +111,8 @@ app.get('/', (req: Request, res: Response) => {
       certificatScolarite: '/api/admission/candidats/:id/certificat-scolarite',
       rhEtudiantsFiches: '/api/rh/etudiants-fiches',
       rhEtudiantFiche: '/api/rh/etudiants-fiches/:record_id',
-      rhStatistiques: '/api/rh/statistiques'
+      rhStatistiques: '/api/rh/statistiques',
+      supportBugs: '/api/support/bugs'
     }
   });
 });
