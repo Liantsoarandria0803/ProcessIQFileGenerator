@@ -132,6 +132,7 @@ export interface EntrepriseFields {
   'Code Rncp'?: string;
   'Code diplôme'?: string;
   'Code diplome'?: string;
+  'Code  diplome'?: string;
   'Nombre heure formation'?: number;
   'Missions'?: string;
   'CFA entreprise'?: string;

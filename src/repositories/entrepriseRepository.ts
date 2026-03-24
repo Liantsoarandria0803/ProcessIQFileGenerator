@@ -30,9 +30,11 @@ export class EntrepriseRepository {
       'Lieu execution du contrat (si différent du siège)'
     ],
     'Formation de lalternant': ["Formation de l'alternant", "Formation de l alternant"],
-  'Code diplôme': ['Code diplome', 'Code  diplome'],
+  'Code diplôme': ['Code  diplome', 'Code diplome'],
+  'Code  diplome': ['Code diplôme', 'Code diplome'],
   'Code diplome': ['Code diplôme', 'Code  diplome'],
   'Code Rncp': ['Code RNCP'],
+  'Code RNCP': ['Code Rncp'],
     'CFA entreprise': ['CFA Entreprise'],
     'Dénomination CFA': ['Denomination CFA'],
     'N° UAI du CFA': ['N° UAI CFA', 'No UAI du CFA', 'Numéro UAI du CFA'],
@@ -351,7 +353,7 @@ export class EntrepriseRepository {
         airtableData['Code Rncp'] = fiche.formation_missions.code_rncp;
       }
       if (fiche.formation_missions.code_diplome) {
-        airtableData['Code diplome'] = fiche.formation_missions.code_diplome;
+        airtableData['Code  diplome'] = fiche.formation_missions.code_diplome;
       }
       if (fiche.formation_missions.nombre_heures_formation != null) {
         airtableData['nombre heure formation'] = Number(fiche.formation_missions.nombre_heures_formation);
@@ -439,7 +441,23 @@ export class EntrepriseRepository {
   }
 
   async create(data: Partial<EntrepriseFields>): Promise<Entreprise> {
-    return await airtableClient.create<EntrepriseFields>(this.tableName, data);
+    const payload: Record<string, any> = { ...data };
+
+    // Normaliser les champs sensibles (ex: Code RNCP -> Code Rncp)
+    Object.entries(this.fieldAliases).forEach(([canonical, aliases]) => {
+      if (payload[canonical] !== undefined) {
+        return;
+      }
+      const aliasKey = aliases.find((alias) => payload[alias] !== undefined);
+      if (aliasKey) {
+        payload[canonical] = payload[aliasKey];
+        delete payload[aliasKey];
+      }
+    });
+
+    this.normalizeValidationMultiSelect(payload);
+
+    return await airtableClient.create<EntrepriseFields>(this.tableName, payload);
   }
 
   /**
