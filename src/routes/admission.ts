@@ -39,17 +39,7 @@ const certificatScolariteService = new CertificatScolariteGeneratorService();
 const admissionService = new AdmissionService();
 const historyService = new HistoryService();
 
-const resolveEntrepriseRecordId = async (idOrStudentId: string): Promise<string | null> => {
-  const byRecordId = await entrepriseRepo.getById(idOrStudentId);
-  if (byRecordId) return byRecordId.id;
-
-  const byStudentId = await entrepriseRepo.getByEtudiantId(idOrStudentId);
-  if (byStudentId) return byStudentId.id;
-
-  return null;
-};
-
-// Configuration multer : stockage en mÃ©moire (buffer)
+// Configuration multer : stockage en mémoire (buffer)
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: config.upload.maxFileSize },
@@ -61,10 +51,10 @@ const upload = multer({
  *   get:
  *     summary: Liste tous les candidats
  *     tags: [Candidats]
- *     description: RÃ©cupÃ¨re la liste complÃ¨te des candidats depuis Airtable
+ *     description: Récupère la liste complète des candidats depuis Airtable
  *     responses:
  *       200:
- *         description: Liste des candidats rÃ©cupÃ©rÃ©e avec succÃ¨s
+ *         description: Liste des candidats récupérée avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -93,10 +83,10 @@ router.get('/candidats', async (req: Request, res: Response) => {
       count: candidats.length
     });
   } catch (error) {
-    logger.error('Erreur rÃ©cupÃ©ration candidats:', error);
+    logger.error('Erreur récupération candidats:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la rÃ©cupÃ©ration des candidats'
+      error: 'Erreur lors de la récupération des candidats'
     });
   }
 });
@@ -108,18 +98,18 @@ router.get('/candidats', async (req: Request, res: Response) => {
  *     summary: Historique des utilisateurs (candidats + entreprises)
  *     tags: [Candidats]
  *     description: |
- *       Retourne la liste des utilisateurs (colonne "Utilisateur") et les Ã©lÃ¨ves/entreprises associÃ©s.
- *       Par dÃ©faut, les entrÃ©es sans utilisateur sont ignorÃ©es.
+ *       Retourne la liste des utilisateurs (colonne "Utilisateur") et les élèves/entreprises associés.
+ *       Par défaut, les entrées sans utilisateur sont ignorées.
  *     parameters:
  *       - in: query
  *         name: includeUnknown
  *         schema:
  *           type: boolean
  *           default: false
- *         description: Inclure les enregistrements sans utilisateur ("Non renseignÃ©").
+ *         description: Inclure les enregistrements sans utilisateur ("Non renseigné").
  *     responses:
  *       200:
- *         description: Historique utilisateur rÃ©cupÃ©rÃ© avec succÃ¨s
+ *         description: Historique utilisateur récupéré avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -133,10 +123,10 @@ router.get('/historique-utilisateurs', async (req: Request, res: Response) => {
     const result = await historyService.getUserHistory({ includeUnknown });
     res.json(result);
   } catch (error) {
-    logger.error('Erreur rÃ©cupÃ©ration historique utilisateurs:', error);
+    logger.error('Erreur récupération historique utilisateurs:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la rÃ©cupÃ©ration de l\'historique utilisateurs'
+      error: 'Erreur lors de la récupération de l\'historique utilisateurs'
     });
   }
 });
@@ -145,14 +135,14 @@ router.get('/historique-utilisateurs', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/candidats-with-documents:
  *   get:
- *     summary: Liste tous les candidats avec leurs documents (RÃ©sultat PDF + Suivie entretien + Projet pro)
+ *     summary: Liste tous les candidats avec leurs documents (Résultat PDF + Suivie entretien + Projet pro)
  *     tags: [Candidats]
  *     description: >
- *       RÃ©cupÃ¨re la liste complÃ¨te des candidats depuis Airtable avec une jointure
- *       sur l'email pour inclure les documents des tables "RÃ©sultats PDF", "Resultat entretien" et "projet pro".
+ *       Récupère la liste complète des candidats depuis Airtable avec une jointure
+ *       sur l'email pour inclure les documents des tables "Résultats PDF", "Resultat entretien" et "projet pro".
  *     responses:
  *       200:
- *         description: Liste des candidats avec documents rÃ©cupÃ©rÃ©e avec succÃ¨s
+ *         description: Liste des candidats avec documents récupérée avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -174,7 +164,7 @@ router.get('/historique-utilisateurs', async (req: Request, res: Response) => {
  *                         description: Champs du candidat
  *                       resultat_pdf:
  *                         type: array
- *                         description: Documents PDF rÃ©sultat associÃ©s via email
+ *                         description: Documents PDF résultat associés via email
  *                         items:
  *                           type: object
  *                           properties:
@@ -184,7 +174,7 @@ router.get('/historique-utilisateurs', async (req: Request, res: Response) => {
  *                               type: object
  *                       suivie_entretien:
  *                         type: array
- *                         description: Documents suivie entretien associÃ©s via email
+ *                         description: Documents suivie entretien associés via email
  *                         items:
  *                           type: object
  *                           properties:
@@ -194,7 +184,7 @@ router.get('/historique-utilisateurs', async (req: Request, res: Response) => {
  *                               type: object
  *                       projet_pro:
  *                         type: array
- *                         description: Documents projet pro associÃ©s via email
+ *                         description: Documents projet pro associés via email
  *                         items:
  *                           type: object
  *                           properties:
@@ -210,7 +200,7 @@ router.get('/historique-utilisateurs', async (req: Request, res: Response) => {
  */
 router.get('/candidats-with-documents', async (req: Request, res: Response) => {
   try {
-    // RÃ©cupÃ©rer toutes les donnÃ©es en parallÃ¨le
+    // Récupérer toutes les données en parallèle
     const [candidats, resultatsPdf, resultatsEntretien, projetsPro] = await Promise.all([
       candidatRepo.getAll(),
       resultatPdfRepo.getAll(),
@@ -218,7 +208,7 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
       projetProRepo.getAll(),
     ]);
 
-    // Indexer les rÃ©sultats PDF par email
+    // Indexer les résultats PDF par email
     const pdfByEmail = new Map<string, typeof resultatsPdf>();
     for (const pdf of resultatsPdf) {
       const email = pdf.fields['E-mail'];
@@ -229,7 +219,7 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
       }
     }
 
-    // Indexer les rÃ©sultats entretien par email
+    // Indexer les résultats entretien par email
     const entretienByEmail = new Map<string, typeof resultatsEntretien>();
     for (const entretien of resultatsEntretien) {
       const email = entretien.fields['E-mail'];
@@ -269,10 +259,10 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
       count: candidatsWithDocuments.length,
     });
   } catch (error) {
-    logger.error('Erreur rÃ©cupÃ©ration candidats avec documents:', error);
+    logger.error('Erreur récupération candidats avec documents:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la rÃ©cupÃ©ration des candidats avec documents',
+      error: 'Erreur lors de la récupération des candidats avec documents',
     });
   }
 });
@@ -281,11 +271,11 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/candidats/{id}/with-documents:
  *   get:
- *     summary: RÃ©cupÃ¨re un candidat par ID avec ses documents (RÃ©sultat PDF + Suivie entretien)
+ *     summary: Récupère un candidat par ID avec ses documents (Résultat PDF + Suivie entretien)
  *     tags: [Candidats]
  *     description: >
- *       RÃ©cupÃ¨re un candidat spÃ©cifique depuis Airtable avec une jointure
- *       sur l'email pour inclure ses documents des tables "RÃ©sultats PDF" et "Resultat entretien".
+ *       Récupère un candidat spécifique depuis Airtable avec une jointure
+ *       sur l'email pour inclure ses documents des tables "Résultats PDF" et "Resultat entretien".
  *     parameters:
  *       - in: path
  *         name: id
@@ -296,7 +286,7 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
- *         description: Candidat avec documents rÃ©cupÃ©rÃ© avec succÃ¨s
+ *         description: Candidat avec documents récupéré avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -316,12 +306,12 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
  *                       description: Champs du candidat
  *                     resultat_pdf:
  *                       type: array
- *                       description: Documents PDF rÃ©sultat associÃ©s via email
+ *                       description: Documents PDF résultat associés via email
  *                       items:
  *                         type: object
  *                     suivie_entretien:
  *                       type: array
- *                       description: Documents suivie entretien associÃ©s via email
+ *                       description: Documents suivie entretien associés via email
  *                       items:
  *                         type: object
  *       404:
@@ -333,12 +323,12 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
   try {
     const { id } = req.params;
 
-    // RÃ©cupÃ©rer le candidat
+    // Récupérer le candidat
     const candidat = await candidatRepo.getById(id);
     if (!candidat) {
       return res.status(404).json({
         success: false,
-        error: 'Candidat non trouvÃ©',
+        error: 'Candidat non trouvé',
       });
     }
 
@@ -348,7 +338,7 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
     let resultatsEntretien: any[] = [];
 
     if (email) {
-      // RÃ©cupÃ©rer les documents liÃ©s par email en parallÃ¨le
+      // Récupérer les documents liés par email en parallèle
       const [allPdf, allEntretien] = await Promise.all([
         resultatPdfRepo.getAll(),
         resultatEntretienRepo.getAll(),
@@ -368,10 +358,10 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
       },
     });
   } catch (error) {
-    logger.error('Erreur rÃ©cupÃ©ration candidat avec documents:', error);
+    logger.error('Erreur récupération candidat avec documents:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la rÃ©cupÃ©ration du candidat avec documents',
+      error: 'Erreur lors de la récupération du candidat avec documents',
     });
   }
 });
@@ -380,9 +370,9 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
  * @swagger
  * /api/admission/candidats/{id}:
  *   get:
- *     summary: RÃ©cupÃ¨re un candidat par ID
+ *     summary: Récupère un candidat par ID
  *     tags: [Candidats]
- *     description: RÃ©cupÃ¨re les dÃ©tails d'un candidat spÃ©cifique
+ *     description: Récupère les détails d'un candidat spécifique
  *     parameters:
  *       - in: path
  *         name: id
@@ -393,7 +383,7 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
- *         description: Candidat trouvÃ©
+ *         description: Candidat trouvé
  *         content:
  *           application/json:
  *             schema:
@@ -417,7 +407,7 @@ router.get('/candidats/:id', async (req: Request, res: Response) => {
     if (!candidat) {
       return res.status(404).json({
         success: false,
-        error: 'Candidat non trouvÃ©'
+        error: 'Candidat non trouvé'
       });
     }
     
@@ -426,10 +416,10 @@ router.get('/candidats/:id', async (req: Request, res: Response) => {
       data: candidat
     });
   } catch (error) {
-    logger.error('Erreur rÃ©cupÃ©ration candidat:', error);
+    logger.error('Erreur récupération candidat:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la rÃ©cupÃ©ration du candidat'
+      error: 'Erreur lors de la récupération du candidat'
     });
   }
 });
@@ -438,9 +428,9 @@ router.get('/candidats/:id', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/candidats/{id}/entreprise:
  *   get:
- *     summary: RÃ©cupÃ¨re les donnÃ©es entreprise d'un candidat
+ *     summary: Récupère les données entreprise d'un candidat
  *     tags: [Entreprises]
- *     description: RÃ©cupÃ¨re les informations de l'entreprise associÃ©e Ã  un candidat
+ *     description: Récupère les informations de l'entreprise associée à un candidat
  *     parameters:
  *       - in: path
  *         name: id
@@ -451,7 +441,7 @@ router.get('/candidats/:id', async (req: Request, res: Response) => {
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
- *         description: DonnÃ©es entreprise trouvÃ©es
+ *         description: Données entreprise trouvées
  *         content:
  *           application/json:
  *             schema:
@@ -475,7 +465,7 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
     if (!entreprise) {
       return res.status(404).json({
         success: false,
-        error: 'DonnÃ©es entreprise non trouvÃ©es pour ce candidat'
+        error: 'Données entreprise non trouvées pour ce candidat'
       });
     }
     
@@ -484,10 +474,10 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
       data: entreprise
     });
   } catch (error) {
-    logger.error('Erreur rÃ©cupÃ©ration entreprise:', error);
+    logger.error('Erreur récupération entreprise:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la rÃ©cupÃ©ration des donnÃ©es entreprise'
+      error: 'Erreur lors de la récupération des données entreprise'
     });
   }
 });
@@ -496,9 +486,9 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/candidats/{id}/fiche-renseignement:
  *   post:
- *     summary: GÃ©nÃ¨re la fiche de renseignement PDF
+ *     summary: Génère la fiche de renseignement PDF
  *     tags: [PDF]
- *     description: GÃ©nÃ¨re la fiche de renseignement pour un candidat et l'upload vers Airtable
+ *     description: Génère la fiche de renseignement pour un candidat et l'upload vers Airtable
  *     parameters:
  *       - in: path
  *         name: id
@@ -509,7 +499,7 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
- *         description: PDF gÃ©nÃ©rÃ© et uploadÃ© avec succÃ¨s
+ *         description: PDF généré et uploadé avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -520,7 +510,7 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Fiche de renseignement gÃ©nÃ©rÃ©e avec succÃ¨s"
+ *                   example: "Fiche de renseignement générée avec succès"
  *                 data:
  *                   type: object
  *                   properties:
@@ -546,19 +536,19 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
   try {
     const { id } = req.params;
     
-    // RÃ©cupÃ¨re les donnÃ©es du candidat
+    // Récupère les données du candidat
     const candidat = await candidatRepo.getById(id);
     if (!candidat) {
       return res.status(404).json({
         success: false,
-        error: 'Candidat non trouvÃ©'
+        error: 'Candidat non trouvé'
       });
     }
     
-    // RÃ©cupÃ¨re les donnÃ©es entreprise
+    // Récupère les données entreprise
     const entreprise = await entrepriseRepo.getByEtudiantId(id);
     
-    // GÃ©nÃ¨re le PDF
+    // Génère le PDF
     const result = await pdfService.generatePdf(
       candidat.fields,
       entreprise?.fields || {}
@@ -567,13 +557,13 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
     if (!result.success || !result.pdfBuffer) {
       return res.status(500).json({
         success: false,
-        error: result.error || 'Erreur gÃ©nÃ©ration PDF'
+        error: result.error || 'Erreur génération PDF'
       });
     }
 
     // Upload vers Airtable dans la colonne "Fiche entreprise"
     const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
-    const prenom = (candidat.fields['PrÃ©nom'] || '').replace(/[^\w\d-]/g, '_');
+    const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
     const fileName = `Fiche_Renseignement_${nom}_${prenom}.pdf`;
     let uploadedToAirtable = false;
     let airtableUrl: string | null = null;
@@ -585,27 +575,27 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
       uploadedToAirtable = await candidatRepo.uploadDocument(id, 'Fiche entreprise', tmpPath);
       
       if (uploadedToAirtable) {
-        logger.info('âœ… Fiche de renseignements uploadÃ©e vers Airtable pour ' + id);
-        // RÃ©cupÃ©rer l'URL du fichier uploadÃ©
+        logger.info('✅ Fiche de renseignements uploadée vers Airtable pour ' + id);
+        // Récupérer l'URL du fichier uploadé
         try {
           const updatedRecord = await candidatRepo.getById(id);
           const ficheData = updatedRecord?.fields?.['Fiche entreprise'] as any[] | undefined;
           airtableUrl = ficheData?.[0]?.url || null;
         } catch (e) {
-          // Pas grave si on n'arrive pas Ã  rÃ©cupÃ©rer l'URL
+          // Pas grave si on n'arrive pas à récupérer l'URL
         }
       }
       
       // Nettoyer le fichier temporaire
       try { fs.unlinkSync(tmpPath); } catch {}
     } catch (uploadError) {
-      logger.warn('Upload fiche renseignement vers Airtable Ã©chouÃ©:', uploadError);
+      logger.warn('Upload fiche renseignement vers Airtable échoué:', uploadError);
     }
     
-    // Retourne un JSON de succÃ¨s
+    // Retourne un JSON de succès
     res.json({
       success: true,
-      message: 'Fiche de renseignement gÃ©nÃ©rÃ©e avec succÃ¨s',
+      message: 'Fiche de renseignement générée avec succès',
       data: {
         candidatId: id,
         fileName,
@@ -615,10 +605,10 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
     });
     
   } catch (error) {
-    logger.error('Erreur gÃ©nÃ©ration fiche renseignement:', error);
+    logger.error('Erreur génération fiche renseignement:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la gÃ©nÃ©ration de la fiche de renseignement'
+      error: 'Erreur lors de la génération de la fiche de renseignement'
     });
   }
 });
@@ -627,12 +617,12 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
  * @swagger
  * /api/admission/candidats/{id}/cerfa:
  *   post:
- *     summary: GÃ©nÃ¨re le CERFA FA13
+ *     summary: Génère le CERFA FA13
  *     tags: [PDF]
  *     description: |
- *       GÃ©nÃ¨re le formulaire CERFA FA13 pour un candidat et l'upload vers Airtable.
- *       Si aucune fiche entreprise n'est associÃ©e au candidat, le PDF est quand mÃªme gÃ©nÃ©rÃ©
- *       avec les champs entreprise laissÃ©s vides.
+ *       Génère le formulaire CERFA FA13 pour un candidat et l'upload vers Airtable.
+ *       Si aucune fiche entreprise n'est associée au candidat, le PDF est quand même généré
+ *       avec les champs entreprise laissés vides.
  *     parameters:
  *       - in: path
  *         name: id
@@ -643,7 +633,7 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
- *         description: CERFA gÃ©nÃ©rÃ© et uploadÃ© avec succÃ¨s
+ *         description: CERFA généré et uploadé avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -654,7 +644,7 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "CERFA FA13 gÃ©nÃ©rÃ© avec succÃ¨s"
+ *                   example: "CERFA FA13 généré avec succès"
  *                 data:
  *                   type: object
  *                   properties:
@@ -680,22 +670,22 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
-    // RÃ©cupÃ¨re les donnÃ©es du candidat
+    // Récupère les données du candidat
     const candidat = await candidatRepo.getById(id);
     if (!candidat) {
       return res.status(404).json({
         success: false,
-        error: 'Candidat non trouvÃ©'
+        error: 'Candidat non trouvé'
       });
     }
     
-    // RÃ©cupÃ¨re les donnÃ©es entreprise (peut Ãªtre null â†’ champs vides)
+    // Récupère les données entreprise (peut être null → champs vides)
     const entreprise = await entrepriseRepo.getByEtudiantId(id);
     if (!entreprise) {
-      logger.warn(`âš ï¸ Pas de fiche entreprise pour ${id} â€” CERFA gÃ©nÃ©rÃ© avec champs entreprise vides`);
+      logger.warn(`⚠️ Pas de fiche entreprise pour ${id} — CERFA généré avec champs entreprise vides`);
     }
     
-    // GÃ©nÃ¨re le CERFA (avec {} si pas d'entreprise)
+    // Génère le CERFA (avec {} si pas d'entreprise)
     const result = await cerfaService.generateCerfa(
       candidat.fields,
       entreprise?.fields || {}
@@ -704,13 +694,13 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
     if (!result.success || !result.pdfBuffer) {
       return res.status(500).json({
         success: false,
-        error: result.error || 'Erreur gÃ©nÃ©ration CERFA',
+        error: result.error || 'Erreur génération CERFA',
       });
     }
     
     // Upload vers Airtable dans la colonne "cerfa"
     const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
-    const prenom = (candidat.fields['PrÃ©nom'] || '').replace(/[^\w\d-]/g, '_');
+    const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
     const fileName = `CERFA_FA13_${nom}_${prenom}.pdf`;
     let uploadedToAirtable = false;
     let cerfaUrl: string | null = null;
@@ -724,29 +714,29 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
       uploadedToAirtable = await candidatRepo.uploadDocument(id, 'cerfa', tmpFilePath);
       
       if (uploadedToAirtable) {
-        logger.info(`âœ… CERFA uploadÃ© vers Airtable pour ${id}`);
-        // RÃ©cupÃ©rer l'URL du fichier uploadÃ©
+        logger.info(`✅ CERFA uploadé vers Airtable pour ${id}`);
+        // Récupérer l'URL du fichier uploadé
         try {
           const updatedRecord = await candidatRepo.getById(id);
           const cerfaData = updatedRecord?.fields?.['cerfa'] as any[] | undefined;
           cerfaUrl = cerfaData?.[0]?.url || null;
         } catch (e) {
-          // Pas grave si on n'arrive pas Ã  rÃ©cupÃ©rer l'URL
+          // Pas grave si on n'arrive pas à récupérer l'URL
         }
       } else {
-        logger.warn(`âš ï¸ Ã‰chec upload CERFA vers Airtable pour ${id}`);
+        logger.warn(`⚠️ Échec upload CERFA vers Airtable pour ${id}`);
       }
       
       // Nettoyer le fichier temporaire
       try { fs.unlinkSync(tmpFilePath); } catch (e) { /* ignore */ }
     } catch (uploadError: any) {
-      logger.warn(`âš ï¸ Erreur upload CERFA vers Airtable: ${uploadError.message}`);
+      logger.warn(`⚠️ Erreur upload CERFA vers Airtable: ${uploadError.message}`);
     }
     
-    // Retourne un JSON de succÃ¨s
+    // Retourne un JSON de succès
     res.json({
       success: true,
-      message: 'CERFA FA13 gÃ©nÃ©rÃ© avec succÃ¨s',
+      message: 'CERFA FA13 généré avec succès',
       data: {
         candidatId: id,
         fileName,
@@ -756,10 +746,10 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
     });
     
   } catch (error) {
-    logger.error('Erreur gÃ©nÃ©ration CERFA:', error);
+    logger.error('Erreur génération CERFA:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la gÃ©nÃ©ration du CERFA'
+      error: 'Erreur lors de la génération du CERFA'
     });
   }
 });
@@ -798,13 +788,13 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
     if (!candidat) {
       return res.status(404).json({
         success: false,
-        error: 'Candidat non trouvÃ©',
+        error: 'Candidat non trouvé',
       });
     }
 
     const entreprise = await entrepriseRepo.getByEtudiantId(id);
     if (!entreprise) {
-      logger.warn(`âš ï¸ Pas de fiche entreprise pour ${id} â€” convention gÃ©nÃ©rÃ©e avec champs entreprise partiellement vides`);
+      logger.warn(`⚠️ Pas de fiche entreprise pour ${id} — convention générée avec champs entreprise partiellement vides`);
     }
 
     const result = await conventionService.generateConvention(
@@ -815,12 +805,12 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
     if (!result.success || !result.pdfBuffer) {
       return res.status(500).json({
         success: false,
-        error: result.error || 'Erreur gÃ©nÃ©ration convention apprentissage',
+        error: result.error || 'Erreur génération convention apprentissage',
       });
     }
 
     const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
-    const prenom = (candidat.fields['PrÃ©nom'] || '').replace(/[^\w\d-]/g, '_');
+    const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
     const fileName = result.filename || `Convention_Apprentissage_${nom}_${prenom}.pdf`;
 
     let uploadedToAirtable = false;
@@ -838,7 +828,7 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
       }
 
       if (!uploadedToAirtable) {
-        logger.warn(`âš ï¸ Echec upload Convention apprentissage vers Airtable pour ${id}`);
+        logger.warn(`⚠️ Echec upload Convention apprentissage vers Airtable pour ${id}`);
         return res.status(500).json({
           success: false,
           error: "Convention generee mais non stockee dans Airtable",
@@ -853,16 +843,16 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
       conventionUrl = conventionData?.[0]?.url || null;
 
       if (!conventionUrl) {
-        logger.warn(`âš ï¸ Convention apprentissage introuvable dans Airtable apres upload pour ${id}`);
+        logger.warn(`⚠️ Convention apprentissage introuvable dans Airtable apres upload pour ${id}`);
         return res.status(500).json({
           success: false,
           error: "Convention generee mais non visible dans Airtable",
         });
       }
 
-      logger.info(`âœ… Convention apprentissage uploadÃ©e vers Airtable pour ${id}`);
+      logger.info(`✅ Convention apprentissage uploadée vers Airtable pour ${id}`);
     } catch (uploadError: any) {
-      logger.warn(`âš ï¸ Erreur upload Convention apprentissage vers Airtable: ${uploadError.message}`);
+      logger.warn(`⚠️ Erreur upload Convention apprentissage vers Airtable: ${uploadError.message}`);
       return res.status(500).json({
         success: false,
         error: "Erreur lors du stockage Airtable de la convention d'apprentissage",
@@ -877,7 +867,7 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
 
     res.json({
       success: true,
-      message: "Convention d'apprentissage gÃ©nÃ©rÃ©e avec succÃ¨s",
+      message: "Convention d'apprentissage générée avec succès",
       data: {
         candidatId: id,
         fileName,
@@ -887,10 +877,10 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
       },
     });
   } catch (error) {
-    logger.error("Erreur gÃ©nÃ©ration Convention d'apprentissage:", error);
+    logger.error("Erreur génération Convention d'apprentissage:", error);
     res.status(500).json({
       success: false,
-      error: "Erreur lors de la gÃ©nÃ©ration de la convention d'apprentissage",
+      error: "Erreur lors de la génération de la convention d'apprentissage",
     });
   }
 });
@@ -901,7 +891,7 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
  *   get:
  *     summary: Liste toutes les fiches entreprises
  *     tags: [Entreprises]
- *     description: RÃ©cupÃ¨re la liste de toutes les fiches entreprises depuis Airtable
+ *     description: Récupère la liste de toutes les fiches entreprises depuis Airtable
  *     responses:
  *       200:
  *         description: Liste des fiches entreprises
@@ -933,10 +923,10 @@ router.get('/entreprises', async (req: Request, res: Response) => {
       count: entreprises.length
     });
   } catch (error) {
-    logger.error('Erreur rÃ©cupÃ©ration entreprises:', error);
+    logger.error('Erreur récupération entreprises:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la rÃ©cupÃ©ration des entreprises'
+      error: 'Erreur lors de la récupération des entreprises'
     });
   }
 });
@@ -945,11 +935,11 @@ router.get('/entreprises', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/entreprises:
  *   post:
- *     summary: CrÃ©e une nouvelle fiche entreprise (champs bruts Airtable)
+ *     summary: Crée une nouvelle fiche entreprise (champs bruts Airtable)
  *     tags: [Entreprises]
  *     description: |
- *       CrÃ©e une nouvelle fiche entreprise en envoyant directement les champs Airtable bruts.
- *       Contrairement Ã  POST /api/admission/entreprise qui attend un objet structurÃ© (FicheRenseignementEntreprise),
+ *       Crée une nouvelle fiche entreprise en envoyant directement les champs Airtable bruts.
+ *       Contrairement à POST /api/admission/entreprise qui attend un objet structuré (FicheRenseignementEntreprise),
  *       cette route accepte un objet plat avec les noms de colonnes Airtable.
  *     requestBody:
  *       required: true
@@ -961,12 +951,12 @@ router.get('/entreprises', async (req: Request, res: Response) => {
  *             properties:
  *               recordIdetudiant:
  *                 type: string
- *                 description: ID Airtable du candidat liÃ©
+ *                 description: ID Airtable du candidat lié
  *                 example: rec1BBjsjxhdqEKuq
  *               Raison sociale:
  *                 type: string
  *                 example: ACME Corporation
- *               NumÃ©ro SIRET:
+ *               Numéro SIRET:
  *                 type: number
  *                 example: 12345678901234
  *               Code APE/NAF:
@@ -974,11 +964,11 @@ router.get('/entreprises', async (req: Request, res: Response) => {
  *                 example: 6201Z
  *               Type demployeur:
  *                 type: string
- *                 example: Entreprise privÃ©e
+ *                 example: Entreprise privée
  *               Convention collective:
  *                 type: string
  *                 example: SYNTEC
- *               NumÃ©ro entreprise:
+ *               Numéro entreprise:
  *                 type: string
  *                 example: '12'
  *               Voie entreprise:
@@ -990,21 +980,21 @@ router.get('/entreprises', async (req: Request, res: Response) => {
  *               Ville entreprise:
  *                 type: string
  *                 example: Paris
- *               TÃ©lÃ©phone entreprise:
+ *               Téléphone entreprise:
  *                 type: string
  *                 example: '0123456789'
  *               Email entreprise:
  *                 type: string
  *                 example: contact@acme.com
- *               Nom MaÃ®tre apprentissage:
+ *               Nom Maître apprentissage:
  *                 type: string
  *                 example: Dupont
- *               PrÃ©nom MaÃ®tre apprentissage:
+ *               Prénom Maître apprentissage:
  *                 type: string
  *                 example: Marie
  *     responses:
  *       201:
- *         description: Fiche entreprise crÃ©Ã©e avec succÃ¨s
+ *         description: Fiche entreprise créée avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -1016,7 +1006,7 @@ router.get('/entreprises', async (req: Request, res: Response) => {
  *                 data:
  *                   $ref: '#/components/schemas/Entreprise'
  *       400:
- *         description: DonnÃ©es entreprise manquantes
+ *         description: Données entreprise manquantes
  *         content:
  *           application/json:
  *             schema:
@@ -1027,7 +1017,7 @@ router.get('/entreprises', async (req: Request, res: Response) => {
  *                   example: false
  *                 error:
  *                   type: string
- *                   example: DonnÃ©es entreprise requises
+ *                   example: Données entreprise requises
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
@@ -1038,7 +1028,7 @@ router.post('/entreprises', async (req: Request, res: Response) => {
     if (!fields || Object.keys(fields).length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'DonnÃ©es entreprise requises'
+        error: 'Données entreprise requises'
       });
     }
     
@@ -1048,10 +1038,10 @@ router.post('/entreprises', async (req: Request, res: Response) => {
       data: entreprise
     });
   } catch (error) {
-    logger.error('Erreur crÃ©ation entreprise:', error);
+    logger.error('Erreur création entreprise:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la crÃ©ation de la fiche entreprise'
+      error: 'Erreur lors de la création de la fiche entreprise'
     });
   }
 });
@@ -1060,9 +1050,9 @@ router.post('/entreprises', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/entreprises/{id}:
  *   patch:
- *     summary: Met Ã  jour partiellement une fiche entreprise existante
+ *     summary: Met à jour partiellement une fiche entreprise existante
  *     tags: [Entreprises]
- *     description: Met Ã  jour partiellement une fiche de renseignement entreprise dans Airtable (seuls les champs fournis sont modifiÃ©s)
+ *     description: Met à jour partiellement une fiche de renseignement entreprise dans Airtable (seuls les champs fournis sont modifiés)
  *     parameters:
  *       - in: path
  *         name: id
@@ -1079,7 +1069,7 @@ router.post('/entreprises', async (req: Request, res: Response) => {
  *             $ref: '#/components/schemas/FicheRenseignementEntreprise'
  *     responses:
  *       200:
- *         description: Fiche entreprise mise Ã  jour avec succÃ¨s
+ *         description: Fiche entreprise mise à jour avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -1090,7 +1080,7 @@ router.post('/entreprises', async (req: Request, res: Response) => {
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: Fiche entreprise mise Ã  jour avec succÃ¨s
+ *                   example: Fiche entreprise mise à jour avec succès
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       404:
@@ -1106,7 +1096,7 @@ router.patch('/entreprises/:id', async (req: Request, res: Response) => {
     if (!fields || Object.keys(fields).length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'DonnÃ©es entreprise requises'
+        error: 'Données entreprise requises'
       });
     }
     
@@ -1122,26 +1112,19 @@ router.patch('/entreprises/:id', async (req: Request, res: Response) => {
       'validation'
     ].some((key) => Object.prototype.hasOwnProperty.call(fields, key));
 
-    const recordId = await resolveEntrepriseRecordId(id);
-    if (!recordId) {
-      return res.status(404).json({
-        success: false,
-        error: 'Fiche entreprise non trouvee'
-      });
-    }
     const success = hasStructuredKeys
-      ? await entrepriseRepo.update(recordId, fields)
-      : await entrepriseRepo.updateRawFields(recordId, fields);
+      ? await entrepriseRepo.update(id, fields)
+      : await entrepriseRepo.updateRawFields(id, fields);
     
     res.json({
       success: true,
-      message: 'Fiche entreprise mise Ã  jour avec succÃ¨s'
+      message: 'Fiche entreprise mise à jour avec succès'
     });
   } catch (error) {
-    logger.error('Erreur mise Ã  jour entreprise:', error);
+    logger.error('Erreur mise à jour entreprise:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la mise Ã  jour de la fiche entreprise'
+      error: 'Erreur lors de la mise à jour de la fiche entreprise'
     });
   }
 });
@@ -1163,7 +1146,7 @@ router.patch('/entreprises/:id', async (req: Request, res: Response) => {
  *         example: recABCDEFGHIJKL
  *     responses:
  *       200:
- *         description: Fiche entreprise supprimÃ©e avec succÃ¨s
+ *         description: Fiche entreprise supprimée avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -1174,7 +1157,7 @@ router.patch('/entreprises/:id', async (req: Request, res: Response) => {
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: Fiche entreprise supprimÃ©e avec succÃ¨s
+ *                   example: Fiche entreprise supprimée avec succès
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       500:
@@ -1183,25 +1166,18 @@ router.patch('/entreprises/:id', async (req: Request, res: Response) => {
 router.delete('/entreprises/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const recordId = await resolveEntrepriseRecordId(id);
-    if (!recordId) {
-      return res.status(404).json({
-        success: false,
-        error: 'Fiche entreprise non trouvee'
-      });
-    }
-    const success = await entrepriseRepo.delete(recordId);
+    const success = await entrepriseRepo.delete(id);
     
     if (!success) {
       return res.status(404).json({
         success: false,
-        error: 'Fiche entreprise non trouvÃ©e'
+        error: 'Fiche entreprise non trouvée'
       });
     }
     
     res.json({
       success: true,
-      message: 'Fiche entreprise supprimÃ©e avec succÃ¨s'
+      message: 'Fiche entreprise supprimée avec succès'
     });
   } catch (error) {
     logger.error('Erreur suppression entreprise:', error);
@@ -1220,9 +1196,9 @@ router.delete('/entreprises/:id', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/candidates:
  *   post:
- *     summary: CrÃ©e un nouveau candidat avec informations personnelles
+ *     summary: Crée un nouveau candidat avec informations personnelles
  *     tags: [Candidats]
- *     description: CrÃ©e un nouveau candidat avec toutes ses informations personnelles
+ *     description: Crée un nouveau candidat avec toutes ses informations personnelles
  *     requestBody:
  *       required: true
  *       content:
@@ -1234,7 +1210,7 @@ router.delete('/entreprises/:id', async (req: Request, res: Response) => {
  *             nom_naissance: Dupont
  *             sexe: Masculin
  *             date_naissance: "2004-03-15"
- *             nationalite: FranÃ§aise
+ *             nationalite: Française
  *             commune_naissance: Paris
  *             departement: Paris
  *             adresse_residence: "12 Rue de la Paix"
@@ -1242,12 +1218,12 @@ router.delete('/entreprises/:id', async (req: Request, res: Response) => {
  *             ville: Paris
  *             email: jean.dupont@example.com
  *             telephone: "0601020304"
- *             bac: "GÃ©nÃ©ral"
+ *             bac: "Général"
  *             utilisateur: "agent.admission"
  *             validation: "En attente"
  *     responses:
  *       200:
- *         description: Candidat crÃ©Ã© avec succÃ¨s
+ *         description: Candidat créé avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -1265,11 +1241,11 @@ router.post('/candidates', async (req: Request, res: Response) => {
     
     res.json(result);
   } catch (error) {
-    logger.error('âŒ ERREUR crÃ©ation candidat:', error);
-    console.error('âŒ Traceback:', error);
+    logger.error('❌ ERREUR création candidat:', error);
+    console.error('❌ Traceback:', error);
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Erreur lors de la crÃ©ation du candidat'
+      error: error instanceof Error ? error.message : 'Erreur lors de la création du candidat'
     });
   }
 });
@@ -1278,9 +1254,9 @@ router.post('/candidates', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/candidates/{recordId}:
  *   patch:
- *     summary: Met Ã  jour partiellement les informations personnelles d'un candidat
+ *     summary: Met à jour partiellement les informations personnelles d'un candidat
  *     tags: [Candidats]
- *     description: Met Ã  jour partiellement les informations personnelles d'un candidat existant (seuls les champs fournis sont modifiÃ©s)
+ *     description: Met à jour partiellement les informations personnelles d'un candidat existant (seuls les champs fournis sont modifiés)
  *     parameters:
  *       - in: path
  *         name: recordId
@@ -1296,13 +1272,13 @@ router.post('/candidates', async (req: Request, res: Response) => {
  *             $ref: '#/components/schemas/InformationsPersonnelles'
  *     responses:
  *       200:
- *         description: Informations mises Ã  jour avec succÃ¨s
+ *         description: Informations mises à jour avec succès
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/InformationsPersonnellesResponse'
  *       404:
- *         description: Candidat non trouvÃ©
+ *         description: Candidat non trouvé
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
@@ -1317,14 +1293,14 @@ router.patch('/candidates/:recordId', async (req: Request, res: Response) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
     
-    if (errorMessage.includes('non trouvÃ©')) {
+    if (errorMessage.includes('non trouvé')) {
       return res.status(404).json({
         success: false,
         error: errorMessage
       });
     }
     
-    logger.error('âŒ ERREUR mise Ã  jour candidat:', error);
+    logger.error('❌ ERREUR mise à jour candidat:', error);
     res.status(500).json({
       success: false,
       error: errorMessage
@@ -1336,9 +1312,9 @@ router.patch('/candidates/:recordId', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/candidates/{recordId}:
  *   get:
- *     summary: RÃ©cupÃ¨re le profil complet d'un candidat
+ *     summary: Récupère le profil complet d'un candidat
  *     tags: [Candidats]
- *     description: RÃ©cupÃ¨re le profil complet d'un candidat (informations + documents)
+ *     description: Récupère le profil complet d'un candidat (informations + documents)
  *     parameters:
  *       - in: path
  *         name: recordId
@@ -1348,13 +1324,13 @@ router.patch('/candidates/:recordId', async (req: Request, res: Response) => {
  *         description: ID du candidat dans Airtable
  *     responses:
  *       200:
- *         description: Profil du candidat rÃ©cupÃ©rÃ© avec succÃ¨s
+ *         description: Profil du candidat récupéré avec succès
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/CandidateProfile'
  *       404:
- *         description: Candidat non trouvÃ©
+ *         description: Candidat non trouvé
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
@@ -1367,16 +1343,16 @@ router.get('/candidates/:recordId', async (req: Request, res: Response) => {
     if (!profile) {
       return res.status(404).json({
         success: false,
-        error: 'Candidat non trouvÃ©'
+        error: 'Candidat non trouvé'
       });
     }
     
     res.json(profile);
   } catch (error) {
-    logger.error('âŒ ERREUR rÃ©cupÃ©ration profil candidat:', error);
+    logger.error('❌ ERREUR récupération profil candidat:', error);
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Erreur lors de la rÃ©cupÃ©ration du profil'
+      error: error instanceof Error ? error.message : 'Erreur lors de la récupération du profil'
     });
   }
 });
@@ -1385,9 +1361,9 @@ router.get('/candidates/:recordId', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/candidates/{recordId}:
  *   delete:
- *     summary: Supprime complÃ¨tement une candidature
+ *     summary: Supprime complètement une candidature
  *     tags: [Candidats]
- *     description: Supprime complÃ¨tement une candidature (Airtable + fichiers locaux)
+ *     description: Supprime complètement une candidature (Airtable + fichiers locaux)
  *     parameters:
  *       - in: path
  *         name: recordId
@@ -1397,7 +1373,7 @@ router.get('/candidates/:recordId', async (req: Request, res: Response) => {
  *         description: ID du candidat dans Airtable
  *     responses:
  *       200:
- *         description: Candidature supprimÃ©e avec succÃ¨s
+ *         description: Candidature supprimée avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -1413,7 +1389,7 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
     
     res.json(result);
   } catch (error) {
-    logger.error('âŒ ERREUR suppression candidat:', error);
+    logger.error('❌ ERREUR suppression candidat:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Erreur lors de la suppression'
@@ -1422,21 +1398,21 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
 });
 
 // =====================================================
-// ROUTES ENTREPRISE - CRÃ‰ATION
+// ROUTES ENTREPRISE - CRÉATION
 // =====================================================
 
 /**
  * @swagger
  * /api/admission/entreprise:
  *   post:
- *     summary: CrÃ©e une fiche de renseignement entreprise structurÃ©e
+ *     summary: Crée une fiche de renseignement entreprise structurée
  *     tags: [Entreprises]
  *     description: |
- *       CrÃ©e une nouvelle fiche de renseignement entreprise complÃ¨te dans Airtable.
- *       Le body est un objet structurÃ© en sections (identification, adresse, maÃ®tre d'apprentissage,
- *       OPCO, contrat avec rÃ©munÃ©ration/pÃ©riodes, formation et missions, CFA).
- *       Les champs sont automatiquement mappÃ©s vers les colonnes Airtable correspondantes.
- *       Un mÃ©canisme de retry (3 tentatives) est inclus pour les erreurs rÃ©seau.
+ *       Crée une nouvelle fiche de renseignement entreprise complète dans Airtable.
+ *       Le body est un objet structuré en sections (identification, adresse, maître d'apprentissage,
+ *       OPCO, contrat avec rémunération/périodes, formation et missions, CFA).
+ *       Les champs sont automatiquement mappés vers les colonnes Airtable correspondantes.
+ *       Un mécanisme de retry (3 tentatives) est inclus pour les erreurs réseau.
  *     requestBody:
  *       required: true
  *       content:
@@ -1448,13 +1424,13 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
  *               raison_sociale: ACME Corporation
  *               siret: 12345678901234
  *               code_ape_naf: 6201Z
- *               type_employeur: Entreprise privÃ©e
+ *               type_employeur: Entreprise privée
  *               nombre_salaries: 50
  *               convention_collective: SYNTEC
  *             adresse:
  *               numero: '12'
  *               voie: Rue de la Paix
- *               complement: BÃ¢timent A
+ *               complement: Bâtiment A
  *               code_postal: 75001
  *               ville: Paris
  *               telephone: '0123456789'
@@ -1492,12 +1468,12 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
  *               code_diplome: '54'
  *               nombre_heures_formation: 675
  *               jours_de_cours: 2
- *               missions: Gestion clientÃ¨le et dÃ©veloppement commercial
+ *               missions: Gestion clientèle et développement commercial
  *               cfaEnterprise: false
  *             record_id_etudiant: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
- *         description: Fiche entreprise crÃ©Ã©e avec succÃ¨s
+ *         description: Fiche entreprise créée avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -1505,13 +1481,13 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Fiche entreprise crÃ©Ã©e avec succÃ¨s
+ *                   example: Fiche entreprise créée avec succès
  *                 record_id:
  *                   type: string
- *                   description: ID Airtable de la fiche crÃ©Ã©e
+ *                   description: ID Airtable de la fiche créée
  *                   example: recXXXXXXXXXXXXXX
  *       400:
- *         description: DonnÃ©es invalides ou manquantes
+ *         description: Données invalides ou manquantes
  *         content:
  *           application/json:
  *             schema:
@@ -1522,9 +1498,9 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
  *                   example: false
  *                 error:
  *                   type: string
- *                   example: DonnÃ©es invalides
+ *                   example: Données invalides
  *       500:
- *         description: Erreur serveur (incluant les erreurs Airtable aprÃ¨s 3 tentatives)
+ *         description: Erreur serveur (incluant les erreurs Airtable après 3 tentatives)
  *         content:
  *           application/json:
  *             schema:
@@ -1535,28 +1511,28 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
  *                   example: false
  *                 error:
  *                   type: string
- *                   example: Erreur lors de la crÃ©ation de la fiche entreprise
+ *                   example: Erreur lors de la création de la fiche entreprise
  */
 router.post('/entreprise', async (req: Request, res: Response) => {
   try {
     const ficheData = req.body;
     
-    logger.info(`ðŸ“ CrÃ©ation entreprise - DonnÃ©es reÃ§ues: ${ficheData.identification?.raison_sociale || 'N/A'}`);
+    logger.info(`📝 Création entreprise - Données reçues: ${ficheData.identification?.raison_sociale || 'N/A'}`);
     
     const recordId = await entrepriseRepo.createFicheEntreprise(ficheData);
     
-    logger.info(`âœ… Entreprise crÃ©Ã©e avec ID: ${recordId}`);
+    logger.info(`✅ Entreprise créée avec ID: ${recordId}`);
     
     res.json({
-      message: 'Fiche entreprise crÃ©Ã©e avec succÃ¨s',
+      message: 'Fiche entreprise créée avec succès',
       record_id: recordId
     });
   } catch (error) {
-    logger.error('âŒ ERREUR crÃ©ation entreprise:', error);
-    console.error('âŒ Traceback:', error);
+    logger.error('❌ ERREUR création entreprise:', error);
+    console.error('❌ Traceback:', error);
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Erreur lors de la crÃ©ation de la fiche entreprise'
+      error: error instanceof Error ? error.message : 'Erreur lors de la création de la fiche entreprise'
     });
   }
 });
@@ -1589,10 +1565,10 @@ router.post('/entreprise', async (req: Request, res: Response) => {
  *               file:
  *                 type: string
  *                 format: binary
- *                 description: Le fichier CV Ã  uploader (pdf, doc, docx, jpg, jpeg, png)
+ *                 description: Le fichier CV à uploader (pdf, doc, docx, jpg, jpeg, png)
  *     responses:
  *       200:
- *         description: CV uploadÃ© avec succÃ¨s
+ *         description: CV uploadé avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -1600,11 +1576,11 @@ router.post('/entreprise', async (req: Request, res: Response) => {
  *       400:
  *         description: Aucun fichier fourni
  *       404:
- *         description: Candidat non trouvÃ©
+ *         description: Candidat non trouvé
  *       413:
  *         description: Fichier trop volumineux
  *       422:
- *         description: Type de fichier non autorisÃ©
+ *         description: Type de fichier non autorisé
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
@@ -1616,10 +1592,10 @@ router.post('/candidates/:record_id/documents/cv', upload.single('file'), async 
     const result = await admissionService.uploadCV(req.params.record_id, req.file);
     res.json(result);
   } catch (error: any) {
-    logger.error('âŒ Erreur upload CV:', error);
-    const status = error.message?.includes('non trouvÃ©') ? 404
+    logger.error('❌ Erreur upload CV:', error);
+    const status = error.message?.includes('non trouvé') ? 404
       : error.message?.includes('trop volumineux') ? 413
-      : error.message?.includes('non autorisÃ©') ? 422 : 500;
+      : error.message?.includes('non autorisé') ? 422 : 500;
     res.status(status).json({ success: false, error: error.message });
   }
 });
@@ -1628,9 +1604,9 @@ router.post('/candidates/:record_id/documents/cv', upload.single('file'), async 
  * @swagger
  * /api/admission/candidates/{record_id}/documents/cin:
  *   post:
- *     summary: Upload d'une carte d'identitÃ©
+ *     summary: Upload d'une carte d'identité
  *     tags: [Documents]
- *     description: Upload un fichier carte d'identitÃ© pour un candidat
+ *     description: Upload un fichier carte d'identité pour un candidat
  *     parameters:
  *       - in: path
  *         name: record_id
@@ -1649,7 +1625,7 @@ router.post('/candidates/:record_id/documents/cv', upload.single('file'), async 
  *                 format: binary
  *     responses:
  *       200:
- *         description: CIN uploadÃ©e avec succÃ¨s
+ *         description: CIN uploadée avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -1657,7 +1633,7 @@ router.post('/candidates/:record_id/documents/cv', upload.single('file'), async 
  *       400:
  *         description: Aucun fichier fourni
  *       404:
- *         description: Candidat non trouvÃ©
+ *         description: Candidat non trouvé
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
@@ -1669,10 +1645,10 @@ router.post('/candidates/:record_id/documents/cin', upload.single('file'), async
     const result = await admissionService.uploadCIN(req.params.record_id, req.file);
     res.json(result);
   } catch (error: any) {
-    logger.error('âŒ Erreur upload CIN:', error);
-    const status = error.message?.includes('non trouvÃ©') ? 404
+    logger.error('❌ Erreur upload CIN:', error);
+    const status = error.message?.includes('non trouvé') ? 404
       : error.message?.includes('trop volumineux') ? 413
-      : error.message?.includes('non autorisÃ©') ? 422 : 500;
+      : error.message?.includes('non autorisé') ? 422 : 500;
     res.status(status).json({ success: false, error: error.message });
   }
 });
@@ -1702,7 +1678,7 @@ router.post('/candidates/:record_id/documents/cin', upload.single('file'), async
  *                 format: binary
  *     responses:
  *       200:
- *         description: Lettre de motivation uploadÃ©e avec succÃ¨s
+ *         description: Lettre de motivation uploadée avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -1710,7 +1686,7 @@ router.post('/candidates/:record_id/documents/cin', upload.single('file'), async
  *       400:
  *         description: Aucun fichier fourni
  *       404:
- *         description: Candidat non trouvÃ©
+ *         description: Candidat non trouvé
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
@@ -1722,10 +1698,10 @@ router.post('/candidates/:record_id/documents/lettre-motivation', upload.single(
     const result = await admissionService.uploadLettreMotivation(req.params.record_id, req.file);
     res.json(result);
   } catch (error: any) {
-    logger.error('âŒ Erreur upload lettre motivation:', error);
-    const status = error.message?.includes('non trouvÃ©') ? 404
+    logger.error('❌ Erreur upload lettre motivation:', error);
+    const status = error.message?.includes('non trouvé') ? 404
       : error.message?.includes('trop volumineux') ? 413
-      : error.message?.includes('non autorisÃ©') ? 422 : 500;
+      : error.message?.includes('non autorisé') ? 422 : 500;
     res.status(status).json({ success: false, error: error.message });
   }
 });
@@ -1755,7 +1731,7 @@ router.post('/candidates/:record_id/documents/lettre-motivation', upload.single(
  *                 format: binary
  *     responses:
  *       200:
- *         description: Carte vitale uploadÃ©e avec succÃ¨s
+ *         description: Carte vitale uploadée avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -1763,7 +1739,7 @@ router.post('/candidates/:record_id/documents/lettre-motivation', upload.single(
  *       400:
  *         description: Aucun fichier fourni
  *       404:
- *         description: Candidat non trouvÃ©
+ *         description: Candidat non trouvé
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
@@ -1775,10 +1751,10 @@ router.post('/candidates/:record_id/documents/carte-vitale', upload.single('file
     const result = await admissionService.uploadCarteVitale(req.params.record_id, req.file);
     res.json(result);
   } catch (error: any) {
-    logger.error('âŒ Erreur upload carte vitale:', error);
-    const status = error.message?.includes('non trouvÃ©') ? 404
+    logger.error('❌ Erreur upload carte vitale:', error);
+    const status = error.message?.includes('non trouvé') ? 404
       : error.message?.includes('trop volumineux') ? 413
-      : error.message?.includes('non autorisÃ©') ? 422 : 500;
+      : error.message?.includes('non autorisé') ? 422 : 500;
     res.status(status).json({ success: false, error: error.message });
   }
 });
@@ -1787,9 +1763,9 @@ router.post('/candidates/:record_id/documents/carte-vitale', upload.single('file
  * @swagger
  * /api/admission/candidates/{record_id}/documents/dernier-diplome:
  *   post:
- *     summary: Upload d'un dernier diplÃ´me
+ *     summary: Upload d'un dernier diplôme
  *     tags: [Documents]
- *     description: Upload un fichier dernier diplÃ´me pour un candidat
+ *     description: Upload un fichier dernier diplôme pour un candidat
  *     parameters:
  *       - in: path
  *         name: record_id
@@ -1808,7 +1784,7 @@ router.post('/candidates/:record_id/documents/carte-vitale', upload.single('file
  *                 format: binary
  *     responses:
  *       200:
- *         description: Dernier diplÃ´me uploadÃ© avec succÃ¨s
+ *         description: Dernier diplôme uploadé avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -1816,7 +1792,7 @@ router.post('/candidates/:record_id/documents/carte-vitale', upload.single('file
  *       400:
  *         description: Aucun fichier fourni
  *       404:
- *         description: Candidat non trouvÃ©
+ *         description: Candidat non trouvé
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
@@ -1828,10 +1804,10 @@ router.post('/candidates/:record_id/documents/dernier-diplome', upload.single('f
     const result = await admissionService.uploadDernierDiplome(req.params.record_id, req.file);
     res.json(result);
   } catch (error: any) {
-    logger.error('âŒ Erreur upload dernier diplÃ´me:', error);
-    const status = error.message?.includes('non trouvÃ©') ? 404
+    logger.error('❌ Erreur upload dernier diplôme:', error);
+    const status = error.message?.includes('non trouvé') ? 404
       : error.message?.includes('trop volumineux') ? 413
-      : error.message?.includes('non autorisÃ©') ? 422 : 500;
+      : error.message?.includes('non autorisé') ? 422 : 500;
     res.status(status).json({ success: false, error: error.message });
   }
 });
@@ -1844,12 +1820,12 @@ router.post('/candidates/:record_id/documents/dernier-diplome', upload.single('f
  * @swagger
  * /api/admission/candidats/{id}/atre:
  *   post:
- *     summary: GÃ©nÃ¨re la fiche de dÃ©tection ATRE
+ *     summary: Génère la fiche de détection ATRE
  *     tags: [PDF]
  *     description: |
- *       GÃ©nÃ¨re la fiche de dÃ©tection pour l'ATRE Ã  partir des donnÃ©es Airtable
- *       du candidat identifiÃ© par son record ID, puis uploade le PDF
- *       dans la colonne Â« Atre Â» de l'enregistrement.
+ *       Génère la fiche de détection pour l'ATRE à partir des données Airtable
+ *       du candidat identifié par son record ID, puis uploade le PDF
+ *       dans la colonne « Atre » de l'enregistrement.
  *     parameters:
  *       - in: path
  *         name: id
@@ -1860,7 +1836,7 @@ router.post('/candidates/:record_id/documents/dernier-diplome', upload.single('f
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
- *         description: Fiche ATRE gÃ©nÃ©rÃ©e et uploadÃ©e avec succÃ¨s
+ *         description: Fiche ATRE générée et uploadée avec succès
  *         content:
  *           application/pdf:
  *             schema:
@@ -1875,18 +1851,18 @@ router.post('/candidats/:id/atre', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // GÃ©nÃ¨re et upload la fiche ATRE
+    // Génère et upload la fiche ATRE
     const result = await atreService.generateAndUpload(id);
 
     if (!result.success || !result.pdfBuffer) {
-      const status = result.error?.includes('non trouvÃ©') ? 404 : 500;
+      const status = result.error?.includes('non trouvé') ? 404 : 500;
       return res.status(status).json({
         success: false,
-        error: result.error || 'Erreur gÃ©nÃ©ration fiche ATRE',
+        error: result.error || 'Erreur génération fiche ATRE',
       });
     }
 
-    // Envoie le PDF en rÃ©ponse
+    // Envoie le PDF en réponse
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
@@ -1894,10 +1870,10 @@ router.post('/candidats/:id/atre', async (req: Request, res: Response) => {
     );
     res.send(result.pdfBuffer);
   } catch (error) {
-    logger.error('Erreur gÃ©nÃ©ration fiche ATRE:', error);
+    logger.error('Erreur génération fiche ATRE:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la gÃ©nÃ©ration de la fiche ATRE',
+      error: 'Erreur lors de la génération de la fiche ATRE',
     });
   }
 });
@@ -1910,12 +1886,12 @@ router.post('/candidats/:id/atre', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/candidats/{id}/compte-rendu:
  *   post:
- *     summary: GÃ©nÃ¨re le Compte Rendu de Visite Entretien
+ *     summary: Génère le Compte Rendu de Visite Entretien
  *     tags: [PDF]
  *     description: |
- *       GÃ©nÃ¨re le compte rendu de visite entretien Ã  partir des donnÃ©es Airtable
- *       du candidat identifiÃ© par son record ID, puis uploade le PDF
- *       dans la colonne Â« Compte rendu de visite Â» de l'enregistrement.
+ *       Génère le compte rendu de visite entretien à partir des données Airtable
+ *       du candidat identifié par son record ID, puis uploade le PDF
+ *       dans la colonne « Compte rendu de visite » de l'enregistrement.
  *     parameters:
  *       - in: path
  *         name: id
@@ -1926,7 +1902,7 @@ router.post('/candidats/:id/atre', async (req: Request, res: Response) => {
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
- *         description: Compte rendu gÃ©nÃ©rÃ© et uploadÃ© avec succÃ¨s
+ *         description: Compte rendu généré et uploadé avec succès
  *         content:
  *           application/pdf:
  *             schema:
@@ -1941,18 +1917,18 @@ router.post('/candidats/:id/compte-rendu', async (req: Request, res: Response) =
   try {
     const { id } = req.params;
 
-    // GÃ©nÃ¨re et upload le compte rendu
+    // Génère et upload le compte rendu
     const result = await compteRenduService.generateAndUpload(id);
 
     if (!result.success || !result.pdfBuffer) {
-      const status = result.error?.includes('non trouvÃ©') ? 404 : 500;
+      const status = result.error?.includes('non trouvé') ? 404 : 500;
       return res.status(status).json({
         success: false,
-        error: result.error || 'Erreur gÃ©nÃ©ration Compte Rendu',
+        error: result.error || 'Erreur génération Compte Rendu',
       });
     }
 
-    // Envoie le PDF en rÃ©ponse
+    // Envoie le PDF en réponse
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
@@ -1960,10 +1936,10 @@ router.post('/candidats/:id/compte-rendu', async (req: Request, res: Response) =
     );
     res.send(result.pdfBuffer);
   } catch (error) {
-    logger.error('Erreur gÃ©nÃ©ration Compte Rendu:', error);
+    logger.error('Erreur génération Compte Rendu:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la gÃ©nÃ©ration du Compte Rendu',
+      error: 'Erreur lors de la génération du Compte Rendu',
     });
   }
 });
@@ -1972,7 +1948,7 @@ router.post('/candidats/:id/compte-rendu', async (req: Request, res: Response) =
  * @swagger
  * /api/admission/candidats/{id}/reglement-interieur:
  *   post:
- *     summary: GÃ©nÃ¨re le RÃ¨glement IntÃ©rieur pour un candidat
+ *     summary: Génère le Règlement Intérieur pour un candidat
  *     tags: [Admission]
  *     parameters:
  *       - in: path
@@ -1983,7 +1959,7 @@ router.post('/candidats/:id/compte-rendu', async (req: Request, res: Response) =
  *         description: ID Airtable du candidat
  *     responses:
  *       200:
- *         description: PDF gÃ©nÃ©rÃ© avec succÃ¨s
+ *         description: PDF généré avec succès
  *         content:
  *           application/pdf:
  *             schema:
@@ -1998,18 +1974,18 @@ router.post('/candidats/:id/reglement-interieur', async (req: Request, res: Resp
   try {
     const { id } = req.params;
 
-    // GÃ©nÃ¨re et upload le rÃ¨glement intÃ©rieur
+    // Génère et upload le règlement intérieur
     const result = await reglementService.generateAndUpload(id);
 
     if (!result.success || !result.pdfBuffer) {
-      const status = result.error?.includes('non trouvÃ©') ? 404 : 500;
+      const status = result.error?.includes('non trouvé') ? 404 : 500;
       return res.status(status).json({
         success: false,
-        error: result.error || 'Erreur gÃ©nÃ©ration RÃ¨glement IntÃ©rieur',
+        error: result.error || 'Erreur génération Règlement Intérieur',
       });
     }
 
-    // Envoie le PDF en rÃ©ponse
+    // Envoie le PDF en réponse
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
@@ -2017,10 +1993,10 @@ router.post('/candidats/:id/reglement-interieur', async (req: Request, res: Resp
     );
     res.send(result.pdfBuffer);
   } catch (error) {
-    logger.error('Erreur gÃ©nÃ©ration RÃ¨glement IntÃ©rieur:', error);
+    logger.error('Erreur génération Règlement Intérieur:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la gÃ©nÃ©ration du RÃ¨glement IntÃ©rieur',
+      error: 'Erreur lors de la génération du Règlement Intérieur',
     });
   }
 });
@@ -2033,26 +2009,26 @@ router.post('/candidats/:id/reglement-interieur', async (req: Request, res: Resp
  * @swagger
  * /api/admission/candidats/{id}/livret-apprentissage:
  *   post:
- *     summary: GÃ©nÃ¨re le livret d'apprentissage selon la formation de l'Ã©tudiant
+ *     summary: Génère le livret d'apprentissage selon la formation de l'étudiant
  *     tags: [Candidats]
  *     description: |
- *       DÃ©tecte la formation de l'Ã©tudiant et sÃ©lectionne le bon template PDF :
- *       - Formation contient **MCO** â†’ Livret d'Apprentissage MCO
- *       - Formation contient **Bachelor** â†’ Livret d'Apprentissage Bachelor
- *       - Formation contient **NDRC** â†’ Livret d'apprentissage NDRC
- *       - Formation contient **TP NTC** â†’ Livret d'Apprentissage TP NTC
+ *       Détecte la formation de l'étudiant et sélectionne le bon template PDF :
+ *       - Formation contient **MCO** → Livret d'Apprentissage MCO
+ *       - Formation contient **Bachelor** → Livret d'Apprentissage Bachelor
+ *       - Formation contient **NDRC** → Livret d'apprentissage NDRC
+ *       - Formation contient **TP NTC** → Livret d'Apprentissage TP NTC
  *       
- *       Le PDF est ensuite uploadÃ© sur Airtable dans la colonne "livret dapprentissage".
+ *       Le PDF est ensuite uploadé sur Airtable dans la colonne "livret dapprentissage".
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable de l'Ã©tudiant (ex recXXXXXXXXXXXXXX)
+ *         description: ID Airtable de l'étudiant (ex recXXXXXXXXXXXXXX)
  *     responses:
  *       200:
- *         description: Livret d'apprentissage gÃ©nÃ©rÃ© et uploadÃ© avec succÃ¨s
+ *         description: Livret d'apprentissage généré et uploadé avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -2063,7 +2039,7 @@ router.post('/candidats/:id/reglement-interieur', async (req: Request, res: Resp
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Livret d'apprentissage gÃ©nÃ©rÃ© et uploadÃ© avec succÃ¨s"
+ *                   example: "Livret d'apprentissage généré et uploadé avec succès"
  *                 data:
  *                   type: object
  *                   properties:
@@ -2077,9 +2053,9 @@ router.post('/candidats/:id/reglement-interieur', async (req: Request, res: Resp
  *                       type: string
  *                       example: "Livret_Apprentissage_MCO_DUPONT_Jean.pdf"
  *       400:
- *         description: Formation non trouvÃ©e ou non supportÃ©e
+ *         description: Formation non trouvée ou non supportée
  *       404:
- *         description: Candidat non trouvÃ©
+ *         description: Candidat non trouvé
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
@@ -2091,7 +2067,7 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
     const result = await livretService.generateAndUpload(id);
 
     if (!result.success) {
-      const statusCode = result.error?.includes('non trouvÃ©') ? 404 : 400;
+      const statusCode = result.error?.includes('non trouvé') ? 404 : 400;
       return res.status(statusCode).json({
         success: false,
         error: result.error,
@@ -2100,7 +2076,7 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
 
     res.json({
       success: true,
-      message: "Livret d'apprentissage gÃ©nÃ©rÃ© et uploadÃ© avec succÃ¨s",
+      message: "Livret d'apprentissage généré et uploadé avec succès",
       data: {
         formation: result.formation,
         templateUsed: result.templateUsed,
@@ -2108,10 +2084,10 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
       },
     });
   } catch (error) {
-    logger.error("Erreur gÃ©nÃ©ration Livret d'Apprentissage:", error);
+    logger.error("Erreur génération Livret d'Apprentissage:", error);
     res.status(500).json({
       success: false,
-      error: "Erreur lors de la gÃ©nÃ©ration du Livret d'Apprentissage",
+      error: "Erreur lors de la génération du Livret d'Apprentissage",
     });
   }
 });
@@ -2123,7 +2099,7 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
  *     summary: Upload un PDF de suivi d'entretien et l'enregistre dans la table "Resultat entretien"
  *     tags: [Candidats]
  *     description: >
- *       ReÃ§oit un fichier PDF et un email, upload le PDF et crÃ©e un enregistrement
+ *       Reçoit un fichier PDF et un email, upload le PDF et crée un enregistrement
  *       dans la table Airtable "Resultat entretien" avec les colonnes "E-mail" et "Suivie entretien".
  *     requestBody:
  *       required: true
@@ -2138,7 +2114,7 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
  *               email:
  *                 type: string
  *                 format: email
- *                 description: Adresse email associÃ©e au suivi d'entretien
+ *                 description: Adresse email associée au suivi d'entretien
  *                 example: "etudiant@example.com"
  *               file:
  *                 type: string
@@ -2146,7 +2122,7 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
  *                 description: Fichier PDF du suivi d'entretien
  *     responses:
  *       201:
- *         description: Suivi d'entretien enregistrÃ© avec succÃ¨s dans Airtable
+ *         description: Suivi d'entretien enregistré avec succès dans Airtable
  *         content:
  *           application/json:
  *             schema:
@@ -2157,7 +2133,7 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Suivi d'entretien enregistrÃ© avec succÃ¨s"
+ *                   example: "Suivi d'entretien enregistré avec succès"
  *                 data:
  *                   type: object
  *                   properties:
@@ -2179,7 +2155,7 @@ router.post('/suivie-entretien', upload.single('file'), async (req: Request, res
   try {
     const { email } = req.body;
 
-    // VÃ©rifier l'email
+    // Vérifier l'email
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return res.status(400).json({
         success: false,
@@ -2187,7 +2163,7 @@ router.post('/suivie-entretien', upload.single('file'), async (req: Request, res
       });
     }
 
-    // VÃ©rifier le fichier
+    // Vérifier le fichier
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -2195,9 +2171,9 @@ router.post('/suivie-entretien', upload.single('file'), async (req: Request, res
       });
     }
 
-    logger.info(`[Route] POST /suivie-entretien â€” email: ${email}, fichier: ${req.file.originalname}`);
+    logger.info(`[Route] POST /suivie-entretien — email: ${email}, fichier: ${req.file.originalname}`);
 
-    // Ã‰criture temporaire du buffer sur disque
+    // Écriture temporaire du buffer sur disque
     const tmpPath = path.join(os.tmpdir(), `suivie_entretien_${Date.now()}_${req.file.originalname}`);
     fs.writeFileSync(tmpPath, req.file.buffer);
 
@@ -2206,7 +2182,7 @@ router.post('/suivie-entretien', upload.single('file'), async (req: Request, res
 
       return res.status(201).json({
         success: true,
-        message: "Suivi d'entretien enregistrÃ© avec succÃ¨s",
+        message: "Suivi d'entretien enregistré avec succès",
         data: {
           record_id: result.id,
           email,
@@ -2229,11 +2205,11 @@ router.post('/suivie-entretien', upload.single('file'), async (req: Request, res
  * @swagger
  * /api/admission/resultats-pdf:
  *   post:
- *     summary: Envoie un PDF rÃ©sultat et l'enregistre dans la table "RÃ©sultats PDF"
+ *     summary: Envoie un PDF résultat et l'enregistre dans la table "Résultats PDF"
  *     tags: [Candidats]
  *     description: >
- *       ReÃ§oit un fichier PDF et un email, upload le PDF et crÃ©e un enregistrement
- *       dans la table Airtable "RÃ©sultats PDF" avec les colonnes "E-mail" et "PDF RÃ©sultat".
+ *       Reçoit un fichier PDF et un email, upload le PDF et crée un enregistrement
+ *       dans la table Airtable "Résultats PDF" avec les colonnes "E-mail" et "PDF Résultat".
  *     requestBody:
  *       required: true
  *       content:
@@ -2247,15 +2223,15 @@ router.post('/suivie-entretien', upload.single('file'), async (req: Request, res
  *               email:
  *                 type: string
  *                 format: email
- *                 description: Adresse email associÃ©e au rÃ©sultat
+ *                 description: Adresse email associée au résultat
  *                 example: "etudiant@example.com"
  *               file:
  *                 type: string
  *                 format: binary
- *                 description: Fichier PDF du rÃ©sultat
+ *                 description: Fichier PDF du résultat
  *     responses:
  *       201:
- *         description: RÃ©sultat PDF crÃ©Ã© avec succÃ¨s dans Airtable
+ *         description: Résultat PDF créé avec succès dans Airtable
  *         content:
  *           application/json:
  *             schema:
@@ -2266,7 +2242,7 @@ router.post('/suivie-entretien', upload.single('file'), async (req: Request, res
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "RÃ©sultat PDF enregistrÃ© avec succÃ¨s"
+ *                   example: "Résultat PDF enregistré avec succès"
  *                 data:
  *                   type: object
  *                   properties:
@@ -2288,7 +2264,7 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
   try {
     const { email } = req.body;
 
-    // VÃ©rifications
+    // Vérifications
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return res.status(400).json({
         success: false,
@@ -2303,9 +2279,9 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
       });
     }
 
-    logger.info(`[Route] POST /resultats-pdf â€” email: ${email}, fichier: ${req.file.originalname}`);
+    logger.info(`[Route] POST /resultats-pdf — email: ${email}, fichier: ${req.file.originalname}`);
 
-    // Ã‰criture temporaire du buffer sur disque
+    // Écriture temporaire du buffer sur disque
     const os = await import('os');
     const tmpPath = path.join(os.tmpdir(), `resultat_${Date.now()}_${req.file.originalname}`);
     fs.writeFileSync(tmpPath, req.file.buffer);
@@ -2315,7 +2291,7 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
 
       return res.status(201).json({
         success: true,
-        message: 'RÃ©sultat PDF enregistrÃ© avec succÃ¨s',
+        message: 'Résultat PDF enregistré avec succès',
         data: {
           record_id: result.id,
           email,
@@ -2327,10 +2303,10 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
       try { fs.unlinkSync(tmpPath); } catch (_) { /* ignore */ }
     }
   } catch (error: any) {
-    logger.error('Erreur upload rÃ©sultat PDF:', error);
+    logger.error('Erreur upload résultat PDF:', error);
     res.status(500).json({
       success: false,
-      error: error.message || "Erreur lors de l'enregistrement du rÃ©sultat PDF",
+      error: error.message || "Erreur lors de l'enregistrement du résultat PDF",
     });
   }
 });
@@ -2342,7 +2318,7 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
  *     summary: Envoie un PDF projet pro et l'enregistre dans la table "projet pro"
  *     tags: [Candidats]
  *     description: >
- *       ReÃ§oit un fichier PDF et un email, upload le PDF et crÃ©e un enregistrement
+ *       Reçoit un fichier PDF et un email, upload le PDF et crée un enregistrement
  *       dans la table Airtable "projet pro" avec les colonnes "E-mail" et "projet".
  *     requestBody:
  *       required: true
@@ -2357,7 +2333,7 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
  *               email:
  *                 type: string
  *                 format: email
- *                 description: Adresse email associÃ©e au projet pro
+ *                 description: Adresse email associée au projet pro
  *                 example: "etudiant@example.com"
  *               file:
  *                 type: string
@@ -2365,7 +2341,7 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
  *                 description: Fichier PDF du projet pro
  *     responses:
  *       201:
- *         description: Projet pro crÃ©Ã© avec succÃ¨s dans Airtable
+ *         description: Projet pro créé avec succès dans Airtable
  *         content:
  *           application/json:
  *             schema:
@@ -2376,7 +2352,7 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Projet pro enregistrÃ© avec succÃ¨s"
+ *                   example: "Projet pro enregistré avec succès"
  *                 data:
  *                   type: object
  *                   properties:
@@ -2412,7 +2388,7 @@ router.post('/projet-pro', upload.single('file'), async (req: Request, res: Resp
       });
     }
 
-    logger.info(`[Route] POST /projet-pro â€” email: ${email}, fichier: ${req.file.originalname}`);
+    logger.info(`[Route] POST /projet-pro — email: ${email}, fichier: ${req.file.originalname}`);
 
     const tmpPath = path.join(os.tmpdir(), `projet_pro_${Date.now()}_${req.file.originalname}`);
     fs.writeFileSync(tmpPath, req.file.buffer);
@@ -2422,7 +2398,7 @@ router.post('/projet-pro', upload.single('file'), async (req: Request, res: Resp
 
       return res.status(201).json({
         success: true,
-        message: 'Projet pro enregistrÃ© avec succÃ¨s',
+        message: 'Projet pro enregistré avec succès',
         data: {
           record_id: result.id,
           email,
@@ -2449,19 +2425,19 @@ router.post('/projet-pro', upload.single('file'), async (req: Request, res: Resp
  * @swagger
  * /api/admission/candidats/{id}/prise-connaissance:
  *   post:
- *     summary: GÃ©nÃ¨re la Prise de Connaissance pour un candidat
+ *     summary: Génère la Prise de Connaissance pour un candidat
  *     tags: [Admission]
  *     description: |
- *       GÃ©nÃ¨re le document "Prise de Connaissance" Ã  partir du template PDF,
+ *       Génère le document "Prise de Connaissance" à partir du template PDF,
  *       remplit automatiquement :
- *       - Nom et PrÃ©nom depuis Airtable "Listes des candidats"
- *       - Coche toutes les cases (rÃ¨glement pÃ©dagogique, intÃ©rieur, livret apprentissage,
- *         livret accueil, autorisation image, rÃ©fÃ©rents)
+ *       - Nom et Prénom depuis Airtable "Listes des candidats"
+ *       - Coche toutes les cases (règlement pédagogique, intérieur, livret apprentissage,
+ *         livret accueil, autorisation image, référents)
  *       - Coche OUI
  *       - Lieu fixe : Nanterre
  *       - Date du jour
  *       
- *       Le PDF gÃ©nÃ©rÃ© est uploadÃ© dans la colonne "Prise de connaissance" d'Airtable.
+ *       Le PDF généré est uploadé dans la colonne "Prise de connaissance" d'Airtable.
  *     parameters:
  *       - in: path
  *         name: id
@@ -2471,7 +2447,7 @@ router.post('/projet-pro', upload.single('file'), async (req: Request, res: Resp
  *         description: ID Airtable du candidat (IdEtudiant)
  *     responses:
  *       200:
- *         description: PDF gÃ©nÃ©rÃ© et uploadÃ© avec succÃ¨s
+ *         description: PDF généré et uploadé avec succès
  *         content:
  *           application/pdf:
  *             schema:
@@ -2489,10 +2465,10 @@ router.post('/candidats/:id/prise-connaissance', async (req: Request, res: Respo
     const result = await priseConnaissanceService.generateAndUpload(id);
 
     if (!result.success || !result.pdfBuffer) {
-      const status = result.error?.includes('non trouvÃ©') ? 404 : 500;
+      const status = result.error?.includes('non trouvé') ? 404 : 500;
       return res.status(status).json({
         success: false,
-        error: result.error || 'Erreur gÃ©nÃ©ration Prise de Connaissance',
+        error: result.error || 'Erreur génération Prise de Connaissance',
       });
     }
 
@@ -2503,10 +2479,10 @@ router.post('/candidats/:id/prise-connaissance', async (req: Request, res: Respo
     );
     res.send(result.pdfBuffer);
   } catch (error) {
-    logger.error('Erreur gÃ©nÃ©ration Prise de Connaissance:', error);
+    logger.error('Erreur génération Prise de Connaissance:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la gÃ©nÃ©ration de la Prise de Connaissance',
+      error: 'Erreur lors de la génération de la Prise de Connaissance',
     });
   }
 });
@@ -2519,18 +2495,18 @@ router.post('/candidats/:id/prise-connaissance', async (req: Request, res: Respo
  * @swagger
  * /api/admission/candidats/{id}/certificat-scolarite:
  *   post:
- *     summary: GÃ©nÃ¨re un Certificat de ScolaritÃ© (en alternance)
+ *     summary: Génère un Certificat de Scolarité (en alternance)
  *     tags: [PDF]
  *     description: |
- *       GÃ©nÃ¨re le certificat de scolaritÃ© **en alternance** pour un candidat Ã  partir
+ *       Génère le certificat de scolarité **en alternance** pour un candidat à partir
  *       du template PDF image. Le service :
- *       1. RÃ©cupÃ¨re les donnÃ©es du candidat depuis Airtable (PrÃ©nom, NOM de naissance,
+ *       1. Récupère les données du candidat depuis Airtable (Prénom, NOM de naissance,
  *          Date de naissance, Commune de naissance)
- *       2. Remplit le PDF en superposant le **NOM PrÃ©nom** (en gras) suivi de
- *          **nÃ©(e) le : JJ/MM/AAAA Ã  Lieu** sur une seule ligne
- *       3. Upload le PDF gÃ©nÃ©rÃ© vers Airtable dans la table "Liste des candidats",
- *          colonne **"certificat de scolaritÃ©"**
- *       4. Retourne le rÃ©sultat avec l'URL Airtable du fichier uploadÃ©
+ *       2. Remplit le PDF en superposant le **NOM Prénom** (en gras) suivi de
+ *          **né(e) le : JJ/MM/AAAA à Lieu** sur une seule ligne
+ *       3. Upload le PDF généré vers Airtable dans la table "Liste des candidats",
+ *          colonne **"certificat de scolarité"**
+ *       4. Retourne le résultat avec l'URL Airtable du fichier uploadé
  *     parameters:
  *       - in: path
  *         name: id
@@ -2541,98 +2517,98 @@ router.post('/candidats/:id/prise-connaissance', async (req: Request, res: Respo
  *         example: recC8DfinY52bGCtR
  *     responses:
  *       200:
- *         description: Certificat de scolaritÃ© gÃ©nÃ©rÃ© et uploadÃ© avec succÃ¨s
+ *         description: Certificat de scolarité généré et uploadé avec succès
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/CertificatScolariteResponse'
  *             example:
  *               success: true
- *               message: "Certificat de scolaritÃ© gÃ©nÃ©rÃ© avec succÃ¨s"
+ *               message: "Certificat de scolarité généré avec succès"
  *               data:
  *                 candidatId: "recC8DfinY52bGCtR"
  *                 fileName: "Certificat_Scolarite_CHERIF_Bilal.pdf"
  *                 uploadedToAirtable: true
  *                 airtableUrl: "https://dl.airtable.com/.attachments/..."
  *       404:
- *         description: Candidat non trouvÃ©
+ *         description: Candidat non trouvé
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
  *             example:
  *               success: false
- *               error: "Candidat non trouvÃ©"
+ *               error: "Candidat non trouvé"
  *       500:
- *         description: Erreur lors de la gÃ©nÃ©ration du certificat
+ *         description: Erreur lors de la génération du certificat
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
  *             example:
  *               success: false
- *               error: "Erreur lors de la gÃ©nÃ©ration du certificat de scolaritÃ©"
+ *               error: "Erreur lors de la génération du certificat de scolarité"
  */
 router.post('/candidats/:id/certificat-scolarite', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // 1. RÃ©cupÃ©rer les donnÃ©es du candidat depuis Airtable
+    // 1. Récupérer les données du candidat depuis Airtable
     const candidat = await candidatRepo.getById(id);
     if (!candidat) {
       return res.status(404).json({
         success: false,
-        error: 'Candidat non trouvÃ©',
+        error: 'Candidat non trouvé',
       });
     }
 
-    // 2. GÃ©nÃ©rer le PDF
+    // 2. Générer le PDF
     const result = await certificatScolariteService.generateCertificatScolarite(candidat.fields);
 
     if (!result.success || !result.pdfBuffer) {
       return res.status(500).json({
         success: false,
-        error: result.error || 'Erreur gÃ©nÃ©ration Certificat de ScolaritÃ©',
+        error: result.error || 'Erreur génération Certificat de Scolarité',
       });
     }
 
-    // 3. Upload vers Airtable dans la colonne "certificat de scolaritÃ©"
+    // 3. Upload vers Airtable dans la colonne "certificat de scolarité"
     const fileName = result.fileName || `Certificat_Scolarite_${id}.pdf`;
     let uploadedToAirtable = false;
     let certificatUrl: string | null = null;
 
     try {
-      // Ã‰crire le buffer dans un fichier temporaire
+      // Écrire le buffer dans un fichier temporaire
       const tmpFilePath = path.join(os.tmpdir(), `certificat_scolarite_${id}_${Date.now()}.pdf`);
       fs.writeFileSync(tmpFilePath, result.pdfBuffer);
 
       // Upload vers Airtable
-      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'certificat de scolaritÃ©', tmpFilePath);
+      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'certificat de scolarité', tmpFilePath);
 
       if (uploadedToAirtable) {
-        logger.info(`âœ… Certificat de scolaritÃ© uploadÃ© vers Airtable pour ${id}`);
-        // RÃ©cupÃ©rer l'URL du fichier uploadÃ©
+        logger.info(`✅ Certificat de scolarité uploadé vers Airtable pour ${id}`);
+        // Récupérer l'URL du fichier uploadé
         try {
           const updatedRecord = await candidatRepo.getById(id);
-          const certData = updatedRecord?.fields?.['certificat de scolaritÃ©'] as any[] | undefined;
+          const certData = updatedRecord?.fields?.['certificat de scolarité'] as any[] | undefined;
           certificatUrl = certData?.[0]?.url || null;
         } catch (e) {
-          // Pas grave si on n'arrive pas Ã  rÃ©cupÃ©rer l'URL
+          // Pas grave si on n'arrive pas à récupérer l'URL
         }
       } else {
-        logger.warn(`âš ï¸ Ã‰chec upload certificat de scolaritÃ© vers Airtable pour ${id}`);
+        logger.warn(`⚠️ Échec upload certificat de scolarité vers Airtable pour ${id}`);
       }
 
       // Nettoyer le fichier temporaire
       try { fs.unlinkSync(tmpFilePath); } catch (e) { /* ignore */ }
     } catch (uploadError: any) {
-      logger.warn(`âš ï¸ Erreur upload certificat de scolaritÃ© vers Airtable: ${uploadError.message}`);
+      logger.warn(`⚠️ Erreur upload certificat de scolarité vers Airtable: ${uploadError.message}`);
     }
 
-    // 4. Retourner le rÃ©sultat
+    // 4. Retourner le résultat
     res.json({
       success: true,
-      message: 'Certificat de scolaritÃ© gÃ©nÃ©rÃ© avec succÃ¨s',
+      message: 'Certificat de scolarité généré avec succès',
       data: {
         candidatId: id,
         fileName,
@@ -2641,13 +2617,12 @@ router.post('/candidats/:id/certificat-scolarite', async (req: Request, res: Res
       },
     });
   } catch (error) {
-    logger.error('Erreur gÃ©nÃ©ration certificat de scolaritÃ©:', error);
+    logger.error('Erreur génération certificat de scolarité:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la gÃ©nÃ©ration du certificat de scolaritÃ©',
+      error: 'Erreur lors de la génération du certificat de scolarité',
     });
   }
 });
 
 export default router;
-

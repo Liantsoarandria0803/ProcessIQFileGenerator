@@ -141,12 +141,37 @@ export class CandidatRepository {
       if (publicUrl) {
         // 3. Mettre à jour Airtable avec l'URL
         try {
-          const attachmentData: Partial<CandidatFields> = {
-            [columnName]: [{ url: publicUrl, filename: fileName }]
+          const updateAttachment = async (fieldName: string) => {
+            const attachmentData: Partial<CandidatFields> = {
+              [fieldName]: [{ url: publicUrl, filename: fileName }]
+            };
+            await airtableClient.update<CandidatFields>(this.tableName, recordId, attachmentData);
+            logger.info(`✅ Airtable mis à jour avec l'attachment ${fieldName}`);
+            return true;
           };
-          await airtableClient.update<CandidatFields>(this.tableName, recordId, attachmentData);
-          logger.info(`✅ Airtable mis à jour avec l'attachment ${columnName}`);
-          return true;
+
+          const normalizedColumnName = Buffer.from(columnName, 'latin1').toString('utf8');
+          const triedNames = new Set<string>();
+
+          for (const nameToTry of [columnName, normalizedColumnName]) {
+            if (!nameToTry || triedNames.has(nameToTry)) {
+              continue;
+            }
+            triedNames.add(nameToTry);
+            try {
+              return await updateAttachment(nameToTry);
+            } catch (err: any) {
+              const errorType = err?.response?.data?.error?.type;
+              const errorMessage = err?.response?.data?.error?.message;
+              if (errorType === 'UNKNOWN_FIELD_NAME') {
+                logger.warn(`⚠️ Colonne Airtable inconnue: ${errorMessage}`);
+                continue;
+              }
+              throw err;
+            }
+          }
+
+          return false;
         } catch (err: any) {
           logger.warn(`⚠️ Erreur mise à jour Airtable: ${err.message}`);
           return false;

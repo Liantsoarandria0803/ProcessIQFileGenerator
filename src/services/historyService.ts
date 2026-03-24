@@ -55,7 +55,8 @@ export class HistoryService {
         record_id: candidat.id,
         nom: (candidat.fields as any)?.['NOM de naissance'] || '',
         prenom: (candidat.fields as any)?.['Prénom'] || '',
-        email: (candidat.fields as any)?.['E-mail']
+        email: (candidat.fields as any)?.['E-mail'],
+        date_action: (candidat.fields as any)?.['date action'] || (candidat.fields as any)?.['Date action']
       };
 
       addEntry(userKey, { eleves: [historyItem] });
@@ -72,7 +73,8 @@ export class HistoryService {
         record_id: entreprise.id,
         raison_sociale: (entreprise.fields as any)?.['Raison sociale'],
         siret: (entreprise.fields as any)?.['Numéro SIRET'],
-        record_id_etudiant: (entreprise.fields as any)?.['recordIdetudiant']
+        record_id_etudiant: (entreprise.fields as any)?.['recordIdetudiant'],
+        date_action: (entreprise.fields as any)?.['date action'] || (entreprise.fields as any)?.['Date action']
       };
 
       addEntry(userKey, { entreprises: [historyItem] });

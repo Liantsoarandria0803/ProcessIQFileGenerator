@@ -3,6 +3,7 @@ export interface CandidateHistoryItem {
   nom: string;
   prenom: string;
   email?: string;
+  date_action?: string;
 }
 
 export interface EntrepriseHistoryItem {
@@ -10,6 +11,7 @@ export interface EntrepriseHistoryItem {
   raison_sociale?: string;
   siret?: number;
   record_id_etudiant?: string;
+  date_action?: string;
 }
 
 export interface UserHistoryEntry {
