@@ -129,7 +129,9 @@ export interface EntrepriseFields {
   'Formation de lalternant'?: string;
   'Formation choisie'?: string;
   'Code RNCP'?: string;
+  'Code Rncp'?: string;
   'Code diplôme'?: string;
+  'Code diplome'?: string;
   'Nombre heure formation'?: number;
   'Missions'?: string;
   'CFA entreprise'?: string;
