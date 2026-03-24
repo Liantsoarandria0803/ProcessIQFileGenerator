@@ -264,41 +264,40 @@ const updateStatusWithFallbackFieldSets = async (recordId: string, status: BugSt
   throw lastError || new Error('Impossible de mettre a jour le statut dans Airtable');
 };
 
-router.post(
-  '/bugs/upload-screenshot',
-  screenshotUpload.single('file'),
-  async (req: Request, res: Response) => {
-    if (!req.file) {
-      res.status(400).json({ success: false, error: 'Fichier screenshot requis' });
-      return;
-    }
-
-    const allowedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp']);
-    if (!allowedMimeTypes.has(req.file.mimetype)) {
-      res.status(400).json({ success: false, error: 'Format image invalide (png, jpg, jpeg, webp)' });
-      return;
-    }
-
-    try {
-      const screenshotUrl = await uploadBufferToFileHosting(req.file);
-      if (!screenshotUrl) {
-        res.status(500).json({ success: false, error: 'Echec upload screenshot' });
-        return;
-      }
-
-      res.status(201).json({
-        success: true,
-        data: { screenshotUrl },
-      });
-    } catch (error: any) {
-      logger.error('[Support] upload screenshot failed:', error?.response?.data || error?.message || error);
-      res.status(500).json({
-        success: false,
-        error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de upload screenshot',
-      });
-    }
+const handleScreenshotUpload = async (req: Request, res: Response) => {
+  if (!req.file) {
+    res.status(400).json({ success: false, error: 'Fichier screenshot requis' });
+    return;
   }
-);
+
+  const allowedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp']);
+  if (!allowedMimeTypes.has(req.file.mimetype)) {
+    res.status(400).json({ success: false, error: 'Format image invalide (png, jpg, jpeg, webp)' });
+    return;
+  }
+
+  try {
+    const screenshotUrl = await uploadBufferToFileHosting(req.file);
+    if (!screenshotUrl) {
+      res.status(500).json({ success: false, error: 'Echec upload screenshot' });
+      return;
+    }
+
+    res.status(201).json({
+      success: true,
+      data: { screenshotUrl },
+    });
+  } catch (error: any) {
+    logger.error('[Support] upload screenshot failed:', error?.response?.data || error?.message || error);
+    res.status(500).json({
+      success: false,
+      error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de upload screenshot',
+    });
+  }
+};
+
+router.post('/bugs/upload-screenshot', screenshotUpload.single('file'), handleScreenshotUpload);
+router.post('/upload-screenshot', screenshotUpload.single('file'), handleScreenshotUpload);
 
 router.post(
   '/bugs',
