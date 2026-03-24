@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+﻿import { Router, Request, Response } from 'express';
 import { body, param, query } from 'express-validator';
 import { validateRequest } from '../middlewares/validation.middleware';
 import airtableClient from '../utils/airtableClient';
@@ -88,6 +88,16 @@ const getRequesterRole = (req: Request): ReporterRole => {
 
 const canAccessGlobalSupport = (role: ReporterRole): boolean => role === 'admin' || role === 'super_admin';
 
+const ensureAirtableConfigured = (): string | null => {
+  if (!String(process.env.AIRTABLE_API_TOKEN || '').trim()) {
+    return 'AIRTABLE_API_TOKEN manquant';
+  }
+  if (!String(process.env.AIRTABLE_BASE_ID || '').trim()) {
+    return 'AIRTABLE_BASE_ID manquant';
+  }
+  return null;
+};
+
 const toOutputRecord = (record: { id: string; fields: BugRecordFields }): any => {
   const f = record.fields || {};
   const s = FIELD_SETS[0];
@@ -150,7 +160,7 @@ const createBugWithFallbackFieldSets = async (payload: any) => {
       logger.warn(`[Support] Airtable create fallback field-set ${idx + 1} failed (${code}), trying next.`);
     }
   }
-  throw lastError || new Error('Impossible de créer le ticket dans Airtable');
+  throw lastError || new Error('Impossible de creer le ticket dans Airtable');
 };
 
 const updateStatusWithFallbackFieldSets = async (recordId: string, status: BugStatus) => {
@@ -166,7 +176,7 @@ const updateStatusWithFallbackFieldSets = async (recordId: string, status: BugSt
       if (code !== 'UNKNOWN_FIELD_NAME') throw error;
     }
   }
-  throw lastError || new Error('Impossible de mettre à jour le statut dans Airtable');
+  throw lastError || new Error('Impossible de mettre a jour le statut dans Airtable');
 };
 
 router.post(
@@ -184,18 +194,24 @@ router.post(
   ],
   validateRequest,
   async (req: Request, res: Response) => {
+    const configError = ensureAirtableConfigured();
+    if (configError) {
+      res.status(500).json({ success: false, error: configError });
+      return;
+    }
+
     try {
       const created = await createBugWithFallbackFieldSets(req.body);
       res.status(201).json({
         success: true,
-        message: 'Bug signalé avec succès',
+        message: 'Bug signale avec succes',
         data: toOutputRecord(created),
       });
     } catch (error: any) {
       logger.error('[Support] create bug failed:', error?.response?.data || error?.message || error);
       res.status(500).json({
         success: false,
-        error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de la création du ticket',
+        error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de la creation du ticket',
       });
     }
   }
@@ -216,6 +232,12 @@ router.get(
   ],
   validateRequest,
   async (req: Request, res: Response) => {
+    const configError = ensureAirtableConfigured();
+    if (configError) {
+      res.status(500).json({ success: false, error: configError });
+      return;
+    }
+
     try {
       const page = Number(req.query.page || 1);
       const limit = Number(req.query.limit || 50);
@@ -271,7 +293,7 @@ router.get(
       logger.error('[Support] get bugs failed:', error?.response?.data || error?.message || error);
       res.status(500).json({
         success: false,
-        error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de la récupération des tickets',
+        error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de la recuperation des tickets',
       });
     }
   }
@@ -286,6 +308,12 @@ router.patch(
   ],
   validateRequest,
   async (req: Request, res: Response) => {
+    const configError = ensureAirtableConfigured();
+    if (configError) {
+      res.status(500).json({ success: false, error: configError });
+      return;
+    }
+
     try {
       const requesterRole = getRequesterRole(req);
       if (!canAccessGlobalSupport(requesterRole)) {
@@ -304,11 +332,10 @@ router.patch(
       logger.error('[Support] update status failed:', error?.response?.data || error?.message || error);
       res.status(500).json({
         success: false,
-        error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de la mise à jour du ticket',
+        error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de la mise a jour du ticket',
       });
     }
   }
 );
 
 export default router;
-
