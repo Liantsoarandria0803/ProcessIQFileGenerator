@@ -306,7 +306,8 @@ const swaggerDefinition: SwaggerDefinition = {
           record_id: { type: 'string', example: 'rec1BBjsjxhdqEKuq' },
           nom: { type: 'string', example: 'Dupont' },
           prenom: { type: 'string', example: 'Jean' },
-          email: { type: 'string', format: 'email', example: 'jean.dupont@email.com' }
+          email: { type: 'string', format: 'email', example: 'jean.dupont@email.com' },
+          date_action: { type: 'string', example: '2026-03-24' }
         }
       },
       UserHistoryEntreprise: {
@@ -315,7 +316,8 @@ const swaggerDefinition: SwaggerDefinition = {
           record_id: { type: 'string', example: 'recXXXXXXXXXXXXXX' },
           raison_sociale: { type: 'string', example: 'ACME Corporation' },
           siret: { type: 'number', example: 12345678901234 },
-          record_id_etudiant: { type: 'string', example: 'rec1BBjsjxhdqEKuq' }
+          record_id_etudiant: { type: 'string', example: 'rec1BBjsjxhdqEKuq' },
+          date_action: { type: 'string', example: '2026-03-24' }
         }
       },
       // ========================================
