@@ -1,10 +1,20 @@
-﻿import { Router, Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import { body, param, query } from 'express-validator';
+import axios from 'axios';
+import FormData from 'form-data';
+import dns from 'dns';
 import { validateRequest } from '../middlewares/validation.middleware';
 import airtableClient from '../utils/airtableClient';
 import logger from '../utils/logger';
 
 const router = Router();
+const screenshotUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+});
+
+dns.setDefaultResultOrder('ipv4first');
 
 type ReporterRole = 'admission' | 'rh' | 'commercial' | 'student' | 'admin' | 'super_admin' | 'unknown';
 type BugStatus = 'new' | 'in_progress' | 'resolved';
@@ -120,6 +130,31 @@ const isRetryableTableError = (error: any): boolean => {
   );
 };
 
+const uploadBufferToFileHosting = async (file: Express.Multer.File): Promise<string | null> => {
+  try {
+    const form = new FormData();
+    form.append('file', file.buffer, {
+      filename: file.originalname || `bug-screenshot-${Date.now()}.png`,
+      contentType: file.mimetype || 'application/octet-stream',
+    });
+
+    const response = await axios.post('https://tmpfiles.org/api/v1/upload', form, {
+      headers: form.getHeaders(),
+      timeout: 30000,
+    });
+
+    if (response.status === 200 && response.data?.status === 'success') {
+      const rawUrl = String(response.data?.data?.url || '').trim();
+      if (rawUrl) {
+        return rawUrl.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+      }
+    }
+  } catch (error: any) {
+    logger.warn(`[Support] screenshot upload failed: ${error?.message || error}`);
+  }
+  return null;
+};
+
 const withSupportTableFallback = async <T>(operation: (tableName: string) => Promise<T>): Promise<T> => {
   let lastError: any = null;
   for (const tableName of SUPPORT_TABLE_CANDIDATES) {
@@ -228,6 +263,42 @@ const updateStatusWithFallbackFieldSets = async (recordId: string, status: BugSt
   }
   throw lastError || new Error('Impossible de mettre a jour le statut dans Airtable');
 };
+
+router.post(
+  '/bugs/upload-screenshot',
+  screenshotUpload.single('file'),
+  async (req: Request, res: Response) => {
+    if (!req.file) {
+      res.status(400).json({ success: false, error: 'Fichier screenshot requis' });
+      return;
+    }
+
+    const allowedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp']);
+    if (!allowedMimeTypes.has(req.file.mimetype)) {
+      res.status(400).json({ success: false, error: 'Format image invalide (png, jpg, jpeg, webp)' });
+      return;
+    }
+
+    try {
+      const screenshotUrl = await uploadBufferToFileHosting(req.file);
+      if (!screenshotUrl) {
+        res.status(500).json({ success: false, error: 'Echec upload screenshot' });
+        return;
+      }
+
+      res.status(201).json({
+        success: true,
+        data: { screenshotUrl },
+      });
+    } catch (error: any) {
+      logger.error('[Support] upload screenshot failed:', error?.response?.data || error?.message || error);
+      res.status(500).json({
+        success: false,
+        error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de upload screenshot',
+      });
+    }
+  }
+);
 
 router.post(
   '/bugs',
@@ -391,3 +462,4 @@ router.patch(
 );
 
 export default router;
+
