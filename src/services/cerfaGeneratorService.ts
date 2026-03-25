@@ -863,13 +863,13 @@ export class CerfaGeneratorService {
               // Draw field if value is present. Treat empty string/undefined/'None'/'undefined' as missing.
               // Keep numeric 0 and string '0'.
               if ((value !== '' && value !== undefined) && value !== 'None' && value !== 'undefined') {
-                let fontSize = 7;
+                let fontSize = 8;
                 let maxLength = 80;
                 if (EXTRA_SMALL_FONT_FIELDS.has(matchName)) {
-                  fontSize = 5;
+                  fontSize = 6;
                   maxLength = 120;
                 } else if (SMALL_FONT_FIELDS.has(matchName)) {
-                  fontSize = 6;
+                  fontSize = 7;
                   maxLength = 100;
                 }
 
