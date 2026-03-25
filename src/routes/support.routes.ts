@@ -16,7 +16,7 @@ const screenshotUpload = multer({
 
 dns.setDefaultResultOrder('ipv4first');
 
-type ReporterRole = 'admission' | 'rh' | 'commercial' | 'student' | 'admin' | 'super_admin' | 'unknown';
+type ReporterRole = 'admission' | 'rh' | 'commercial' | 'student' | 'staff' | 'admin' | 'super_admin' | 'unknown';
 type BugStatus = 'new' | 'in_progress' | 'resolved';
 type BugPriority = 'low' | 'medium' | 'high' | 'critical';
 type BugModule = 'admission' | 'rh' | 'commercial' | 'other';
@@ -70,12 +70,18 @@ const FIELD_SETS = [
 
 const parseRole = (value: unknown): ReporterRole => {
   if (typeof value !== 'string') return 'unknown';
-  const role = value.trim().toLowerCase();
+  const roleRaw = value.trim().toLowerCase();
+  const role = roleRaw === 'admissions'
+    ? 'admission'
+    : roleRaw === 'superadmin'
+      ? 'super_admin'
+      : roleRaw;
   if (
     role === 'admission' ||
     role === 'rh' ||
     role === 'commercial' ||
     role === 'student' ||
+    role === 'staff' ||
     role === 'admin' ||
     role === 'super_admin'
   ) {
@@ -128,6 +134,16 @@ const isRetryableTableError = (error: any): boolean => {
     type === 'NOT_FOUND' ||
     type === 'TABLE_NOT_FOUND' ||
     /table/i.test(message)
+  );
+};
+
+const isAirtablePermissionOrModelError = (error: any): boolean => {
+  const type = String(error?.response?.data?.error?.type || '');
+  const message = String(error?.response?.data?.error?.message || error?.message || '').toLowerCase();
+  return (
+    type === 'INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND' ||
+    message.includes('invalid permissions') ||
+    message.includes('model was not found')
   );
 };
 
@@ -325,7 +341,10 @@ router.post(
     body('description').isString().trim().isLength({ min: 10, max: 3000 }),
     body('module').optional().isIn(['admission', 'rh', 'commercial', 'other']),
     body('priority').optional().isIn(['low', 'medium', 'high', 'critical']),
-    body('reporterRole').optional().isIn(['admission', 'rh', 'commercial', 'student', 'admin', 'super_admin', 'unknown']),
+    body('reporterRole')
+      .optional()
+      .customSanitizer((v) => parseRole(v))
+      .isIn(['admission', 'rh', 'commercial', 'student', 'staff', 'admin', 'super_admin', 'unknown']),
     body('reporterName').optional().isString().trim().isLength({ max: 120 }),
     body('reporterEmail').optional().isString().trim().isLength({ max: 200 }),
     body('pagePath').optional().isString().trim().isLength({ max: 300 }),
@@ -348,6 +367,13 @@ router.post(
       });
     } catch (error: any) {
       logger.error('[Support] create bug failed:', error?.response?.data || error?.message || error);
+      if (isAirtablePermissionOrModelError(error)) {
+        res.status(503).json({
+          success: false,
+          error: "Support indisponible: token/base Airtable sans permissions suffisantes.",
+        });
+        return;
+      }
       res.status(500).json({
         success: false,
         error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de la creation du ticket',
@@ -363,7 +389,10 @@ router.get(
     query('module').optional().isIn(['admission', 'rh', 'commercial', 'other']),
     query('priority').optional().isIn(['low', 'medium', 'high', 'critical']),
     query('scope').optional().isIn(['all', 'mine']),
-    query('reporterRole').optional().isIn(['admission', 'rh', 'commercial', 'student', 'admin', 'super_admin', 'unknown']),
+    query('reporterRole')
+      .optional()
+      .customSanitizer((v) => parseRole(v))
+      .isIn(['admission', 'rh', 'commercial', 'student', 'staff', 'admin', 'super_admin', 'unknown']),
     query('reporterEmail').optional().isString(),
     query('search').optional().isString(),
     query('page').optional().isInt({ min: 1 }).toInt(),
@@ -432,6 +461,20 @@ router.get(
       });
     } catch (error: any) {
       logger.error('[Support] get bugs failed:', error?.response?.data || error?.message || error);
+      if (isAirtablePermissionOrModelError(error)) {
+        res.json({
+          success: true,
+          data: [],
+          pagination: {
+            page: 1,
+            limit: 50,
+            total: 0,
+            pages: 0,
+          },
+          warning: 'Support indisponible: permissions Airtable manquantes.',
+        });
+        return;
+      }
       res.status(500).json({
         success: false,
         error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de la recuperation des tickets',
@@ -445,7 +488,10 @@ router.patch(
   [
     param('id').isString().trim().isLength({ min: 3 }),
     body('status').isIn(['new', 'in_progress', 'resolved']),
-    body('requesterRole').optional().isIn(['admission', 'rh', 'commercial', 'student', 'admin', 'super_admin', 'unknown']),
+    body('requesterRole')
+      .optional()
+      .customSanitizer((v) => parseRole(v))
+      .isIn(['admission', 'rh', 'commercial', 'student', 'staff', 'admin', 'super_admin', 'unknown']),
   ],
   validateRequest,
   async (req: Request, res: Response) => {
@@ -471,6 +517,13 @@ router.patch(
       res.json({ success: true, data: toOutputRecord(updated) });
     } catch (error: any) {
       logger.error('[Support] update status failed:', error?.response?.data || error?.message || error);
+      if (isAirtablePermissionOrModelError(error)) {
+        res.status(503).json({
+          success: false,
+          error: "Support indisponible: token/base Airtable sans permissions suffisantes.",
+        });
+        return;
+      }
       res.status(500).json({
         success: false,
         error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de la mise a jour du ticket',
