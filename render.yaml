@@ -11,7 +11,7 @@ services:
         value: production
       - key: PORT
         value: 8001
-      - key: AIRTABLE_API_KEY
+      - key: AIRTABLE_API_TOKEN
         sync: false  # À configurer manuellement dans Render Dashboard
       - key: AIRTABLE_BASE_ID
         sync: false

@@ -111,8 +111,9 @@ const getRequesterRole = (req: Request): ReporterRole => {
 const canAccessGlobalSupport = (role: ReporterRole): boolean => role === 'admin' || role === 'super_admin';
 
 const ensureAirtableConfigured = (): string | null => {
-  if (!String(process.env.AIRTABLE_API_TOKEN || '').trim()) {
-    return 'AIRTABLE_API_TOKEN manquant';
+  const airtableToken = String(process.env.AIRTABLE_API_TOKEN || process.env.AIRTABLE_API_KEY || '').trim();
+  if (!airtableToken) {
+    return 'AIRTABLE_API_TOKEN/AIRTABLE_API_KEY manquant';
   }
   if (!String(process.env.AIRTABLE_BASE_ID || '').trim()) {
     return 'AIRTABLE_BASE_ID manquant';
@@ -204,14 +205,11 @@ const toOutputRecord = (record: { id: string; fields: BugRecordFields }): any =>
   };
 };
 
-const buildCreateFields = (setIndex: number, input: any): Record<string, any> => {
+const buildCreateFields = (setIndex: number, input: any, options?: { includeSelectFields?: boolean }): Record<string, any> => {
   const s = FIELD_SETS[setIndex];
-  return {
+  const fields: Record<string, any> = {
     [s.title]: String(input.title || '').trim(),
     [s.description]: String(input.description || '').trim(),
-    [s.module]: parseModule(input.module),
-    [s.priority]: parsePriority(input.priority),
-    [s.status]: 'new',
     [s.reporterRole]: parseRole(input.reporterRole),
     [s.reporterName]: String(input.reporterName || '').trim(),
     [s.reporterEmail]: String(input.reporterEmail || '').trim().toLowerCase(),
@@ -219,23 +217,44 @@ const buildCreateFields = (setIndex: number, input: any): Record<string, any> =>
     [s.screenshotUrl]: String(input.screenshotUrl || '').trim(),
     [s.createdAt]: new Date().toISOString(),
   };
+
+  if (options?.includeSelectFields !== false) {
+    fields[s.module] = parseModule(input.module);
+    fields[s.priority] = parsePriority(input.priority);
+    fields[s.status] = 'new';
+  }
+
+  return fields;
 };
 
 const createBugWithFallbackFieldSets = async (payload: any) => {
   let lastError: any = null;
   for (const tableName of SUPPORT_TABLE_CANDIDATES) {
     for (let idx = 0; idx < FIELD_SETS.length; idx += 1) {
-      try {
-        return await airtableClient.create<BugRecordFields>(tableName, buildCreateFields(idx, payload));
-      } catch (error: any) {
-        lastError = error;
-        const code = error?.response?.data?.error?.type;
-        if (isRetryableTableError(error)) {
-          logger.warn(`[Support] table "${tableName}" not usable for create, trying next table`);
-          break;
+      const attempts = [
+        { includeSelectFields: true },
+        { includeSelectFields: false },
+      ];
+
+      for (const attempt of attempts) {
+        try {
+          return await airtableClient.create<BugRecordFields>(tableName, buildCreateFields(idx, payload, attempt));
+        } catch (error: any) {
+          lastError = error;
+          const code = error?.response?.data?.error?.type;
+          if (isRetryableTableError(error)) {
+            logger.warn(`[Support] table "${tableName}" not usable for create, trying next table`);
+            break;
+          }
+          if (
+            code !== 'UNKNOWN_FIELD_NAME' &&
+            code !== 'INVALID_VALUE_FOR_COLUMN' &&
+            code !== 'INVALID_MULTIPLE_CHOICE_OPTIONS'
+          ) {
+            throw error;
+          }
+          logger.warn(`[Support] Airtable create fallback field-set ${idx + 1} failed (${code || 'UNKNOWN'}), trying next.`);
         }
-        if (code !== 'UNKNOWN_FIELD_NAME' && code !== 'INVALID_VALUE_FOR_COLUMN') throw error;
-        logger.warn(`[Support] Airtable create fallback field-set ${idx + 1} failed (${code}), trying next.`);
       }
     }
   }

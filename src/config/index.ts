@@ -18,10 +18,10 @@ const resolveDocuSignPrivateKey = (): string => {
 export const config = {
   // Airtable
   airtable: {
-    apiToken: process.env.AIRTABLE_API_TOKEN || '',
+    apiToken: process.env.AIRTABLE_API_TOKEN || process.env.AIRTABLE_API_KEY || '',
     baseId: process.env.AIRTABLE_BASE_ID || '',
     tables: {
-      etudiants: process.env.AIRTABLE_TABLE_ETUDIANTS || 'Étudiants',
+      etudiants: process.env.AIRTABLE_TABLE_ETUDIANTS || 'Ã‰tudiants',
       candidats: process.env.AIRTABLE_TABLE_CANDIDATS || 'Liste des candidats',
       entreprise: process.env.AIRTABLE_TABLE_ENTREPRISE || 'Fiche entreprise',
       support: process.env.AIRTABLE_SUPPORT_TABLE || 'Support Bugs'
