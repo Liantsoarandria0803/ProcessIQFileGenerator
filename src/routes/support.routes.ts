@@ -66,6 +66,19 @@ const FIELD_SETS = [
     screenshotUrl: 'screenshotUrl',
     createdAt: 'createdAt',
   },
+  {
+    title: 'Titre',
+    description: 'description',
+    module: 'Modules',
+    priority: 'priorité',
+    status: 'status',
+    reporterRole: 'Reporter role',
+    reporterName: 'reporter name',
+    reporterEmail: 'reporter email',
+    pagePath: 'page path',
+    screenshotUrl: 'screenshot',
+    createdAt: 'created At',
+  },
 ];
 
 const parseRole = (value: unknown): ReporterRole => {
@@ -190,20 +203,29 @@ const withSupportTableFallback = async <T>(operation: (tableName: string) => Pro
 
 const toOutputRecord = (record: { id: string; fields: BugRecordFields }): any => {
   const f = record.fields || {};
-  const s = FIELD_SETS[0];
-  const s2 = FIELD_SETS[1];
+  const pick = (key: keyof (typeof FIELD_SETS)[number], fallback: any = ''): any => {
+    for (const s of FIELD_SETS) {
+      const value = f[s[key]];
+      if (value !== undefined && value !== null && String(value) !== '') return value;
+    }
+    return fallback;
+  };
 
-  const title = f[s.title] ?? f[s2.title] ?? '';
-  const description = f[s.description] ?? f[s2.description] ?? '';
-  const module = f[s.module] ?? f[s2.module] ?? 'other';
-  const priority = f[s.priority] ?? f[s2.priority] ?? 'medium';
-  const status = f[s.status] ?? f[s2.status] ?? 'new';
-  const reporterRole = f[s.reporterRole] ?? f[s2.reporterRole] ?? 'unknown';
-  const reporterName = f[s.reporterName] ?? f[s2.reporterName] ?? '';
-  const reporterEmail = f[s.reporterEmail] ?? f[s2.reporterEmail] ?? '';
-  const pagePath = f[s.pagePath] ?? f[s2.pagePath] ?? '';
-  const screenshotUrl = f[s.screenshotUrl] ?? f[s2.screenshotUrl] ?? '';
-  const createdAt = f[s.createdAt] ?? f[s2.createdAt] ?? '';
+  const title = pick('title', '');
+  const description = pick('description', '');
+  const module = pick('module', 'other');
+  const priority = pick('priority', 'medium');
+  const status = pick('status', 'new');
+  const reporterRole = pick('reporterRole', 'unknown');
+  const reporterName = pick('reporterName', '');
+  const reporterEmail = pick('reporterEmail', '');
+  const pagePath = pick('pagePath', '');
+  const screenshotRaw = pick('screenshotUrl', '');
+  const createdAt = pick('createdAt', '');
+  const screenshotUrl =
+    Array.isArray(screenshotRaw) && screenshotRaw.length > 0
+      ? String(screenshotRaw[0]?.url || '')
+      : String(screenshotRaw || '');
 
   return {
     _id: record.id,
@@ -221,8 +243,13 @@ const toOutputRecord = (record: { id: string; fields: BugRecordFields }): any =>
   };
 };
 
-const buildCreateFields = (setIndex: number, input: any, options?: { includeSelectFields?: boolean }): Record<string, any> => {
+const buildCreateFields = (
+  setIndex: number,
+  input: any,
+  options?: { includeSelectFields?: boolean; screenshotMode?: 'text' | 'attachment' | 'omit' }
+): Record<string, any> => {
   const s = FIELD_SETS[setIndex];
+  const screenshotValue = String(input.screenshotUrl || '').trim();
   const fields: Record<string, any> = {
     [s.title]: String(input.title || '').trim(),
     [s.description]: String(input.description || '').trim(),
@@ -230,9 +257,16 @@ const buildCreateFields = (setIndex: number, input: any, options?: { includeSele
     [s.reporterName]: String(input.reporterName || '').trim(),
     [s.reporterEmail]: String(input.reporterEmail || '').trim().toLowerCase(),
     [s.pagePath]: String(input.pagePath || '').trim(),
-    [s.screenshotUrl]: String(input.screenshotUrl || '').trim(),
     [s.createdAt]: new Date().toISOString(),
   };
+
+  if (options?.screenshotMode !== 'omit' && screenshotValue) {
+    if (options?.screenshotMode === 'attachment') {
+      fields[s.screenshotUrl] = [{ url: screenshotValue }];
+    } else {
+      fields[s.screenshotUrl] = screenshotValue;
+    }
+  }
 
   if (options?.includeSelectFields !== false) {
     fields[s.module] = parseModule(input.module);
@@ -248,8 +282,12 @@ const createBugWithFallbackFieldSets = async (payload: any) => {
   for (const tableName of SUPPORT_TABLE_CANDIDATES) {
     for (let idx = 0; idx < FIELD_SETS.length; idx += 1) {
       const attempts = [
-        { includeSelectFields: true },
-        { includeSelectFields: false },
+        { includeSelectFields: true, screenshotMode: 'text' as const },
+        { includeSelectFields: true, screenshotMode: 'attachment' as const },
+        { includeSelectFields: true, screenshotMode: 'omit' as const },
+        { includeSelectFields: false, screenshotMode: 'text' as const },
+        { includeSelectFields: false, screenshotMode: 'attachment' as const },
+        { includeSelectFields: false, screenshotMode: 'omit' as const },
       ];
 
       for (const attempt of attempts) {
