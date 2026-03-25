@@ -42,32 +42,6 @@ const SUPPORT_TABLE_CANDIDATES = Array.from(
 const FIELD_SETS = [
   {
     title: 'Titre',
-    description: 'Description',
-    module: 'Module',
-    priority: 'Priorite',
-    status: 'Statut',
-    reporterRole: 'Reporter Role',
-    reporterName: 'Reporter Name',
-    reporterEmail: 'Reporter Email',
-    pagePath: 'Page Path',
-    screenshotUrl: 'Screenshot URL',
-    createdAt: 'Created At',
-  },
-  {
-    title: 'title',
-    description: 'description',
-    module: 'module',
-    priority: 'priority',
-    status: 'status',
-    reporterRole: 'reporterRole',
-    reporterName: 'reporterName',
-    reporterEmail: 'reporterEmail',
-    pagePath: 'pagePath',
-    screenshotUrl: 'screenshotUrl',
-    createdAt: 'createdAt',
-  },
-  {
-    title: 'Titre',
     description: 'description',
     module: 'Modules',
     priority: 'priorité',
@@ -75,9 +49,8 @@ const FIELD_SETS = [
     reporterRole: 'Reporter role',
     reporterName: 'reporter name',
     reporterEmail: 'reporter email',
-    pagePath: 'page path',
     screenshotUrl: 'screenshot',
-    createdAt: 'created At',
+  createdAt: 'created At',
   },
 ];
 
@@ -219,7 +192,6 @@ const toOutputRecord = (record: { id: string; fields: BugRecordFields }): any =>
   const reporterRole = pick('reporterRole', 'unknown');
   const reporterName = pick('reporterName', '');
   const reporterEmail = pick('reporterEmail', '');
-  const pagePath = pick('pagePath', '');
   const screenshotRaw = pick('screenshotUrl', '');
   const createdAt = pick('createdAt', '');
   const screenshotUrl =
@@ -237,7 +209,6 @@ const toOutputRecord = (record: { id: string; fields: BugRecordFields }): any =>
     reporterRole: parseRole(reporterRole),
     reporterName: String(reporterName),
     reporterEmail: String(reporterEmail),
-    pagePath: String(pagePath),
     screenshotUrl: String(screenshotUrl),
     createdAt: createdAt ? String(createdAt) : new Date().toISOString(),
   };
@@ -256,8 +227,6 @@ const buildCreateFields = (
     [s.reporterRole]: parseRole(input.reporterRole),
     [s.reporterName]: String(input.reporterName || '').trim(),
     [s.reporterEmail]: String(input.reporterEmail || '').trim().toLowerCase(),
-    [s.pagePath]: String(input.pagePath || '').trim(),
-    [s.createdAt]: new Date().toISOString(),
   };
 
   if (options?.screenshotMode !== 'omit' && screenshotValue) {
@@ -269,9 +238,9 @@ const buildCreateFields = (
   }
 
   if (options?.includeSelectFields !== false) {
-    fields[s.module] = parseModule(input.module);
-    fields[s.priority] = parsePriority(input.priority);
-    fields[s.status] = 'new';
+  fields[s.module] = parseModule(input.module);
+  fields[s.priority] = [parsePriority(input.priority)];
+  fields[s.status] = ['new'];
   }
 
   return fields;
@@ -282,10 +251,8 @@ const createBugWithFallbackFieldSets = async (payload: any) => {
   for (const tableName of SUPPORT_TABLE_CANDIDATES) {
     for (let idx = 0; idx < FIELD_SETS.length; idx += 1) {
       const attempts = [
-        { includeSelectFields: true, screenshotMode: 'text' as const },
         { includeSelectFields: true, screenshotMode: 'attachment' as const },
         { includeSelectFields: true, screenshotMode: 'omit' as const },
-        { includeSelectFields: false, screenshotMode: 'text' as const },
         { includeSelectFields: false, screenshotMode: 'attachment' as const },
         { includeSelectFields: false, screenshotMode: 'omit' as const },
       ];
@@ -374,6 +341,7 @@ router.post('/upload-screenshot', screenshotUpload.single('file'), handleScreens
 
 router.post(
   '/bugs',
+  screenshotUpload.single('file'),
   [
     body('title').isString().trim().isLength({ min: 5, max: 160 }),
     body('description').isString().trim().isLength({ min: 10, max: 3000 }),
@@ -385,7 +353,6 @@ router.post(
       .isIn(['admission', 'rh', 'commercial', 'student', 'staff', 'admin', 'super_admin', 'unknown']),
     body('reporterName').optional().isString().trim().isLength({ max: 120 }),
     body('reporterEmail').optional().isString().trim().isLength({ max: 200 }),
-    body('pagePath').optional().isString().trim().isLength({ max: 300 }),
     body('screenshotUrl').optional().isString().trim().isLength({ max: 1200 }),
   ],
   validateRequest,
@@ -397,7 +364,15 @@ router.post(
     }
 
     try {
-      const created = await createBugWithFallbackFieldSets(req.body);
+      let screenshotUrl = String(req.body?.screenshotUrl || '').trim();
+      if (!screenshotUrl && req.file) {
+        screenshotUrl = (await uploadBufferToFileHosting(req.file)) || '';
+      }
+
+      const created = await createBugWithFallbackFieldSets({
+        ...req.body,
+        screenshotUrl,
+      });
       res.status(201).json({
         success: true,
         message: 'Bug signale avec succes',
