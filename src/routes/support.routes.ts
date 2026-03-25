@@ -1,12 +1,22 @@
-﻿import { Router, Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import { body, param, query } from 'express-validator';
+import axios from 'axios';
+import FormData from 'form-data';
+import dns from 'dns';
 import { validateRequest } from '../middlewares/validation.middleware';
 import airtableClient from '../utils/airtableClient';
 import logger from '../utils/logger';
 
 const router = Router();
+const screenshotUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+});
 
-type ReporterRole = 'admission' | 'rh' | 'commercial' | 'student' | 'admin' | 'super_admin' | 'unknown';
+dns.setDefaultResultOrder('ipv4first');
+
+type ReporterRole = 'admission' | 'rh' | 'commercial' | 'student' | 'staff' | 'admin' | 'super_admin' | 'unknown';
 type BugStatus = 'new' | 'in_progress' | 'resolved';
 type BugPriority = 'low' | 'medium' | 'high' | 'critical';
 type BugModule = 'admission' | 'rh' | 'commercial' | 'other';
@@ -16,6 +26,18 @@ interface BugRecordFields {
 }
 
 const SUPPORT_TABLE = process.env.AIRTABLE_SUPPORT_TABLE || 'Support Bugs';
+const SUPPORT_TABLE_CANDIDATES = Array.from(
+  new Set(
+    [
+      SUPPORT_TABLE,
+      'Support Bugs',
+      'Support Bug',
+      'Support',
+      'Bugs',
+      'Bug Reports',
+    ].filter((t) => String(t || '').trim())
+  )
+);
 
 const FIELD_SETS = [
   {
@@ -44,16 +66,35 @@ const FIELD_SETS = [
     screenshotUrl: 'screenshotUrl',
     createdAt: 'createdAt',
   },
+  {
+    title: 'Titre',
+    description: 'description',
+    module: 'Modules',
+    priority: 'priorité',
+    status: 'status',
+    reporterRole: 'Reporter role',
+    reporterName: 'reporter name',
+    reporterEmail: 'reporter email',
+    pagePath: 'page path',
+    screenshotUrl: 'screenshot',
+    createdAt: 'created At',
+  },
 ];
 
 const parseRole = (value: unknown): ReporterRole => {
   if (typeof value !== 'string') return 'unknown';
-  const role = value.trim().toLowerCase();
+  const roleRaw = value.trim().toLowerCase();
+  const role = roleRaw === 'admissions'
+    ? 'admission'
+    : roleRaw === 'superadmin'
+      ? 'super_admin'
+      : roleRaw;
   if (
     role === 'admission' ||
     role === 'rh' ||
     role === 'commercial' ||
     role === 'student' ||
+    role === 'staff' ||
     role === 'admin' ||
     role === 'super_admin'
   ) {
@@ -89,8 +130,9 @@ const getRequesterRole = (req: Request): ReporterRole => {
 const canAccessGlobalSupport = (role: ReporterRole): boolean => role === 'admin' || role === 'super_admin';
 
 const ensureAirtableConfigured = (): string | null => {
-  if (!String(process.env.AIRTABLE_API_TOKEN || '').trim()) {
-    return 'AIRTABLE_API_TOKEN manquant';
+  const airtableToken = String(process.env.AIRTABLE_API_TOKEN || process.env.AIRTABLE_API_KEY || '').trim();
+  if (!airtableToken) {
+    return 'AIRTABLE_API_TOKEN/AIRTABLE_API_KEY manquant';
   }
   if (!String(process.env.AIRTABLE_BASE_ID || '').trim()) {
     return 'AIRTABLE_BASE_ID manquant';
@@ -98,22 +140,92 @@ const ensureAirtableConfigured = (): string | null => {
   return null;
 };
 
+const isRetryableTableError = (error: any): boolean => {
+  const type = String(error?.response?.data?.error?.type || '');
+  const message = String(error?.response?.data?.error?.message || error?.message || '');
+  return (
+    type === 'NOT_FOUND' ||
+    type === 'TABLE_NOT_FOUND' ||
+    /table/i.test(message)
+  );
+};
+
+const isAirtablePermissionOrModelError = (error: any): boolean => {
+  const type = String(error?.response?.data?.error?.type || '');
+  const message = String(error?.response?.data?.error?.message || error?.message || '').toLowerCase();
+  return (
+    type === 'INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND' ||
+    message.includes('invalid permissions') ||
+    message.includes('model was not found')
+  );
+};
+
+const uploadBufferToFileHosting = async (file: Express.Multer.File): Promise<string | null> => {
+  try {
+    const form = new FormData();
+    form.append('file', file.buffer, {
+      filename: file.originalname || `bug-screenshot-${Date.now()}.png`,
+      contentType: file.mimetype || 'application/octet-stream',
+    });
+
+    const response = await axios.post('https://tmpfiles.org/api/v1/upload', form, {
+      headers: form.getHeaders(),
+      timeout: 30000,
+    });
+
+    if (response.status === 200 && response.data?.status === 'success') {
+      const rawUrl = String(response.data?.data?.url || '').trim();
+      if (rawUrl) {
+        return rawUrl.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+      }
+    }
+  } catch (error: any) {
+    logger.warn(`[Support] screenshot upload failed: ${error?.message || error}`);
+  }
+  return null;
+};
+
+const withSupportTableFallback = async <T>(operation: (tableName: string) => Promise<T>): Promise<T> => {
+  let lastError: any = null;
+  for (const tableName of SUPPORT_TABLE_CANDIDATES) {
+    try {
+      return await operation(tableName);
+    } catch (error: any) {
+      lastError = error;
+      if (!isRetryableTableError(error)) {
+        throw error;
+      }
+      logger.warn(`[Support] table "${tableName}" unavailable, trying next candidate table`);
+    }
+  }
+  throw lastError || new Error('Aucune table support Airtable accessible');
+};
+
 const toOutputRecord = (record: { id: string; fields: BugRecordFields }): any => {
   const f = record.fields || {};
-  const s = FIELD_SETS[0];
-  const s2 = FIELD_SETS[1];
+  const pick = (key: keyof (typeof FIELD_SETS)[number], fallback: any = ''): any => {
+    for (const s of FIELD_SETS) {
+      const value = f[s[key]];
+      if (value !== undefined && value !== null && String(value) !== '') return value;
+    }
+    return fallback;
+  };
 
-  const title = f[s.title] ?? f[s2.title] ?? '';
-  const description = f[s.description] ?? f[s2.description] ?? '';
-  const module = f[s.module] ?? f[s2.module] ?? 'other';
-  const priority = f[s.priority] ?? f[s2.priority] ?? 'medium';
-  const status = f[s.status] ?? f[s2.status] ?? 'new';
-  const reporterRole = f[s.reporterRole] ?? f[s2.reporterRole] ?? 'unknown';
-  const reporterName = f[s.reporterName] ?? f[s2.reporterName] ?? '';
-  const reporterEmail = f[s.reporterEmail] ?? f[s2.reporterEmail] ?? '';
-  const pagePath = f[s.pagePath] ?? f[s2.pagePath] ?? '';
-  const screenshotUrl = f[s.screenshotUrl] ?? f[s2.screenshotUrl] ?? '';
-  const createdAt = f[s.createdAt] ?? f[s2.createdAt] ?? '';
+  const title = pick('title', '');
+  const description = pick('description', '');
+  const module = pick('module', 'other');
+  const priority = pick('priority', 'medium');
+  const status = pick('status', 'new');
+  const reporterRole = pick('reporterRole', 'unknown');
+  const reporterName = pick('reporterName', '');
+  const reporterEmail = pick('reporterEmail', '');
+  const pagePath = pick('pagePath', '');
+  const screenshotRaw = pick('screenshotUrl', '');
+  const createdAt = pick('createdAt', '');
+  const screenshotUrl =
+    Array.isArray(screenshotRaw) && screenshotRaw.length > 0
+      ? String(screenshotRaw[0]?.url || '')
+      : String(screenshotRaw || '');
 
   return {
     _id: record.id,
@@ -131,33 +243,73 @@ const toOutputRecord = (record: { id: string; fields: BugRecordFields }): any =>
   };
 };
 
-const buildCreateFields = (setIndex: number, input: any): Record<string, any> => {
+const buildCreateFields = (
+  setIndex: number,
+  input: any,
+  options?: { includeSelectFields?: boolean; screenshotMode?: 'text' | 'attachment' | 'omit' }
+): Record<string, any> => {
   const s = FIELD_SETS[setIndex];
-  return {
+  const screenshotValue = String(input.screenshotUrl || '').trim();
+  const fields: Record<string, any> = {
     [s.title]: String(input.title || '').trim(),
     [s.description]: String(input.description || '').trim(),
-    [s.module]: parseModule(input.module),
-    [s.priority]: parsePriority(input.priority),
-    [s.status]: 'new',
     [s.reporterRole]: parseRole(input.reporterRole),
     [s.reporterName]: String(input.reporterName || '').trim(),
     [s.reporterEmail]: String(input.reporterEmail || '').trim().toLowerCase(),
     [s.pagePath]: String(input.pagePath || '').trim(),
-    [s.screenshotUrl]: String(input.screenshotUrl || '').trim(),
     [s.createdAt]: new Date().toISOString(),
   };
+
+  if (options?.screenshotMode !== 'omit' && screenshotValue) {
+    if (options?.screenshotMode === 'attachment') {
+      fields[s.screenshotUrl] = [{ url: screenshotValue }];
+    } else {
+      fields[s.screenshotUrl] = screenshotValue;
+    }
+  }
+
+  if (options?.includeSelectFields !== false) {
+    fields[s.module] = parseModule(input.module);
+    fields[s.priority] = parsePriority(input.priority);
+    fields[s.status] = 'new';
+  }
+
+  return fields;
 };
 
 const createBugWithFallbackFieldSets = async (payload: any) => {
   let lastError: any = null;
-  for (let idx = 0; idx < FIELD_SETS.length; idx += 1) {
-    try {
-      return await airtableClient.create<BugRecordFields>(SUPPORT_TABLE, buildCreateFields(idx, payload));
-    } catch (error: any) {
-      lastError = error;
-      const code = error?.response?.data?.error?.type;
-      if (code !== 'UNKNOWN_FIELD_NAME' && code !== 'INVALID_VALUE_FOR_COLUMN') throw error;
-      logger.warn(`[Support] Airtable create fallback field-set ${idx + 1} failed (${code}), trying next.`);
+  for (const tableName of SUPPORT_TABLE_CANDIDATES) {
+    for (let idx = 0; idx < FIELD_SETS.length; idx += 1) {
+      const attempts = [
+        { includeSelectFields: true, screenshotMode: 'text' as const },
+        { includeSelectFields: true, screenshotMode: 'attachment' as const },
+        { includeSelectFields: true, screenshotMode: 'omit' as const },
+        { includeSelectFields: false, screenshotMode: 'text' as const },
+        { includeSelectFields: false, screenshotMode: 'attachment' as const },
+        { includeSelectFields: false, screenshotMode: 'omit' as const },
+      ];
+
+      for (const attempt of attempts) {
+        try {
+          return await airtableClient.create<BugRecordFields>(tableName, buildCreateFields(idx, payload, attempt));
+        } catch (error: any) {
+          lastError = error;
+          const code = error?.response?.data?.error?.type;
+          if (isRetryableTableError(error)) {
+            logger.warn(`[Support] table "${tableName}" not usable for create, trying next table`);
+            break;
+          }
+          if (
+            code !== 'UNKNOWN_FIELD_NAME' &&
+            code !== 'INVALID_VALUE_FOR_COLUMN' &&
+            code !== 'INVALID_MULTIPLE_CHOICE_OPTIONS'
+          ) {
+            throw error;
+          }
+          logger.warn(`[Support] Airtable create fallback field-set ${idx + 1} failed (${code || 'UNKNOWN'}), trying next.`);
+        }
+      }
     }
   }
   throw lastError || new Error('Impossible de creer le ticket dans Airtable');
@@ -165,19 +317,60 @@ const createBugWithFallbackFieldSets = async (payload: any) => {
 
 const updateStatusWithFallbackFieldSets = async (recordId: string, status: BugStatus) => {
   let lastError: any = null;
-  for (const s of FIELD_SETS) {
-    try {
-      const updated = await airtableClient.update<BugRecordFields>(SUPPORT_TABLE, recordId, { [s.status]: status });
-      if (updated) return updated;
-      return null;
-    } catch (error: any) {
-      lastError = error;
-      const code = error?.response?.data?.error?.type;
-      if (code !== 'UNKNOWN_FIELD_NAME') throw error;
+  for (const tableName of SUPPORT_TABLE_CANDIDATES) {
+    for (const s of FIELD_SETS) {
+      try {
+        const updated = await airtableClient.update<BugRecordFields>(tableName, recordId, { [s.status]: status });
+        if (updated) return updated;
+        return null;
+      } catch (error: any) {
+        lastError = error;
+        if (isRetryableTableError(error)) {
+          logger.warn(`[Support] table "${tableName}" not usable for update, trying next table`);
+          break;
+        }
+        const code = error?.response?.data?.error?.type;
+        if (code !== 'UNKNOWN_FIELD_NAME') throw error;
+      }
     }
   }
   throw lastError || new Error('Impossible de mettre a jour le statut dans Airtable');
 };
+
+const handleScreenshotUpload = async (req: Request, res: Response) => {
+  if (!req.file) {
+    res.status(400).json({ success: false, error: 'Fichier screenshot requis' });
+    return;
+  }
+
+  const allowedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp']);
+  if (!allowedMimeTypes.has(req.file.mimetype)) {
+    res.status(400).json({ success: false, error: 'Format image invalide (png, jpg, jpeg, webp)' });
+    return;
+  }
+
+  try {
+    const screenshotUrl = await uploadBufferToFileHosting(req.file);
+    if (!screenshotUrl) {
+      res.status(500).json({ success: false, error: 'Echec upload screenshot' });
+      return;
+    }
+
+    res.status(201).json({
+      success: true,
+      data: { screenshotUrl },
+    });
+  } catch (error: any) {
+    logger.error('[Support] upload screenshot failed:', error?.response?.data || error?.message || error);
+    res.status(500).json({
+      success: false,
+      error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de upload screenshot',
+    });
+  }
+};
+
+router.post('/bugs/upload-screenshot', screenshotUpload.single('file'), handleScreenshotUpload);
+router.post('/upload-screenshot', screenshotUpload.single('file'), handleScreenshotUpload);
 
 router.post(
   '/bugs',
@@ -186,7 +379,10 @@ router.post(
     body('description').isString().trim().isLength({ min: 10, max: 3000 }),
     body('module').optional().isIn(['admission', 'rh', 'commercial', 'other']),
     body('priority').optional().isIn(['low', 'medium', 'high', 'critical']),
-    body('reporterRole').optional().isIn(['admission', 'rh', 'commercial', 'student', 'admin', 'super_admin', 'unknown']),
+    body('reporterRole')
+      .optional()
+      .customSanitizer((v) => parseRole(v))
+      .isIn(['admission', 'rh', 'commercial', 'student', 'staff', 'admin', 'super_admin', 'unknown']),
     body('reporterName').optional().isString().trim().isLength({ max: 120 }),
     body('reporterEmail').optional().isString().trim().isLength({ max: 200 }),
     body('pagePath').optional().isString().trim().isLength({ max: 300 }),
@@ -209,6 +405,13 @@ router.post(
       });
     } catch (error: any) {
       logger.error('[Support] create bug failed:', error?.response?.data || error?.message || error);
+      if (isAirtablePermissionOrModelError(error)) {
+        res.status(503).json({
+          success: false,
+          error: "Support indisponible: token/base Airtable sans permissions suffisantes.",
+        });
+        return;
+      }
       res.status(500).json({
         success: false,
         error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de la creation du ticket',
@@ -224,7 +427,10 @@ router.get(
     query('module').optional().isIn(['admission', 'rh', 'commercial', 'other']),
     query('priority').optional().isIn(['low', 'medium', 'high', 'critical']),
     query('scope').optional().isIn(['all', 'mine']),
-    query('reporterRole').optional().isIn(['admission', 'rh', 'commercial', 'student', 'admin', 'super_admin', 'unknown']),
+    query('reporterRole')
+      .optional()
+      .customSanitizer((v) => parseRole(v))
+      .isIn(['admission', 'rh', 'commercial', 'student', 'staff', 'admin', 'super_admin', 'unknown']),
     query('reporterEmail').optional().isString(),
     query('search').optional().isString(),
     query('page').optional().isInt({ min: 1 }).toInt(),
@@ -249,7 +455,9 @@ router.get(
       const filterPriority = req.query.priority ? String(req.query.priority) : '';
       const search = String(req.query.search || '').trim().toLowerCase();
 
-      const records = await airtableClient.getAll<BugRecordFields>(SUPPORT_TABLE);
+      const records = await withSupportTableFallback((tableName) =>
+        airtableClient.getAll<BugRecordFields>(tableName)
+      );
       let rows = records.map(toOutputRecord);
 
       if (scope === 'all' && canAccessGlobalSupport(requesterRole)) {
@@ -291,6 +499,20 @@ router.get(
       });
     } catch (error: any) {
       logger.error('[Support] get bugs failed:', error?.response?.data || error?.message || error);
+      if (isAirtablePermissionOrModelError(error)) {
+        res.json({
+          success: true,
+          data: [],
+          pagination: {
+            page: 1,
+            limit: 50,
+            total: 0,
+            pages: 0,
+          },
+          warning: 'Support indisponible: permissions Airtable manquantes.',
+        });
+        return;
+      }
       res.status(500).json({
         success: false,
         error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de la recuperation des tickets',
@@ -304,7 +526,10 @@ router.patch(
   [
     param('id').isString().trim().isLength({ min: 3 }),
     body('status').isIn(['new', 'in_progress', 'resolved']),
-    body('requesterRole').optional().isIn(['admission', 'rh', 'commercial', 'student', 'admin', 'super_admin', 'unknown']),
+    body('requesterRole')
+      .optional()
+      .customSanitizer((v) => parseRole(v))
+      .isIn(['admission', 'rh', 'commercial', 'student', 'staff', 'admin', 'super_admin', 'unknown']),
   ],
   validateRequest,
   async (req: Request, res: Response) => {
@@ -330,6 +555,13 @@ router.patch(
       res.json({ success: true, data: toOutputRecord(updated) });
     } catch (error: any) {
       logger.error('[Support] update status failed:', error?.response?.data || error?.message || error);
+      if (isAirtablePermissionOrModelError(error)) {
+        res.status(503).json({
+          success: false,
+          error: "Support indisponible: token/base Airtable sans permissions suffisantes.",
+        });
+        return;
+      }
       res.status(500).json({
         success: false,
         error: error?.response?.data?.error?.message || error?.message || 'Erreur lors de la mise a jour du ticket',
@@ -339,3 +571,4 @@ router.patch(
 );
 
 export default router;
+
