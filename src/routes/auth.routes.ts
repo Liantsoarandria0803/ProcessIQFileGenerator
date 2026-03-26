@@ -74,6 +74,24 @@ const getFallbackUsers = (): FallbackUser[] => {
       role: 'admission'
     },
     {
+      email: process.env.DEFAULT_ADMISSION_1_EMAIL || 'admission1@rush-school.fr',
+      password: process.env.DEFAULT_ADMISSION_1_PASSWORD || 'Admission123!',
+      name: process.env.DEFAULT_ADMISSION_1_NAME || 'Admission 1',
+      role: 'admission'
+    },
+    {
+      email: process.env.DEFAULT_ADMISSION_2_EMAIL || 'admission2@rush-school.fr',
+      password: process.env.DEFAULT_ADMISSION_2_PASSWORD || 'Admission456!',
+      name: process.env.DEFAULT_ADMISSION_2_NAME || 'Admission 2',
+      role: 'admission'
+    },
+    {
+      email: process.env.DEFAULT_ADMISSION_MANAGER_EMAIL || 'responsable.admission@rush-school.fr',
+      password: process.env.DEFAULT_ADMISSION_MANAGER_PASSWORD || 'RespAdmission789!',
+      name: process.env.DEFAULT_ADMISSION_MANAGER_NAME || 'Responsable Admission',
+      role: 'admission'
+    },
+    {
       email: 'commercial@rush-school.fr',
       password: process.env.DEFAULT_COMMERCIAL_PASSWORD || 'commercial123',
       name: 'Commercial Rush School',
