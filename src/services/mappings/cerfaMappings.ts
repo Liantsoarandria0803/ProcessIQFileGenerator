@@ -415,6 +415,15 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     date_fin_epreuves: "11/07/2026",
     heures: "450",
   },
+   "Titre Pro NTC B": {
+    code_diplome: "58",
+    intitule: "Négociateur technico-commercial B",
+    code_formation: "36T31203",
+    code_rncp: "39063",
+    date_debut_formation_cfa: "07/01/2026",
+    date_fin_epreuves: "11/07/2026",
+    heures: "450",
+  },
   "Bachelor RDC": {
     code_diplome: "64",
     intitule: "Bachelor Responsable du développement commercial",

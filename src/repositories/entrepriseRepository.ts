@@ -280,6 +280,9 @@ export class EntrepriseRepository {
       if (fiche.contrat.date_debut_2periode_1er_annee) {
         airtableData['date_debut_2periode_1er_annee'] = fiche.contrat.date_debut_2periode_1er_annee;
       }
+      if (fiche.contrat.date_fin_1periode_1ere_annee) {
+        airtableData['date_fin_1periode_1ere_annee'] = fiche.contrat.date_fin_1periode_1ere_annee;
+      }
       if (fiche.contrat.date_fin_2periode_1er_annee) {
         airtableData['date_fin_2periode_1er_annee'] = fiche.contrat.date_fin_2periode_1er_annee;
       }

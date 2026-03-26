@@ -70,6 +70,7 @@ export interface InformationsContrat {
   montant_salaire_brut4?: number;
   
   // Dates des périodes - 1ère année
+  date_fin_1periode_1ere_annee?: string;
   date_debut_2periode_1er_annee?: string;
   date_fin_2periode_1er_annee?: string;
   

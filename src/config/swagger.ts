@@ -369,6 +369,7 @@ const swaggerDefinition: SwaggerDefinition = {
             pourcentage_smic1_2: 61,
             smic1: 966.21,
             montant_salaire_brut1: 966.21,
+            date_fin_1periode_1ere_annee: '2026-12-31',
             date_debut_2periode_1er_annee: '2027-01-01',
             date_fin_2periode_1er_annee: '2027-08-31',
             pourcentage_smic2: 61,
@@ -514,6 +515,7 @@ const swaggerDefinition: SwaggerDefinition = {
           pourcentage_smic1_2: 61,
           smic1: 966.21,
           montant_salaire_brut1: 966.21,
+          date_fin_1periode_1ere_annee: '2026-12-31',
           date_debut_2periode_1er_annee: '2027-01-01',
           date_fin_2periode_1er_annee: '2027-08-31',
           pourcentage_smic2: 61,
@@ -574,6 +576,7 @@ const swaggerDefinition: SwaggerDefinition = {
           smic4: { type: 'number', nullable: true, description: '[OPTIONNEL] Montant SMIC - 4ème année / 1ère période. Renseigner uniquement si le contrat dure 4 ans.', example: 1823.07 },
           montant_salaire_brut4: { type: 'number', nullable: true, description: '[OPTIONNEL] Salaire brut mensuel - 4ème année. Renseigner uniquement si le contrat dure 4 ans.', example: 1823.07 },
           // Dates des périodes - 1ère année (2ème période) - OPTIONNEL
+          date_fin_1periode_1ere_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Fin 1ère période 1ère année. Renseigner si la 1ère année comporte plusieurs périodes.', example: '2026-12-31' },
           date_debut_2periode_1er_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Début 2ème période 1ère année. Renseigner si le contrat prévoit plusieurs périodes avec rémunérations différentes dans la même année.', example: '2027-01-01' },
           date_fin_2periode_1er_annee: { type: 'string', format: 'date', nullable: true, description: '[OPTIONNEL] Fin 2ème période 1ère année. Renseigner si le contrat prévoit plusieurs périodes avec rémunérations différentes dans la même année.', example: '2027-08-31' },
           // Dates des périodes - 2ème année - OPTIONNEL (uniquement si contrat >= 2 ans)

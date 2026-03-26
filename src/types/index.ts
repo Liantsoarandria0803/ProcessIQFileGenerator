@@ -112,6 +112,7 @@ export interface EntrepriseFields {
   'Salaire brut mensuel 4'?: number;
   
   // Dates périodes
+  'date_fin_1periode_1ere_annee'?: string;
   'date_debut_2periode_1er_annee'?: string;
   'date_fin_2periode_1er_annee'?: string;
   'date_debut_1periode_2eme_annee'?: string;
