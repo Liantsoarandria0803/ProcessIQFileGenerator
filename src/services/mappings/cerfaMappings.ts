@@ -379,12 +379,21 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     date_fin_epreuves: "30/06/2027",
     heures: "1680",
   },
-  "BTS MCO 2": {
+  "BTS MCO B": {
     code_diplome: "54",
     intitule: "BTS Management Commercial Opérationnel",
     code_formation: "32031213",
     code_rncp: "38362",
     date_debut_formation_cfa: "04/09/2025",
+    date_fin_epreuves: "30/06/2027",
+    heures: "1680",
+  },
+  "BTS MCO 2": {
+    code_diplome: "54",
+    intitule: "BTS Management Commercial Opérationnel",
+    code_formation: "32031213",
+    code_rncp: "38362",
+    date_debut_formation_cfa: "02/09/2025",
     date_fin_epreuves: "30/06/2027",
     heures: "1680",
   },
@@ -420,8 +429,8 @@ export const FORMATIONS_MAPPING: Record<string, Record<string, string>> = {
     intitule: "Négociateur technico-commercial B",
     code_formation: "36T31203",
     code_rncp: "39063",
-    date_debut_formation_cfa: "07/01/2026",
-    date_fin_epreuves: "11/07/2026",
+    date_debut_formation_cfa: "14/01/2026",
+    date_fin_epreuves: "11/09/2026",
     heures: "450",
   },
   "Bachelor RDC": {
@@ -727,7 +736,7 @@ export const CERFA_DATE_FIELDS: Record<string, {
     annee: "Zone de texte 21_83",
   },
   "date_fin_remuneration_1_1": {
-    source: ["entreprise", "Date de conclusion"],
+    source: ["entreprise", "date_fin_1periode_1ere_annee"],
     jour: "Zone de texte 21_84",
     mois: "Zone de texte 21_85",
     annee: "Zone de texte 21_86",
