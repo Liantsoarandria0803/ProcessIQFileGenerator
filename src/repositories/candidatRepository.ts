@@ -1,7 +1,7 @@
 import config from '../config';
 import logger from '../utils/logger';
 import airtableClient from '../utils/airtableClient';
-import { Candidat, CandidatFields } from '../types';
+import { Attachment, Candidat, CandidatFields } from '../types';
 import axios from 'axios';
 import dns from 'dns';
 import fs from 'fs';
@@ -210,6 +210,91 @@ export class CandidatRepository {
 
   async uploadSuivieEntretien(recordId: string, filePath: string): Promise<boolean> {
     return this.uploadDocument(recordId, 'Suivie entretien', filePath);
+  }
+
+  // =====================================================
+  // SUPPRESSION DE DOCUMENTS
+  // =====================================================
+
+  async removeAttachmentByFilename(
+    recordId: string,
+    columnName: string,
+    filename: string
+  ): Promise<{ success: boolean; removedCount: number; remainingCount: number; usedColumn?: string; matchedFilename?: string }> {
+    const record = await this.getById(recordId);
+    if (!record) {
+      return { success: false, removedCount: 0, remainingCount: 0 };
+    }
+
+    const normalizeName = (value: string): string =>
+      value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+        .replace(/[^a-z0-9._-]/g, '');
+
+    const trimExtension = (value: string): string => value.replace(/\.[a-z0-9]+$/i, '');
+
+    const filenameQuery = filename.trim();
+    const normalizedQuery = normalizeName(filenameQuery);
+    const normalizedQueryNoExt = trimExtension(normalizedQuery);
+
+    const normalizedColumnName = Buffer.from(columnName, 'latin1').toString('utf8');
+    const triedNames = new Set<string>();
+
+    for (const nameToTry of [columnName, normalizedColumnName]) {
+      if (!nameToTry || triedNames.has(nameToTry)) {
+        continue;
+      }
+      triedNames.add(nameToTry);
+
+      const attachments = (record.fields as Record<string, Attachment[] | undefined>)[nameToTry];
+      if (!attachments || !Array.isArray(attachments)) {
+        continue;
+      }
+
+      const toRemove = attachments.filter((attachment) => {
+        const normalizedAttachment = normalizeName(attachment.filename || '');
+        if (!normalizedAttachment) {
+          return false;
+        }
+        if (normalizedAttachment === normalizedQuery) {
+          return true;
+        }
+        if (trimExtension(normalizedAttachment) === normalizedQueryNoExt) {
+          return true;
+        }
+        if (normalizedAttachment.includes(normalizedQuery) || normalizedQuery.includes(normalizedAttachment)) {
+          return true;
+        }
+        if (normalizedQueryNoExt && trimExtension(normalizedAttachment).includes(normalizedQueryNoExt)) {
+          return true;
+        }
+        return false;
+      });
+
+      if (toRemove.length === 0) {
+        continue;
+      }
+
+      const remaining = attachments.filter((attachment) => !toRemove.includes(attachment));
+
+      const updateData: Partial<CandidatFields> = {
+        [nameToTry]: remaining,
+      };
+
+      await airtableClient.update<CandidatFields>(this.tableName, recordId, updateData);
+      return {
+        success: true,
+        removedCount: attachments.length - remaining.length,
+        remainingCount: remaining.length,
+        usedColumn: nameToTry,
+        matchedFilename: toRemove[0]?.filename,
+      };
+    }
+
+    return { success: false, removedCount: 0, remainingCount: 0 };
   }
 }
 

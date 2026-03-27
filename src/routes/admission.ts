@@ -1541,6 +1541,123 @@ router.post('/entreprise', async (req: Request, res: Response) => {
 // UPLOAD DE DOCUMENTS
 // =====================================================
 
+const CANDIDATE_ATTACHMENT_COLUMNS: Record<string, string | string[]> = {
+  'cv': 'CV',
+  'cin': 'CIN',
+  'lettre-motivation': 'lettre de motivation',
+  'carte-vitale': 'Photocopie carte vitale',
+  'dernier-diplome': 'dernier diplome',
+  'fiche-entreprise': 'Fiche entreprise',
+  'cerfa': 'cerfa',
+  'convention': ['Convention', 'convention'],
+  'convention-apprentissage': 'Convention apprentissage',
+  'suivie-entretien': 'Suivie entretien',
+  'atre': 'Atre',
+  'compte-rendu': 'compte rendu de visite',
+  'reglement-interieur': 'Reglement interieur',
+  'livret-apprentissage': 'livret dapprentissage',
+  'prise-connaissance': 'Prise de connaissance',
+  'certificat-scolarite': 'certificat de scolarité',
+};
+
+/**
+ * @swagger
+ * /api/admission/candidates/{record_id}/documents/{documentType}:
+ *   delete:
+ *     summary: Supprime un fichier attaché d'un candidat (par nom de fichier)
+ *     tags: [Documents]
+ *     description: |
+ *       Supprime un fichier attaché dans la table "Liste des candidats".
+ *       Paramètres requis : ID étudiant + nom de fichier + type de document.
+ *       Le nom de fichier peut être partiel (match insensible à la casse/accents).
+ *     parameters:
+ *       - in: path
+ *         name: record_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID du record Airtable du candidat
+ *       - in: path
+ *         name: documentType
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Type du document (ex: cv, cin, cerfa, atre, compte-rendu, reglement-interieur)
+ *       - in: query
+ *         name: filename
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Nom du fichier à supprimer (exact ou partiel)
+ *     responses:
+ *       200:
+ *         description: Fichier supprimé avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AttachmentDeleteResponse'
+ *       400:
+ *         description: Paramètres invalides
+ *       404:
+ *         description: Candidat ou fichier non trouvé
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.delete('/candidates/:record_id/documents/:documentType', async (req: Request, res: Response) => {
+  try {
+    const { record_id, documentType } = req.params;
+    const filename = String(req.query.filename || '').trim();
+
+    if (!record_id || !documentType || !filename) {
+      return res.status(400).json({
+        success: false,
+        error: 'record_id, documentType et filename sont requis',
+      });
+    }
+
+    const candidate = await candidatRepo.getById(record_id);
+    if (!candidate) {
+      return res.status(404).json({
+        success: false,
+        error: 'Candidat non trouvé',
+      });
+    }
+
+    const columnConfig = CANDIDATE_ATTACHMENT_COLUMNS[documentType];
+    if (!columnConfig) {
+      return res.status(400).json({
+        success: false,
+        error: 'documentType invalide',
+      });
+    }
+
+    const columnNames = Array.isArray(columnConfig) ? columnConfig : [columnConfig];
+    for (const columnName of columnNames) {
+      const result = await candidatRepo.removeAttachmentByFilename(record_id, columnName, filename);
+      if (result.success) {
+        return res.json({
+          success: true,
+          removedCount: result.removedCount,
+          remainingCount: result.remainingCount,
+          column: result.usedColumn || columnName,
+          matchedFilename: result.matchedFilename,
+        });
+      }
+    }
+
+    return res.status(404).json({
+      success: false,
+      error: 'Fichier non trouvé dans la colonne demandée',
+    });
+  } catch (error: any) {
+    logger.error('❌ Erreur suppression document:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erreur lors de la suppression du document',
+    });
+  }
+});
+
 /**
  * @swagger
  * /api/admission/candidates/{record_id}/documents/cv:
