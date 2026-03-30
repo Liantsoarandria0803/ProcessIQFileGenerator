@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+.DS_Store
+dist
+.env
+.env.production
+.git
+.gitignore
+README.md
+logs
+coverage
+.nyc_output
+*.tsbuildinfo
