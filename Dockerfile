@@ -17,9 +17,9 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Install production dependencies only
+# Install production dependencies only (skip postinstall to avoid tsc error)
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 # Copy compiled code and assets from builder
 COPY --from=builder /app/dist ./dist
