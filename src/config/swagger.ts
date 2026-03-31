@@ -268,6 +268,16 @@ const swaggerDefinition: SwaggerDefinition = {
           deleted_files: { type: 'integer', nullable: true, description: 'Nombre de fichiers supprimés', example: 5 }
         }
       },
+      AttachmentDeleteResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean', example: true },
+          removedCount: { type: 'number', example: 1 },
+          remainingCount: { type: 'number', example: 0 },
+          column: { type: 'string', example: 'certificat de scolarité' },
+          matchedFilename: { type: 'string', nullable: true, example: 'Certificat_Scolarite_Dupont_Jean.pdf' }
+        }
+      },
       UserHistoryResponse: {
         type: 'object',
         properties: {

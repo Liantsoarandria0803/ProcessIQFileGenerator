@@ -32,12 +32,23 @@ export interface CandidatFields {
   'Déclare avoir un projet de création ou de reprise dentreprise'?: string;
   'Utilisateur'?: string;
   'Validation'?: string[] | string;
+  'CV'?: Attachment[];
+  'CIN'?: Attachment[];
+  'lettre de motivation'?: Attachment[];
+  'Photocopie carte vitale'?: Attachment[];
+  'dernier diplome'?: Attachment[];
   'Fiche entreprise'?: Attachment[];
   'Convention'?: Attachment[];
   'cerfa'?: Attachment[];
   'convention'?: Attachment[];
   'Convention apprentissage'?: Attachment[];
   'Suivie entretien'?: Attachment[];
+  'Atre'?: Attachment[];
+  'compte rendu de visite'?: Attachment[];
+  'Reglement interieur'?: Attachment[];
+  'livret dapprentissage'?: Attachment[];
+  'Prise de connaissance'?: Attachment[];
+  'certificat de scolarité'?: Attachment[];
   [key: string]: any;
 }
 
