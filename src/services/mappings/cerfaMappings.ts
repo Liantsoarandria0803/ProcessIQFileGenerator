@@ -847,6 +847,7 @@ export const CERFA_DATE_FIELDS: Record<string, {
 export const SMALL_FONT_FIELDS: Set<string> = new Set([
   "Zone de texte 8",
   "Zone de texte 8_2",
+  "Zone de texte 8_18",
   "Zone de texte 8_13",
   "Zone de texte 8_8",
   "Zone de texte 8_6",
@@ -879,6 +880,5 @@ export const EXTRA_SMALL_FONT_FIELDS: Set<string> = new Set([
   "Zone de texte 8_74",
   "Zone de texte 8_84",
   "Zone de texte 8_83",
-  "Zone de texte 8_18",
   "Zone de texte 8_50"
 ]);

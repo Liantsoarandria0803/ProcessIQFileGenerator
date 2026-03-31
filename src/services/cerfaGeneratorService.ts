@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Service de generation de fiches CERFA PDF
  * Transcription fidele du fichier Python cerfa_generator_service.py
  */
@@ -195,12 +195,12 @@ export class CerfaGeneratorService {
   // =====================================================
 
   /**
-   * Formate un numéro de téléphone au format XX XX XX XX XX
+   * Formate un numÃ©ro de tÃ©lÃ©phone au format XX XX XX XX XX
    */
   private formatPhoneNumber(phoneStr: string | undefined | null): string {
     if (!phoneStr) return '';
     try {
-      // Enlever tous les caractères non numériques
+      // Enlever tous les caractÃ¨res non numÃ©riques
       const digits = String(phoneStr).replace(/\D/g, '');
       
       // Si moins de 10 chiffres, retourner tel quel
@@ -215,12 +215,12 @@ export class CerfaGeneratorService {
   }
 
   /**
-   * Formate un NIR (numéro de sécurité sociale) au format X XX XX XX XXX XXX XX
+   * Formate un NIR (numÃ©ro de sÃ©curitÃ© sociale) au format X XX XX XX XXX XXX XX
    */
   private formatNIR(nirStr: string | undefined | null): string {
     if (!nirStr) return '';
     try {
-      // Enlever tous les caractères non numériques
+      // Enlever tous les caractÃ¨res non numÃ©riques
       const digits = String(nirStr).replace(/\D/g, '');
       
       // Si moins de 15 chiffres, retourner tel quel
@@ -248,7 +248,7 @@ export class CerfaGeneratorService {
   private getCodeDiplome(diplomeStr: string | undefined): string {
     if (!diplomeStr) return '';
     const d = String(diplomeStr).trim();
-    // Format "NN Libellé..." → extract the leading numeric code (e.g. "55 Diplôme Universitaire de technologie" → "55")
+    // Format "NN LibellÃ©..." â†’ extract the leading numeric code (e.g. "55 DiplÃ´me Universitaire de technologie" â†’ "55")
     const leadingCode = d.match(/^(\d{2})\s+.+/);
     if (leadingCode) return leadingCode[1];
     if (/^\d{2}$/.test(d)) return d;
@@ -320,9 +320,9 @@ export class CerfaGeneratorService {
     if (/^[123]$/.test(n)) return n;
     const normalized = n.toLowerCase();
 
-    if (normalized.includes('française') || normalized.includes('francaise')) return '1';
-    if (normalized.includes('union européenne') || normalized.includes('union europeenne') || normalized.includes('ue')) return '2';
-    if (normalized.includes('étranger') || normalized.includes('etranger')) return '3';
+    if (normalized.includes('franÃ§aise') || normalized.includes('francaise')) return '1';
+    if (normalized.includes('union europÃ©enne') || normalized.includes('union europeenne') || normalized.includes('ue')) return '2';
+    if (normalized.includes('Ã©tranger') || normalized.includes('etranger')) return '3';
 
     for (const pf of PAYS_FRANCE) {
       if (normalized.includes(pf.toLowerCase())) return '1';
@@ -346,15 +346,15 @@ export class CerfaGeneratorService {
   private getCodeDiplomeMaitre(diplomeStr: string | undefined): string {
     if (!diplomeStr) return '0';
     const d = String(diplomeStr).trim();
-    // Si déjà un code chiffre valide (0, 3, 4, 5, 6, 7, 8)
+    // Si dÃ©jÃ  un code chiffre valide (0, 3, 4, 5, 6, 7, 8)
     if (/^[03-8]$/.test(d)) return d;
     // Recherche exacte dans la table
     if (CODES_DIPLOMES_MAITRE[d]) return CODES_DIPLOMES_MAITRE[d];
-    // Recherche partielle insensible à la casse
+    // Recherche partielle insensible Ã  la casse
     for (const [key, code] of Object.entries(CODES_DIPLOMES_MAITRE)) {
       if (key.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(key.toLowerCase())) return code;
     }
-    // Aucune correspondance → 0 (aucun diplôme)
+    // Aucune correspondance â†’ 0 (aucun diplÃ´me)
     return '0';
   }
 
@@ -376,29 +376,52 @@ export class CerfaGeneratorService {
   private getCodeDepartement(departementStr: string | undefined): string {
     if (!departementStr) return '';
     const d = String(departementStr).trim();
-    
-    // Si c'est déjà un code numérique (01-99, 2A, 2B, 971-976)
-    if (/^(0[1-9]|[1-8][0-9]|9[0-5]|2[AB]|97[1-6]|99)$/i.test(d)) {
-      return d.toUpperCase();
+    if (!d) return '';
+
+    const normalize = (value: string): string =>
+      value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const normalizeWords = (value: string): string =>
+      normalize(value).replace(/[^a-z0-9]+/g, ' ').trim();
+    const normalizeCode = (value: string): string => {
+      const upper = value.toUpperCase();
+      // Airtable/front may store foreign as 099, CERFA expects 99.
+      return upper === '099' ? '99' : upper;
+    };
+
+    // 1) Prefer explicit leading code from values such as:
+    // "75 Paris", "2A Corse-du-Sud", "971 Guadeloupe", "099 personne nee a l'etranger"
+    const leadingCodeMatch = d.match(/^(0[1-9]|[1-8][0-9]|9[0-5]|2[AB]|97[1-6]|099|99)\b/i);
+    if (leadingCodeMatch) {
+      return normalizeCode(leadingCodeMatch[1]);
     }
-    
-    // Recherche exacte
-    if (CODES_DEPARTEMENTS[d]) return CODES_DEPARTEMENTS[d];
-    
-    // Recherche partielle (insensible à la casse et aux accents)
-    const dLower = d.toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // Enlever les accents
-    
+
+    // 2) If already a plain code
+    if (/^(0[1-9]|[1-8][0-9]|9[0-5]|2[AB]|97[1-6]|99)$/i.test(d)) {
+      return normalizeCode(d);
+    }
+
+    // 3) Exact key lookup
+    if (CODES_DEPARTEMENTS[d]) return normalizeCode(CODES_DEPARTEMENTS[d]);
+
+    // 4) Normalized exact key lookup (accents/case-insensitive)
+    const dNormalized = normalize(d);
     for (const [key, code] of Object.entries(CODES_DEPARTEMENTS)) {
-      const keyLower = key.toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      if (keyLower === dLower || keyLower.includes(dLower) || dLower.includes(keyLower)) {
-        return code;
+      if (normalize(key) === dNormalized) {
+        return normalizeCode(code);
       }
     }
-    
-    // Si pas trouvé dans les départements français, c'est un département étranger → code 99
-    // (ex: "Tizi Ouzou" en Algérie, etc.)
+
+    // 5) Phrase-level containment (word-safe), avoids false positives like:
+    // "Seine-Saint-Denis" matching "Ain" -> "01"
+    const dWords = ` ${normalizeWords(d)} `;
+    for (const [key, code] of Object.entries(CODES_DEPARTEMENTS)) {
+      const keyWords = normalizeWords(key);
+      if (keyWords && dWords.includes(` ${keyWords} `)) {
+        return normalizeCode(code);
+      }
+    }
+
+    // If not found in French departments, use foreign code 99.
     return '99';
   }
 
@@ -441,13 +464,13 @@ export class CerfaGeneratorService {
     entrepriseData: Record<string, any>
   ): string {
     // ADRESSE DE L'APPRENTI - PARSING AUTOMATIQUE
-    const addressKeys = ['Numéro de voie', 'Nom de la rue', 'Ville', 'Complement adresse', 'Code postal'];
+    const addressKeys = ['NumÃ©ro de voie', 'Nom de la rue', 'Ville', 'Complement adresse', 'Code postal'];
     if (addressKeys.includes(key)) {
-      let adresseComplete = candidatData['Adresse lieu dexécution du contrat'] || '';
-      if (!adresseComplete) adresseComplete = candidatData['Adresse complète étudiant'] || '';
+      let adresseComplete = candidatData['Adresse lieu dexÃ©cution du contrat'] || '';
+      if (!adresseComplete) adresseComplete = candidatData['Adresse complÃ¨te Ã©tudiant'] || '';
       if (!adresseComplete) adresseComplete = candidatData['Adresse'] || '';
       const parsed = this.parseAddress(adresseComplete);
-      if (key === 'Numéro de voie') return parsed.numero;
+      if (key === 'NumÃ©ro de voie') return parsed.numero;
       if (key === 'Nom de la rue') return parsed.voie;
       if (key === 'Ville') return parsed.commune;
       if (key === 'Complement adresse') return parsed.complement;
@@ -455,7 +478,7 @@ export class CerfaGeneratorService {
     }
 
     // FORMATION - GESTION SPECIALE
-    const formationKeys = ['Formation', 'Formation choisie', 'Code diplôme', 'Code RNCP', 'Nombre heure formation'];
+    const formationKeys = ['Formation', 'Formation choisie', 'Code diplÃ´me', 'Code RNCP', 'Nombre heure formation'];
     if (formationKeys.includes(key)) {
       const formationName = candidatData['Formation'] || '';
       const formationData = this.getFormationData(formationName);
@@ -464,7 +487,7 @@ export class CerfaGeneratorService {
         const intitule = formationData.intitule || '';
         return intitule || candidatData['Formation choisie'] || '';
       }
-      if (key === 'Code diplôme') return formationData.code_formation || '';
+      if (key === 'Code diplÃ´me') return formationData.code_formation || '';
       if (key === 'Code RNCP') return formationData.code_rncp || '';
       if (key === 'Nombre heure formation') {
         const heures = formationData.heures || '';
@@ -475,8 +498,8 @@ export class CerfaGeneratorService {
     // CFA RESPONSABLE - Utiliser valeurs par defaut de CFA_RUSH_SCHOOL
     // Si le CFA Rush School est le lieu principal, remplir ces champs avec les valeurs par defaut
     const CFA_RESPONSABLE_KEYS = [
-      'Dénomination CFA', 'N° UAI du CFA', 'N° SIRET CFA',
-      'N° Adresse CFA', 'Voie Adresse CFA', 'Code postal CFA', 'Commune CFA', 'Complement adresse CFA'
+      'DÃ©nomination CFA', 'NÂ° UAI du CFA', 'NÂ° SIRET CFA',
+      'NÂ° Adresse CFA', 'Voie Adresse CFA', 'Code postal CFA', 'Commune CFA', 'Complement adresse CFA'
     ];
     
     // Si on demande un champ CFA responsable, utiliser les valeurs par defaut
@@ -508,10 +531,33 @@ export class CerfaGeneratorService {
         return CFA_RUSH_SCHOOL[key];
       }
     }
+    // Tolerate different Airtable column names for birth department (legacy/encoding variants).
+    if (
+      source === 'candidat' &&
+      key.toLowerCase().includes('partement') &&
+      (value === '' || value === undefined || value === null)
+    ) {
+      const normalizeKey = (raw: string): string =>
+        raw
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
+
+      for (const [candidateKey, candidateValue] of Object.entries(candidatData)) {
+        const normalized = normalizeKey(candidateKey);
+        const isDepartmentField = normalized === 'departement' || normalized === 'departementdenaissance';
+
+        if (isDepartmentField && candidateValue !== undefined && candidateValue !== null && String(candidateValue).trim() !== '') {
+          value = candidateValue;
+          break;
+        }
+      }
+    }
 
     // VALEURS FORCEES - retourner TOUJOURS ces valeurs, meme si Airtable est vide
     if (key === 'Mode contractuel de lapprentissage') return '1';
-    if (key === 'Heures formation à distance') return '0';
+    if (key === 'Heures formation Ã  distance') return '0';
 
     // SMIC/SMC: ne pas afficher si le pourcentage correspondant est 0 ou vide
     const smicToPercentageMap: Record<string, string> = {
@@ -530,16 +576,16 @@ export class CerfaGeneratorService {
       if (!percentValue) return '';
     }
 
-    // Special-case: certains champs "intitulé" partagent la même colonne Airtable
-    // (ex: "Diplôme Maître apprentissage intitulé" doit lire la valeur
-    // présente dans la colonne "Diplôme Maître apprentissage" en texte brut).
-    // Faire ces vérifications AVANT le return pour ne pas quitter prématurément.
-    if (key === 'Diplôme Maître apprentissage intitulé') {
-      const raw = entrepriseData['Diplôme Maître apprentissage'];
+    // Special-case: certains champs "intitulÃ©" partagent la mÃªme colonne Airtable
+    // (ex: "DiplÃ´me MaÃ®tre apprentissage intitulÃ©" doit lire la valeur
+    // prÃ©sente dans la colonne "DiplÃ´me MaÃ®tre apprentissage" en texte brut).
+    // Faire ces vÃ©rifications AVANT le return pour ne pas quitter prÃ©maturÃ©ment.
+    if (key === 'DiplÃ´me MaÃ®tre apprentissage intitulÃ©') {
+      const raw = entrepriseData['DiplÃ´me MaÃ®tre apprentissage'];
       return raw ? String(raw) : '';
     }
-    if (key === 'Diplôme Maître apprentissage 2 intitulé') {
-      const raw = entrepriseData['Diplôme Maître apprentissage 2'];
+    if (key === 'DiplÃ´me MaÃ®tre apprentissage 2 intitulÃ©') {
+      const raw = entrepriseData['DiplÃ´me MaÃ®tre apprentissage 2'];
       return raw ? String(raw) : '';
     }
 
@@ -549,43 +595,43 @@ export class CerfaGeneratorService {
     // CONVERSIONS AUTOMATIQUES
     if (key === 'Type demployeur' || key === "Type d'employeur") return this.getCodeTypeEmployeur(valueStr);
     if (key === 'Type de contrat') return this.getCodeTypeContrat(valueStr);
-    if (key === 'Type de dérogation') return this.getCodeTypeDerogation(valueStr);
+    if (key === 'Type de dÃ©rogation') return this.getCodeTypeDerogation(valueStr);
     if (key === 'Employeur specifique') return this.getCodeEmployeurSpecifique(valueStr);
-    if (key === 'Dernier diplôme ou titre préparé') return this.getCodeDiplome(valueStr);
-    if (key === 'Intitulé précis du dernier diplôme ou titre préparé') {
-      // Strip leading code if present: "55 Diplôme Universitaire de technologie" → "Diplôme Universitaire de technologie"
+    if (key === 'Dernier diplÃ´me ou titre prÃ©parÃ©') return this.getCodeDiplome(valueStr);
+    if (key === 'IntitulÃ© prÃ©cis du dernier diplÃ´me ou titre prÃ©parÃ©') {
+      // Strip leading code if present: "55 DiplÃ´me Universitaire de technologie" â†’ "DiplÃ´me Universitaire de technologie"
       const stripped = valueStr.match(/^\d{2}\s+(.+)$/);
       return stripped ? stripped[1] : valueStr;
     }
-    if (key === 'Dernière classe / année suivie') return this.getCodeClasse(valueStr);
-    // Champ intitulé : même colonne Airtable, mais on retourne le texte brut (sans conversion en code)
-    if (key === 'Diplôme Maître apprentissage intitulé') {
-      const raw = entrepriseData['Diplôme Maître apprentissage'];
+    if (key === 'DerniÃ¨re classe / annÃ©e suivie') return this.getCodeClasse(valueStr);
+    // Champ intitulÃ© : mÃªme colonne Airtable, mais on retourne le texte brut (sans conversion en code)
+    if (key === 'DiplÃ´me MaÃ®tre apprentissage intitulÃ©') {
+      const raw = entrepriseData['DiplÃ´me MaÃ®tre apprentissage'];
       return raw ? String(raw) : 'Essaie';
     }
-    if (key === 'Diplôme Maître apprentissage' || key === 'Diplôme Maître apprentissage 2') return this.getCodeDiplomeMaitre(valueStr);
+    if (key === 'DiplÃ´me MaÃ®tre apprentissage' || key === 'DiplÃ´me MaÃ®tre apprentissage 2') return this.getCodeDiplomeMaitre(valueStr);
     
-    if (key === 'Diplôme Maître apprentissage 2 intitulé') {
-      const raw = entrepriseData['Diplôme Maître apprentissage 2'];
+    if (key === 'DiplÃ´me MaÃ®tre apprentissage 2 intitulÃ©') {
+      const raw = entrepriseData['DiplÃ´me MaÃ®tre apprentissage 2'];
       return raw ? String(raw) : '';
     }
-    if (key === 'Nationalité') return this.getCodeNationalite(valueStr);
-    if (key === 'Régime social') return this.getCodeRegimeSocial(valueStr);
+    if (key === 'NationalitÃ©') return this.getCodeNationalite(valueStr);
+    if (key === 'RÃ©gime social') return this.getCodeRegimeSocial(valueStr);
     if (key === 'Situation avant le contrat') return this.getCodeSituationAvantContrat(valueStr);
-    if (key === 'Département') return this.getCodeDepartement(valueStr);
+    if (key.toLowerCase().includes('partement')) return this.getCodeDepartement(valueStr);
     if (key === 'Salaire brut mensuel 1') return valueStr;
 
     // =====================================================
-    // NOUVELLES CONVERSIONS AJOUTÉES
+    // NOUVELLES CONVERSIONS AJOUTÃ‰ES
     // =====================================================
     
     // NOM DE NAISSANCE EN MAJUSCULES
     if (key === 'NOM de naissance') return valueStr.toUpperCase();
     
-    // NUMÉRO DE TÉLÉPHONE FORMATÉ
-    if (key === 'Téléphone') return this.formatPhoneNumber(valueStr);
+    // NUMÃ‰RO DE TÃ‰LÃ‰PHONE FORMATÃ‰
+    if (key === 'TÃ©lÃ©phone') return this.formatPhoneNumber(valueStr);
     
-    // NIR FORMATÉ
+    // NIR FORMATÃ‰
     if (key === 'NIR') return this.formatNIR(valueStr);
 
     return valueStr;
@@ -605,7 +651,7 @@ export class CerfaGeneratorService {
     // Secteur: determine depuis le type d'employeur
     if (key === 'Secteur') {
       const typeEmployeur = entrepriseData["Type d'employeur"] || entrepriseData['Type demployeur'] || '';
-      if (expectedValue === 'Privé') return this.isEmployeurPrive(typeEmployeur);
+      if (expectedValue === 'PrivÃ©') return this.isEmployeurPrive(typeEmployeur);
       if (expectedValue === 'Public') return this.isEmployeurPublic(typeEmployeur);
     }
 
@@ -616,7 +662,7 @@ export class CerfaGeneratorService {
 
     // Attestation maitre apprentissage: cocher si au moins un maitre d'apprentissage existe
     if (key === 'Attestation maitre apprentissage') {
-      const nomMaitre = entrepriseData['Nom Maître apprentissage'] || entrepriseData['Nom Maitre apprentissage'] || '';
+      const nomMaitre = entrepriseData['Nom MaÃ®tre apprentissage'] || entrepriseData['Nom Maitre apprentissage'] || '';
       return !!nomMaitre.trim();
     }
 
@@ -625,9 +671,9 @@ export class CerfaGeneratorService {
     if (key === 'CFA est lieu principal' && expectedValue === 'Oui') {
       // Verifier si on utilise les valeurs par defaut de CFA_RUSH_SCHOOL (pas de CFA personnalise)
       const cfaPersonnalise = !!(
-        entrepriseData['Dénomination CFA'] ||
-        entrepriseData['N° UAI du CFA'] ||
-        entrepriseData['N° SIRET CFA']
+        entrepriseData['DÃ©nomination CFA'] ||
+        entrepriseData['NÂ° UAI du CFA'] ||
+        entrepriseData['NÂ° SIRET CFA']
       );
       // Si pas de CFA personnalise, on utilise CFA Rush School qui est le lieu principal
       if (!cfaPersonnalise) return true;
@@ -642,18 +688,18 @@ export class CerfaGeneratorService {
       if (['masculin', 'm', 'homme', 'male'].includes(expectedLower)) {
         return ['masculin', 'm', 'homme', 'male', 'h'].includes(sexeValue);
       }
-      if (['feminin', 'féminin', 'f', 'femme', 'female'].includes(expectedLower)) {
-        return ['feminin', 'féminin', 'f', 'femme', 'female'].includes(sexeValue);
+      if (['feminin', 'fÃ©minin', 'f', 'femme', 'female'].includes(expectedLower)) {
+        return ['feminin', 'fÃ©minin', 'f', 'femme', 'female'].includes(sexeValue);
       }
       return false;
     }
 
     // Valeurs par defaut pour certains champs
     const defaultValues: Record<string, string> = {
-      'Équivalence jeunes RQTH': 'Non',
+      'Ã‰quivalence jeunes RQTH': 'Non',
       'Extension BOE': 'Non',
       'CFA entreprise': 'Non',
-      'Pièces justificatives': 'Oui',
+      'PiÃ¨ces justificatives': 'Oui',
     };
 
     let actualValue = '';
@@ -819,8 +865,8 @@ export class CerfaGeneratorService {
               // Ces zones ne doivent PAS etre remplies si le CFA responsable est le lieu principal
               const LIEU_PRINCIPAL_ZONES = [
                 'Zone de texte 8_101', // Denomination du lieu de formation principal
-                'Zone de texte 8_84',  // N° UAI
-                'Zone de texte 8_83',  // N° SIRET
+                'Zone de texte 8_84',  // NÂ° UAI
+                'Zone de texte 8_83',  // NÂ° SIRET
                 'Zone de texte 8_86',  // Adresse du CFA
                 'Zone de texte 8_88',  // Complement adresse CFA
                 'Zone de texte 8_89',  // Code postal CFA (lieu principal)
@@ -832,9 +878,9 @@ export class CerfaGeneratorService {
               if (LIEU_PRINCIPAL_ZONES.includes(matchName)) {
                 // Verifier si le CFA responsable est le lieu principal (valeurs par defaut)
                 const cfaPersonnalise = !!(
-                  entrepriseData['Dénomination CFA'] ||
-                  entrepriseData['N° UAI du CFA'] ||
-                  entrepriseData['N° SIRET CFA']
+                  entrepriseData['DÃ©nomination CFA'] ||
+                  entrepriseData['NÂ° UAI du CFA'] ||
+                  entrepriseData['NÂ° SIRET CFA']
                 );
                 // Si pas de CFA personnalise, on utilise CFA Rush School qui EST le lieu principal
                 // Donc on ne remplit pas les zones "Lieu principal si different"
@@ -854,8 +900,8 @@ export class CerfaGeneratorService {
                 const salaireComplet = entrepriseData['Salaire brut mensuel 1'] || '';
                 const [, centimes] = this.splitPrice(salaireComplet);
                 value = centimes;
-              } else if ((matchName === 'Zone de texte 8_68' || matchName === 'Zone de texte 8_69') && key === 'Durée hebdomadaire') {
-                const dureeComplet = entrepriseData['Durée hebdomadaire'] || '';
+              } else if ((matchName === 'Zone de texte 8_68' || matchName === 'Zone de texte 8_69') && key === 'DurÃ©e hebdomadaire') {
+                const dureeComplet = entrepriseData['DurÃ©e hebdomadaire'] || '';
                 const [heures, minutes] = this.splitWeeklyDuration(dureeComplet);
                 value = matchName === 'Zone de texte 8_68' ? heures : minutes;
               }
@@ -908,7 +954,7 @@ export class CerfaGeneratorService {
                   let dateValue = this.getFieldValue(src, airtableKey, candidatData, entrepriseData);
 
                   // Si pas de valeur et que c'est une date de formation, chercher dans les formations
-                  // Utiliser le nom de la clé de date (dateKey) pour savoir quelle date chercher
+                  // Utiliser le nom de la clÃ© de date (dateKey) pour savoir quelle date chercher
                   if (!dateValue) {
                     const formationName = candidatData['Formation'] || '';
                     const fData = this.getFormationData(formationName);
@@ -1029,3 +1075,5 @@ export class CerfaGeneratorService {
 }
 
 export default CerfaGeneratorService;
+
+
