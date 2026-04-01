@@ -33,6 +33,7 @@ export interface MaitreApprentissage {
   date_naissance?: string;
   fonction?: string;
   diplome_plus_eleve?: string;
+  niveau_diplome?: string;
   annees_experience?: number;
   telephone?: string;
   email?: string;

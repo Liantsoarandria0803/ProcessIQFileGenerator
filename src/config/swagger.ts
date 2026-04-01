@@ -360,6 +360,7 @@ const swaggerDefinition: SwaggerDefinition = {
             date_naissance: '1985-05-15',
             fonction: 'Responsable Formation',
             diplome_plus_eleve: 'Master',
+            niveau_diplome: '7 Master, diplôme d''études approfondies, diplôme d''études supérieures spécialisées, diplôme d''ingénieur',
             annees_experience: 10,
             telephone: '0612345678',
             email: 'marie.dupont@acme.com'
@@ -498,6 +499,7 @@ const swaggerDefinition: SwaggerDefinition = {
           date_naissance: { type: 'string', format: 'date', description: 'Date de naissance', example: '1985-05-15' },
           fonction: { type: 'string', description: 'Fonction / emploi occupÃ©', example: 'Responsable Formation' },
           diplome_plus_eleve: { type: 'string', description: 'DiplÃ´me ou titre le plus Ã©levÃ© obtenu', example: 'Master' },
+          niveau_diplome: { type: 'string', description: 'Niveau du diplôme ou titre le plus élevé obtenu', example: '7 Master, diplôme d''études approfondies, diplôme d''études supérieures spécialisées, diplôme d''ingénieur' },
           annees_experience: { type: 'number', description: 'Nombre d\'annÃ©es d\'expÃ©rience professionnelle', example: 10 },
           telephone: { type: 'string', description: 'TÃ©lÃ©phone', example: '0612345678' },
           email: { type: 'string', format: 'email', description: 'Adresse email', example: 'marie.dupont@acme.com' }

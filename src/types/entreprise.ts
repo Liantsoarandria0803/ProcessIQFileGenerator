@@ -38,6 +38,7 @@ export interface MaitreApprentissage {
   date_naissance?: string; // ISO date string
   fonction?: string;
   diplome_plus_eleve?: string;
+  niveau_diplome?: string;
   annees_experience?: string;
   telephone?: string;
   email?: string;
