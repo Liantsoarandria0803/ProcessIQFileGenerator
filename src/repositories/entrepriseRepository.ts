@@ -185,9 +185,6 @@ export class EntrepriseRepository {
       if (fiche.maitre_apprentissage.fonction) {
         airtableData['Fonction Maître apprentissage'] = fiche.maitre_apprentissage.fonction;
       }
-      if (fiche.maitre_apprentissage.diplome_plus_eleve) {
-        airtableData['Diplôme Maître apprentissage intitulé'] = fiche.maitre_apprentissage.diplome_plus_eleve;
-      }
       if (fiche.maitre_apprentissage.niveau_diplome) {
         airtableData['Diplôme Maître apprentissage'] = fiche.maitre_apprentissage.niveau_diplome;
       }
