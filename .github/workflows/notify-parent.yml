@@ -1,0 +1,37 @@
+name: 🔔 Notify Parent Repo to Deploy
+
+on:
+  push:
+    branches:
+      - main  # La branche principale du backend
+
+jobs:
+  notify-parent:
+    name: Trigger Deployment in Parent Repo
+    runs-on: ubuntu-latest
+    steps:
+      - name: ✅ Checkout submodule
+        uses: actions/checkout@v4
+
+      - name: 🔄 Update submodule reference in parent repo and trigger deploy
+        run: |
+          # Configure Git
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Clone the parent monorepo
+          git clone https://x-access-token:${{ secrets.PARENT_REPO_TOKEN }}@github.com/NyAina11/processiq.git parent_repo
+          cd parent_repo
+
+          # Update the submodule reference to the latest commit on this push
+          git submodule update --init --remote ProcessIQFileGenerator
+
+          # Commit and push only if something changed
+          if git diff --cached --quiet && git diff --quiet; then
+            echo "⏭️  No changes to commit, submodule ref is already up-to-date"
+          else
+            git add ProcessIQFileGenerator
+            git commit -m "chore(ci): update ProcessIQFileGenerator submodule to ${{ github.sha }}"
+            git push origin main
+            echo "✅  Parent repo updated, deployment will trigger automatically"
+          fi
