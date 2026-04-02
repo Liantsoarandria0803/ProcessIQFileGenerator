@@ -52,6 +52,16 @@ export class AdmissionService {
     return raw;
   }
 
+  private formatDiplomaForAirtable(value: string | undefined): string {
+    if (!value) return '';
+
+    const raw = String(value).trim();
+    if (!/^\d{2}$/.test(raw)) return raw;
+
+    const exactMatch = Object.entries(CODES_DIPLOMES).find(([, code]) => code === raw);
+    return exactMatch ? exactMatch[0] : raw;
+  }
+
   private normalizeRegimeSocial(value: string | undefined): string {
     if (!value) return '';
 
@@ -350,7 +360,7 @@ export class AdmissionService {
     }
     if (info.derniere_classe !== undefined) airtableData['Dernière classe / année suivie'] = info.derniere_classe;
 
-    if (info.bac !== undefined) airtableData['BAC'] = this.extractDiplomaCode(info.bac);
+    if (info.bac !== undefined) airtableData['BAC'] = this.formatDiplomaForAirtable(info.bac);
 
     // Section 7: Situations & déclarations
     if (info.situation !== undefined) airtableData['Situation avant le contrat'] = info.situation;
@@ -435,7 +445,7 @@ export class AdmissionService {
       'Dernier diplôme ou titre préparé': info.dernier_diplome_prepare,
       'Dernière classe / année suivie': info.derniere_classe,
       'Intitulé précis du dernier diplôme ou titre préparé': intitulePrecisDernierDiplome,
-      'BAC': this.extractDiplomaCode(info.bac),
+      'BAC': this.formatDiplomaForAirtable(info.bac),
 
       // Section 7: Situations & déclarations
       'Situation avant le contrat': info.situation,
