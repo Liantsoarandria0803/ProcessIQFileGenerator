@@ -19,6 +19,7 @@ import path from 'path';
 import os from 'os';
 import logger from '../utils/logger';
 import { PDF_MAPPING, ADRESSE_ENTREPRISE_FIELD } from './mappings/pdfMappings';
+import { CODES_DIPLOMES, CODES_REGIME_SOCIAL } from './mappings/cerfaMappings';
 
 export interface PdfGenerationResult {
   success: boolean;
@@ -107,6 +108,42 @@ export class PdfGeneratorService {
     return String(text).replace(/[^\w\d-]/g, '_');
   }
 
+  private getDiplomaCode(value: string | undefined): string {
+    if (!value) return '';
+
+    const raw = String(value).trim();
+    if (/^\d{2}$/.test(raw)) return raw;
+
+    const leadingCode = raw.match(/^(\d{2})\b/);
+    if (leadingCode) return leadingCode[1];
+
+    if (CODES_DIPLOMES[raw]) return CODES_DIPLOMES[raw];
+
+    for (const [label, code] of Object.entries(CODES_DIPLOMES)) {
+      if (label.toLowerCase().includes(raw.toLowerCase()) || raw.toLowerCase().includes(label.toLowerCase())) {
+        return code;
+      }
+    }
+
+    return raw;
+  }
+
+  private getRegimeSocialDisplay(value: string | undefined): string {
+    if (!value) return '';
+
+    const raw = String(value).trim();
+    if (raw === '1') return 'MSA';
+    if (raw === '2') return 'URSSAF';
+
+    for (const [label, code] of Object.entries(CODES_REGIME_SOCIAL)) {
+      if (raw.toLowerCase().includes(label.toLowerCase())) {
+        return code === '1' ? 'MSA' : 'URSSAF';
+      }
+    }
+
+    return raw;
+  }
+
   // =====================================================
   // GET FIELD VALUE
   // =====================================================
@@ -141,6 +178,14 @@ export class PdfGeneratorService {
     if (value === undefined || value === null || value === '') return '';
 
     const valueStr = String(value);
+
+    if (source === 'candidat' && (key === 'Intitulé précis du dernier diplôme ou titre préparé' || key === 'BAC')) {
+      return this.getDiplomaCode(valueStr);
+    }
+
+    if (source === 'candidat' && key === 'Régime social') {
+      return this.getRegimeSocialDisplay(valueStr);
+    }
 
     // Formattage spécial pour les dates
     // Détecte les colonnes date par nom de clé OU par format ISO dans la valeur
@@ -402,4 +447,3 @@ export class PdfGeneratorService {
 }
 
 export default PdfGeneratorService;
-

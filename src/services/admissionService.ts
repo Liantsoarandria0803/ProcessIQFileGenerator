@@ -21,6 +21,7 @@ import {
   normalizePhone
 } from '../types/admission';
 import { CandidatFields } from '../types';
+import { CODES_DIPLOMES, CODES_REGIME_SOCIAL } from './mappings/cerfaMappings';
 
 export class AdmissionService {
   private candidatRepo: CandidatRepository;
@@ -29,6 +30,42 @@ export class AdmissionService {
   constructor() {
     this.candidatRepo = new CandidatRepository();
     this.entrepriseRepo = new EntrepriseRepository();
+  }
+
+  private extractDiplomaCode(value: string | undefined): string {
+    if (!value) return '';
+
+    const raw = String(value).trim();
+    if (/^\d{2}$/.test(raw)) return raw;
+
+    const leadingCode = raw.match(/^(\d{2})\b/);
+    if (leadingCode) return leadingCode[1];
+
+    if (CODES_DIPLOMES[raw]) return CODES_DIPLOMES[raw];
+
+    for (const [label, code] of Object.entries(CODES_DIPLOMES)) {
+      if (label.toLowerCase().includes(raw.toLowerCase()) || raw.toLowerCase().includes(label.toLowerCase())) {
+        return code;
+      }
+    }
+
+    return raw;
+  }
+
+  private normalizeRegimeSocial(value: string | undefined): string {
+    if (!value) return '';
+
+    const raw = String(value).trim();
+    if (raw === '1') return 'MSA';
+    if (raw === '2') return 'URSSAF';
+
+    for (const [label, code] of Object.entries(CODES_REGIME_SOCIAL)) {
+      if (raw.toLowerCase().includes(label.toLowerCase())) {
+        return code === '1' ? 'MSA' : 'URSSAF';
+      }
+    }
+
+    return raw;
   }
 
   /**
@@ -305,15 +342,19 @@ export class AdmissionService {
     if (info.dernier_diplome_prepare !== undefined) {
         const valeur = info.dernier_diplome_prepare;
         airtableData['Dernier diplôme ou titre préparé'] = valeur;
-        airtableData['Intitulé précis du dernier diplôme ou titre préparé'] = valeur;
-        }
+    }
+    if (info.intitulePrecisDernierDiplome !== undefined || info.dernier_diplome_prepare !== undefined) {
+        airtableData['Intitulé précis du dernier diplôme ou titre préparé'] = this.extractDiplomaCode(
+          info.intitulePrecisDernierDiplome || info.dernier_diplome_prepare
+        );
+    }
     if (info.derniere_classe !== undefined) airtableData['Dernière classe / année suivie'] = info.derniere_classe;
 
-    if (info.bac !== undefined) airtableData['BAC'] = info.bac;
+    if (info.bac !== undefined) airtableData['BAC'] = this.extractDiplomaCode(info.bac);
 
     // Section 7: Situations & déclarations
     if (info.situation !== undefined) airtableData['Situation avant le contrat'] = info.situation;
-    if (info.regime_social !== undefined) airtableData['Régime social'] = info.regime_social;
+    if (info.regime_social !== undefined) airtableData['Régime social'] = this.normalizeRegimeSocial(info.regime_social);
     if (info.declare_inscription_sportif_haut_niveau !== undefined) airtableData['Déclare être inscrits sur la liste des sportifs de haut niveau'] = info.declare_inscription_sportif_haut_niveau ? 'Oui' : 'Non';
     if (info.declare_avoir_projet_creation_reprise_entreprise !== undefined) airtableData['Déclare avoir un projet de création ou de reprise dentreprise'] = info.declare_avoir_projet_creation_reprise_entreprise ? 'Oui' : 'Non';
     if (info.declare_travailleur_handicape !== undefined) airtableData['Déclare bénéficier de la reconnaissance travailleur handicapé'] = info.declare_travailleur_handicape ? 'Oui' : 'Non';
@@ -340,6 +381,10 @@ export class AdmissionService {
    * Mappe les InformationsPersonnelles vers le format Airtable
    */
   private mapInformationsToAirtable(info: InformationsPersonnelles): Partial<CandidatFields> {
+    const intitulePrecisDernierDiplome = this.extractDiplomaCode(
+      info.intitulePrecisDernierDiplome || info.dernier_diplome_prepare
+    );
+
     const airtableData: Partial<CandidatFields> = {
       // Section 1: Informations personnelles de base
       'Prénom': info.prenom,
@@ -389,12 +434,12 @@ export class AdmissionService {
       // Une seule donnée (ex: "55 Diplôme Universitaire de technologie") alimente les 2 colonnes
       'Dernier diplôme ou titre préparé': info.dernier_diplome_prepare,
       'Dernière classe / année suivie': info.derniere_classe,
-      'Intitulé précis du dernier diplôme ou titre préparé': info.dernier_diplome_prepare,
-      'BAC': info.bac,
+      'Intitulé précis du dernier diplôme ou titre préparé': intitulePrecisDernierDiplome,
+      'BAC': this.extractDiplomaCode(info.bac),
 
       // Section 7: Situations & déclarations
       'Situation avant le contrat': info.situation,
-      'Régime social': info.regime_social,
+      'Régime social': this.normalizeRegimeSocial(info.regime_social),
       'Déclare être inscrits sur la liste des sportifs de haut niveau': info.declare_inscription_sportif_haut_niveau ? 'Oui' : 'Non',
       'Déclare avoir un projet de création ou de reprise dentreprise': info.declare_avoir_projet_creation_reprise_entreprise ? 'Oui' : 'Non',
       'Déclare bénéficier de la reconnaissance travailleur handicapé': info.declare_travailleur_handicape ? 'Oui' : 'Non',
@@ -480,7 +525,7 @@ export class AdmissionService {
       nir: fields.NIR,
 
       situation: fields['Situation avant le contrat'],
-      regime_social: fields['Régime social'],
+      regime_social: this.normalizeRegimeSocial(fields['Régime social']),
       declare_inscription_sportif_haut_niveau: fields['Déclare être inscrits sur la liste des sportifs de haut niveau'] === 'Oui',
       declare_avoir_projet_creation_reprise_entreprise: fields['Déclare avoir un projet de création ou de reprise dentreprise'] === 'Oui',
       declare_travailleur_handicape: fields['Déclare bénéficier de la reconnaissance travailleur handicapé'] === 'Oui',
@@ -488,8 +533,8 @@ export class AdmissionService {
 
       dernier_diplome_prepare: fields['Dernier diplôme ou titre préparé'],
       derniere_classe: fields['Dernière classe / année suivie'],
-      bac: fields.BAC || '',
-      intitulePrecisDernierDiplome: fields['Intitulé précis du dernier diplôme ou titre préparé'],
+      bac: this.extractDiplomaCode(fields.BAC || ''),
+      intitulePrecisDernierDiplome: this.extractDiplomaCode(fields['Intitulé précis du dernier diplôme ou titre préparé']),
 
       formation_souhaitee: fields.Formation,
       date_de_visite: fields['Date de visite'],

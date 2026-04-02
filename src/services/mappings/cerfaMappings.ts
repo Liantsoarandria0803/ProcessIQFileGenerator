@@ -536,7 +536,7 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
   "Zone de texte 8_29": ["candidat", "Dernier diplôme ou titre préparé"],
   "Zone de texte 8_36": ["candidat", "Voie représentant légal"],
   "Zone de texte 8_30": ["candidat", "Dernière classe / année suivie"],
-  "Zone de texte 8_32": ["candidat", "Dernier diplôme ou titre préparé"],
+  "Zone de texte 8_32": ["candidat", "BAC"],
   "Zone de texte 8_31": ["candidat", "Intitulé précis du dernier diplôme ou titre préparé"],
   "Zone de texte 8_37": ["candidat", "Numéro de voie représentant légal"],
   "Zone de texte 8_35": ["candidat", "Nom du representant legal"],

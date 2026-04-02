@@ -275,8 +275,16 @@ export class CerfaGeneratorService {
     const t = String(typeStr).trim();
     if (/^\d{2}$/.test(t)) return t;
     if (CODES_TYPE_EMPLOYEUR[t]) return CODES_TYPE_EMPLOYEUR[t];
+    const normalize = (value: string): string =>
+      value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+    const normalizedType = normalize(t);
     for (const [key, code] of Object.entries(CODES_TYPE_EMPLOYEUR)) {
-      if (key.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(key.toLowerCase())) return code;
+      const normalizedKey = normalize(key);
+      if (normalizedKey.includes(normalizedType) || normalizedType.includes(normalizedKey)) return code;
     }
     return t;
   }
@@ -512,6 +520,12 @@ export class CerfaGeneratorService {
       return '';
     }
 
+    const normalizedKey = String(key)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+
     // RECUPERATION STANDARD
     // Use nullish coalescing / explicit undefined checks so that numeric 0 is preserved
     let value: any = '';
@@ -556,8 +570,8 @@ export class CerfaGeneratorService {
     }
 
     // VALEURS FORCEES - retourner TOUJOURS ces valeurs, meme si Airtable est vide
-    if (key === 'Mode contractuel de lapprentissage') return '1';
-    if (key === 'Heures formation Ã  distance') return '0';
+    if (normalizedKey === 'modecontractueldelapprentissage') return '1';
+    if (normalizedKey === 'heuresformationadistance') return '0';
 
     // SMIC/SMC: ne pas afficher si le pourcentage correspondant est 0 ou vide
     const smicToPercentageMap: Record<string, string> = {
@@ -580,11 +594,11 @@ export class CerfaGeneratorService {
     // (ex: "DiplÃ´me MaÃ®tre apprentissage intitulÃ©" doit lire la valeur
     // prÃ©sente dans la colonne "DiplÃ´me MaÃ®tre apprentissage" en texte brut).
     // Faire ces vÃ©rifications AVANT le return pour ne pas quitter prÃ©maturÃ©ment.
-    if (key === 'DiplÃ´me MaÃ®tre apprentissage intitulÃ©') {
+    if (normalizedKey === 'diplomemaitreapprentissageintitule') {
       const raw = entrepriseData['DiplÃ´me MaÃ®tre apprentissage'];
       return raw ? String(raw) : '';
     }
-    if (key === 'DiplÃ´me MaÃ®tre apprentissage 2 intitulÃ©') {
+    if (normalizedKey === 'diplomemaitreapprentissage2intitule') {
       const raw = entrepriseData['DiplÃ´me MaÃ®tre apprentissage 2'];
       return raw ? String(raw) : '';
     }
@@ -593,25 +607,26 @@ export class CerfaGeneratorService {
     const valueStr = String(value);
 
     // CONVERSIONS AUTOMATIQUES
-    if (key === 'Type demployeur' || key === "Type d'employeur") return this.getCodeTypeEmployeur(valueStr);
-    if (key === 'Type de contrat') return this.getCodeTypeContrat(valueStr);
-    if (key === 'Type de dÃ©rogation') return this.getCodeTypeDerogation(valueStr);
-    if (key === 'Employeur specifique') return this.getCodeEmployeurSpecifique(valueStr);
-    if (key === 'Dernier diplÃ´me ou titre prÃ©parÃ©') return this.getCodeDiplome(valueStr);
-    if (key === 'IntitulÃ© prÃ©cis du dernier diplÃ´me ou titre prÃ©parÃ©') {
+    if (normalizedKey === 'typedemployeur') return this.getCodeTypeEmployeur(valueStr);
+    if (normalizedKey === 'typedecontrat') return this.getCodeTypeContrat(valueStr);
+    if (normalizedKey === 'typedederogation') return this.getCodeTypeDerogation(valueStr);
+    if (normalizedKey === 'employeurspecifique') return this.getCodeEmployeurSpecifique(valueStr);
+    if (normalizedKey === 'dernierdiplomeoutitreprepare') return this.getCodeDiplome(valueStr);
+    if (normalizedKey === 'bac') return this.getCodeDiplome(valueStr);
+    if (normalizedKey === 'intituleprecisdudernierdiplomeoutitreprepare') {
       // Strip leading code if present: "55 DiplÃ´me Universitaire de technologie" â†’ "DiplÃ´me Universitaire de technologie"
       const stripped = valueStr.match(/^\d{2}\s+(.+)$/);
       return stripped ? stripped[1] : valueStr;
     }
-    if (key === 'DerniÃ¨re classe / annÃ©e suivie') return this.getCodeClasse(valueStr);
+    if (normalizedKey === 'derniereclasseanneesuivie') return this.getCodeClasse(valueStr);
     // Champ intitulÃ© : mÃªme colonne Airtable, mais on retourne le texte brut (sans conversion en code)
-    if (key === 'DiplÃ´me MaÃ®tre apprentissage intitulÃ©') {
+    if (normalizedKey === 'diplomemaitreapprentissageintitule') {
       const raw = entrepriseData['DiplÃ´me MaÃ®tre apprentissage'];
       return raw ? String(raw) : 'Essaie';
     }
-    if (key === 'DiplÃ´me MaÃ®tre apprentissage' || key === 'DiplÃ´me MaÃ®tre apprentissage 2') return this.getCodeDiplomeMaitre(valueStr);
+    if (normalizedKey === 'diplomemaitreapprentissage' || normalizedKey === 'diplomemaitreapprentissage2') return this.getCodeDiplomeMaitre(valueStr);
     
-    if (key === 'DiplÃ´me MaÃ®tre apprentissage 2 intitulÃ©') {
+    if (normalizedKey === 'diplomemaitreapprentissage2intitule') {
       const raw = entrepriseData['DiplÃ´me MaÃ®tre apprentissage 2'];
       return raw ? String(raw) : '';
     }
@@ -890,6 +905,24 @@ export class CerfaGeneratorService {
               }
               
               let value = this.getFieldValue(source, key, candidatData, entrepriseData);
+
+              if (
+                (matchName === 'Zone de texte 8_29' || matchName === 'Zone de texte 8_32') &&
+                value !== undefined &&
+                value !== null &&
+                String(value).trim() !== ''
+              ) {
+                value = this.getCodeDiplome(String(value));
+              }
+
+              if (
+                matchName === 'Zone de texte 8_4' &&
+                value !== undefined &&
+                value !== null &&
+                String(value).trim() !== ''
+              ) {
+                value = this.getCodeTypeEmployeur(String(value));
+              }
 
               // Gestion speciale salaire: partie entiere et centimes
               if (matchName === 'Zone de texte 8_72' && key === 'Salaire brut mensuel 1') {
