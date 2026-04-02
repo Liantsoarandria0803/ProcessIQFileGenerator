@@ -63,6 +63,17 @@ class AirtableClient {
     );
   }
 
+  private extractUnknownFieldName(error: any): string | null {
+    const errorType = error?.response?.data?.error?.type;
+    const message = error?.response?.data?.error?.message;
+    if (errorType !== 'UNKNOWN_FIELD_NAME' || typeof message !== 'string') {
+      return null;
+    }
+
+    const match = message.match(/Unknown field name:\s*"([^"]+)"/);
+    return match ? match[1] : null;
+  }
+
   /**
    * Récupère tous les enregistrements d'une table avec pagination automatique
    */
@@ -128,13 +139,27 @@ class AirtableClient {
    * Crée un nouvel enregistrement
    */
   async create<T>(tableName: string, fields: Partial<T>): Promise<{ id: string; fields: T }> {
-    const response = await this.client.post(`/${encodeURIComponent(tableName)}`, {
-      fields
-    });
-    return {
-      id: response.data.id,
-      fields: response.data.fields as T
-    };
+    let sanitizedFields: Record<string, any> = { ...(fields as Record<string, any>) };
+
+    while (true) {
+      try {
+        const response = await this.client.post(`/${encodeURIComponent(tableName)}`, {
+          fields: sanitizedFields
+        });
+        return {
+          id: response.data.id,
+          fields: response.data.fields as T
+        };
+      } catch (error: any) {
+        const unknownField = this.extractUnknownFieldName(error);
+        if (!unknownField || !(unknownField in sanitizedFields)) {
+          throw error;
+        }
+
+        logger.warn(`⚠️ Airtable create: champ inconnu ignoré "${unknownField}" dans ${tableName}`);
+        delete sanitizedFields[unknownField];
+      }
+    }
   }
 
   /**
