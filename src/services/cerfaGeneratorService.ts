@@ -190,6 +190,51 @@ export class CerfaGeneratorService {
     }
   }
 
+  private getCandidateAddress(candidatData: Record<string, any>): ParsedAddress {
+    const candidates = [
+      candidatData['Adresse lieu dexécution du contrat'],
+      candidatData['Adresse lieu dexÃ©cution du contrat'],
+      candidatData['Adresse complète étudiant'],
+      candidatData['Adresse complÃ¨te Ã©tudiant'],
+      candidatData['Adresse de résidence'],
+      candidatData['Adresse de rÃ©sidence'],
+      candidatData['adresse_residence'],
+      candidatData['Adresse'],
+    ];
+
+    let parsed: ParsedAddress = { numero: '', voie: '', complement: '', code_postal: '', commune: '' };
+
+    for (const value of candidates) {
+      if (!value) continue;
+      parsed = this.parseAddress(value);
+      if (parsed.numero || parsed.voie || parsed.complement || parsed.code_postal || parsed.commune) {
+        break;
+      }
+    }
+
+    const codePostal =
+      candidatData['Code postal'] ??
+      candidatData['Code postal '] ??
+      candidatData['code_postal'] ??
+      '';
+    const commune =
+      candidatData['Ville'] ??
+      candidatData['ville'] ??
+      candidatData['Ville de résidence'] ??
+      candidatData['Ville de rÃ©sidence'] ??
+      '';
+
+    if (!parsed.code_postal && codePostal !== undefined && codePostal !== null) {
+      parsed.code_postal = String(codePostal).trim();
+    }
+
+    if (!parsed.commune && commune !== undefined && commune !== null) {
+      parsed.commune = String(commune).trim();
+    }
+
+    return parsed;
+  }
+
   // =====================================================
   // FORMATAGE HELPERS - AJOUT DES NOUVELLES FONCTIONS
   // =====================================================
@@ -474,10 +519,7 @@ export class CerfaGeneratorService {
     // ADRESSE DE L'APPRENTI - PARSING AUTOMATIQUE
     const addressKeys = ['NumÃ©ro de voie', 'Nom de la rue', 'Ville', 'Complement adresse', 'Code postal'];
     if (addressKeys.includes(key)) {
-      let adresseComplete = candidatData['Adresse lieu dexÃ©cution du contrat'] || '';
-      if (!adresseComplete) adresseComplete = candidatData['Adresse complÃ¨te Ã©tudiant'] || '';
-      if (!adresseComplete) adresseComplete = candidatData['Adresse'] || '';
-      const parsed = this.parseAddress(adresseComplete);
+      const parsed = this.getCandidateAddress(candidatData);
       if (key === 'NumÃ©ro de voie') return parsed.numero;
       if (key === 'Nom de la rue') return parsed.voie;
       if (key === 'Ville') return parsed.commune;
