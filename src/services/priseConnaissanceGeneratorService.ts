@@ -3,8 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { CandidatRepository } from '../repositories/candidatRepository';
 import {
-  PRISE_CONNAISSANCE_AIRTABLE_FIELDS,
-  PRISE_CONNAISSANCE_AIRTABLE_COLUMN,
+  PRISE_CONNAISSANCE_CANDIDATE_FIELDS,
+  PRISE_CONNAISSANCE_DOCUMENT_FIELD,
   PRISE_CONNAISSANCE_FIELDS,
 } from './mappings/priseConnaissanceMappings';
 
@@ -42,8 +42,8 @@ export class PriseConnaissanceGeneratorService {
         };
       }
 
-      const nom = (candidat.fields[PRISE_CONNAISSANCE_AIRTABLE_FIELDS.NOM] as string) || '';
-      const prenom = (candidat.fields[PRISE_CONNAISSANCE_AIRTABLE_FIELDS.PRENOM] as string) || '';
+      const nom = (candidat.fields[PRISE_CONNAISSANCE_CANDIDATE_FIELDS.NOM] as string) || '';
+      const prenom = (candidat.fields[PRISE_CONNAISSANCE_CANDIDATE_FIELDS.PRENOM] as string) || '';
       console.log(`[PriseConnaissance] Candidat: ${prenom} ${nom}`);
 
       // 2. Charger le template PDF
@@ -94,10 +94,10 @@ export class PriseConnaissanceGeneratorService {
       console.log(`[PriseConnaissance] Fichier temporaire: ${tmpPath}`);
 
       // 6. Upload vers Airtable
-      console.log(`[PriseConnaissance] Upload vers Airtable, colonne: "${PRISE_CONNAISSANCE_AIRTABLE_COLUMN}"`);
+      console.log(`[PriseConnaissance] Upload vers le champ document: "${PRISE_CONNAISSANCE_DOCUMENT_FIELD}"`);
       const uploadSuccess = await this.candidatRepo.uploadDocument(
         idEtudiant,
-        PRISE_CONNAISSANCE_AIRTABLE_COLUMN,
+        PRISE_CONNAISSANCE_DOCUMENT_FIELD,
         tmpPath
       );
 

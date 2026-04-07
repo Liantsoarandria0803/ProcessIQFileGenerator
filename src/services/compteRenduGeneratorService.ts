@@ -33,7 +33,7 @@ import { CandidatRepository } from '../repositories/candidatRepository';
 import { CandidatFields } from '../types';
 import {
   COMPTE_RENDU_TEXT_FIELDS,
-  COMPTE_RENDU_AIRTABLE_COLUMN,
+  COMPTE_RENDU_DOCUMENT_FIELD,
 } from './mappings/compteRenduMappings';
 
 // =====================================================
@@ -314,7 +314,7 @@ export class CompteRenduGeneratorService {
       fs.writeFileSync(tmpPath, pdfBuffer);
       const success = await this.candidatRepo.uploadDocument(
         idEtudiant,
-        COMPTE_RENDU_AIRTABLE_COLUMN,
+        COMPTE_RENDU_DOCUMENT_FIELD,
         tmpPath
       );
 

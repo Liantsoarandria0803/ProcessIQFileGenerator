@@ -172,6 +172,9 @@ export interface Attachment {
   filename: string;
   size: number;
   type: string;
+  fileId?: string;
+  contentType?: string;
+  uploadedAt?: string | Date;
 }
 
 export interface AirtableRecord<T> {

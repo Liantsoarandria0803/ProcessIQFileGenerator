@@ -3,8 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { CandidatRepository } from '../repositories/candidatRepository';
 import {
-  REGLEMENT_AIRTABLE_FIELDS,
-  REGLEMENT_AIRTABLE_COLUMN,
+  REGLEMENT_CANDIDATE_FIELDS,
+  REGLEMENT_DOCUMENT_FIELD,
   REGLEMENT_PAGE_INDEX,
   REGLEMENT_POSITIONS,
   REGLEMENT_FONT_SIZES,
@@ -70,9 +70,9 @@ export class ReglementGeneratorService {
       const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
       // Extract field values from candidat.fields
-      const nomNaissance = candidat.fields[REGLEMENT_AIRTABLE_FIELDS.NOM] || '';
-      const prenom = candidat.fields[REGLEMENT_AIRTABLE_FIELDS.PRENOM] || '';
-      const dateEnvoi = candidat.fields[REGLEMENT_AIRTABLE_FIELDS.DATE_ENVOI] || '';
+      const nomNaissance = candidat.fields[REGLEMENT_CANDIDATE_FIELDS.NOM] || '';
+      const prenom = candidat.fields[REGLEMENT_CANDIDATE_FIELDS.PRENOM] || '';
+      const dateEnvoi = candidat.fields[REGLEMENT_CANDIDATE_FIELDS.DATE_ENVOI] || '';
 
       // Build full name
       const nomComplet = `${prenom} ${nomNaissance}`.trim();
@@ -146,10 +146,10 @@ export class ReglementGeneratorService {
       console.log(`[ReglementGenerator] PDF saved to: ${tmpPath}`);
 
       // Upload to Airtable
-      console.log(`[ReglementGenerator] Uploading to Airtable column: ${REGLEMENT_AIRTABLE_COLUMN}`);
+      console.log(`[ReglementGenerator] Uploading document field: ${REGLEMENT_DOCUMENT_FIELD}`);
       const uploadSuccess = await this.candidatRepo.uploadDocument(
         idEtudiant,
-        REGLEMENT_AIRTABLE_COLUMN,
+        REGLEMENT_DOCUMENT_FIELD,
         tmpPath
       );
 

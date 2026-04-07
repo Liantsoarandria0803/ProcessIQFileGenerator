@@ -1,14 +1,15 @@
 import mongoose from 'mongoose';
+import config from './index';
 
 // Avoid silent query buffering when MongoDB is unavailable.
 mongoose.set('bufferCommands', false);
 
 export const connectDB = async (): Promise<void> => {
   try {
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/processiq';
+    const mongoURI = config.database.uri;
 
     await mongoose.connect(mongoURI, {
-      dbName: process.env.MONGODB_DATABASE || 'processiq',
+      dbName: config.database.dbName,
       // Keep API failures short when Atlas/network is down.
       serverSelectionTimeoutMS: 8000,
       socketTimeoutMS: 20000,

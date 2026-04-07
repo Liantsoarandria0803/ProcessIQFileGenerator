@@ -16,45 +16,31 @@ const resolveDocuSignPrivateKey = (): string => {
 };
 
 export const config = {
-  // Airtable
-  airtable: {
-    apiToken: process.env.AIRTABLE_API_TOKEN || process.env.AIRTABLE_API_KEY || '',
-    baseId: process.env.AIRTABLE_BASE_ID || '',
-    tables: {
-      etudiants: process.env.AIRTABLE_TABLE_ETUDIANTS || 'Étudiants',
-      candidats: process.env.AIRTABLE_TABLE_CANDIDATS || 'Liste des candidats',
-      entreprise: process.env.AIRTABLE_TABLE_ENTREPRISE || 'Fiche entreprise',
-      support: process.env.AIRTABLE_SUPPORT_TABLE || 'Support Bugs'
-    }
-  },
-  
-  // Server
-  // Default to 3001 to match frontend proxy during local development
   port: parseInt(process.env.PORT || '8001', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   corsOrigin: process.env.CORS_ORIGIN || '*',
-  
-  // Logging
+
   logging: {
     level: process.env.LOG_LEVEL || 'info'
   },
-  
-  // Paths
+
+  database: {
+    uri: process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/processiq',
+    dbName: process.env.DB_NAME || process.env.MONGODB_DATABASE || 'processiq'
+  },
+
   paths: {
     templates: './assets/templates_pdf'
   },
 
-  // Upload
   upload: {
     dir: process.env.UPLOAD_DIR || 'uploads',
-    maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10), // 10MB
+    maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10),
     allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png']
   },
 
-  // Public API URL (used to build absolute links if needed)
   publicBaseUrl: process.env.PUBLIC_BASE_URL || '',
 
-  // DocuSign
   docusign: {
     enabled: String(process.env.DOCUSIGN_ENABLED || '').toLowerCase() === 'true',
     authServer: process.env.DOCUSIGN_AUTH_SERVER || 'account-d.docusign.com',
@@ -72,7 +58,6 @@ export const config = {
       .filter(Boolean)
   },
 
-  // UDocSign
   udocsign: {
     enabled: String(process.env.UDOCSIGN_ENABLED || '').toLowerCase() === 'true',
     baseUrl: process.env.UDOCSIGN_BASE_URL || '',
@@ -86,4 +71,3 @@ export const config = {
 };
 
 export default config;
-

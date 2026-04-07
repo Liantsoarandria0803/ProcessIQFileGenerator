@@ -1,220 +1,71 @@
-import config from '../config';
 import logger from '../utils/logger';
-import airtableClient from '../utils/airtableClient';
+import { deleteFile } from '../services/gridfsService';
+import { CandidatMongoRepository } from './mongo/candidatMongoRepository';
 import { Attachment, Candidat, CandidatFields } from '../types';
-import axios from 'axios';
-import dns from 'dns';
-import fs from 'fs';
-import path from 'path';
-import FormData from 'form-data';
-
-// Force IPv4 pour les appels directs axios (tmpfiles.org)
-dns.setDefaultResultOrder('ipv4first');
 
 export class CandidatRepository {
-  private tableName: string;
+  private readonly mongoRepository: CandidatMongoRepository;
 
   constructor() {
-    this.tableName = config.airtable.tables.candidats;
+    this.mongoRepository = new CandidatMongoRepository();
   }
 
-  async getAll(options: {
+  async getAll(_options: {
     maxRecords?: number;
     view?: string;
     formula?: string;
   } = {}): Promise<Candidat[]> {
-    try {
-      const records = await airtableClient.getAll<CandidatFields>(this.tableName, {
-        maxRecords: options.maxRecords,
-        view: options.view,
-        filterByFormula: options.formula
-      });
-      
-      logger.info(`${records.length} candidats récupérés`);
-      return records;
-    } catch (error) {
-      logger.error('Erreur candidats:', error);
-      throw error;
-    }
+    return this.mongoRepository.getAll() as Promise<Candidat[]>;
   }
 
   async getById(recordId: string): Promise<Candidat | null> {
-    try {
-      return await airtableClient.getById<CandidatFields>(this.tableName, recordId);
-    } catch (error) {
-      logger.error(`Erreur getById ${recordId}:`, error);
-      return null;
-    }
+    return this.mongoRepository.getById(recordId) as Promise<Candidat | null>;
   }
 
   async create(data: Partial<CandidatFields>): Promise<Candidat> {
-    return await airtableClient.create<CandidatFields>(this.tableName, data);
+    return this.mongoRepository.create(data) as Promise<Candidat>;
   }
 
   async update(recordId: string, data: Partial<CandidatFields>): Promise<Candidat | null> {
-    return await airtableClient.update<CandidatFields>(this.tableName, recordId, data);
+    return this.mongoRepository.update(recordId, data) as Promise<Candidat | null>;
   }
 
   async delete(recordId: string): Promise<boolean> {
-    return await airtableClient.delete(this.tableName, recordId);
+    return this.mongoRepository.delete(recordId);
   }
 
-  async search(formula: string): Promise<Candidat[]> {
-    return this.getAll({ formula });
+  async search(_formula: string): Promise<Candidat[]> {
+    logger.warn('CandidatRepository.search: filterByFormula Airtable n\'est plus supporte, retour de tous les candidats');
+    return this.getAll();
   }
 
-  // =====================================================
-  // UPLOAD DE DOCUMENTS
-  // =====================================================
-
-  /**
-   * Upload un fichier vers un service d'hébergement temporaire (tmpfiles.org)
-   * pour obtenir une URL publique compatible Airtable
-   */
-  private async uploadToFileHosting(filePath: string): Promise<string | null> {
-    const fileName = path.basename(filePath);
-    try {
-      const form = new FormData();
-      form.append('file', fs.createReadStream(filePath), fileName);
-
-      const response = await axios.post('https://tmpfiles.org/api/v1/upload', form, {
-        headers: form.getHeaders(),
-        timeout: 30000,
-      });
-
-      if (response.status === 200 && response.data?.status === 'success') {
-        let url: string = response.data.data?.url || '';
-        if (url) {
-          // Transformer https://tmpfiles.org/123/file.pdf en https://tmpfiles.org/dl/123/file.pdf
-          url = url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-          logger.info(`✅ Fichier uploadé vers tmpfiles.org: ${url}`);
-          return url;
-        }
-      }
-
-      logger.warn(`⚠️ tmpfiles.org a échoué: ${JSON.stringify(response.data)}`);
-    } catch (error: any) {
-      logger.warn(`⚠️ Erreur tmpfiles.org: ${error.message}`);
-    }
-
-    return null;
-  }
-
-  /**
-   * Sauvegarde une copie locale du fichier (backup)
-   */
-  private saveLocalBackup(recordId: string, columnName: string, filePath: string): string {
-    const storageDir = path.join(config.upload.dir, recordId);
-    fs.mkdirSync(storageDir, { recursive: true });
-
-    const fileName = path.basename(filePath);
-    const destPath = path.join(storageDir, `${columnName}_${fileName}`);
-    fs.copyFileSync(filePath, destPath);
-
-    return destPath;
-  }
-
-  /**
-   * Upload un document vers une colonne spécifique dans Airtable
-   * Utilise tmpfiles.org comme hébergement temporaire pour obtenir une URL publique
-   */
   async uploadDocument(recordId: string, columnName: string, filePath: string): Promise<boolean> {
-    try {
-      if (!fs.existsSync(filePath)) {
-        logger.error(`❌ Fichier inexistant: ${filePath}`);
-        return false;
-      }
-
-      const fileName = path.basename(filePath);
-
-      // 1. Backup local
-      try {
-        const localPath = this.saveLocalBackup(recordId, columnName, filePath);
-        logger.info(`✅ Backup local: ${localPath}`);
-      } catch (err: any) {
-        logger.warn(`⚠️ Échec backup local: ${err.message}`);
-      }
-
-      // 2. Upload vers service d'hébergement pour obtenir URL publique
-      const publicUrl = await this.uploadToFileHosting(filePath);
-
-      if (publicUrl) {
-        // 3. Mettre à jour Airtable avec l'URL
-        try {
-          const updateAttachment = async (fieldName: string) => {
-            const attachmentData: Partial<CandidatFields> = {
-              [fieldName]: [{ url: publicUrl, filename: fileName }]
-            };
-            await airtableClient.update<CandidatFields>(this.tableName, recordId, attachmentData);
-            logger.info(`✅ Airtable mis à jour avec l'attachment ${fieldName}`);
-            return true;
-          };
-
-          const normalizedColumnName = Buffer.from(columnName, 'latin1').toString('utf8');
-          const triedNames = new Set<string>();
-
-          for (const nameToTry of [columnName, normalizedColumnName]) {
-            if (!nameToTry || triedNames.has(nameToTry)) {
-              continue;
-            }
-            triedNames.add(nameToTry);
-            try {
-              return await updateAttachment(nameToTry);
-            } catch (err: any) {
-              const errorType = err?.response?.data?.error?.type;
-              const errorMessage = err?.response?.data?.error?.message;
-              if (errorType === 'UNKNOWN_FIELD_NAME') {
-                logger.warn(`⚠️ Colonne Airtable inconnue: ${errorMessage}`);
-                continue;
-              }
-              throw err;
-            }
-          }
-
-          return false;
-        } catch (err: any) {
-          logger.warn(`⚠️ Erreur mise à jour Airtable: ${err.message}`);
-          return false;
-        }
-      } else {
-        logger.warn(`⚠️ Pas d'URL publique, fichier stocké localement uniquement`);
-        return false;
-      }
-    } catch (error: any) {
-      logger.error(`❌ Erreur upload ${columnName}: ${error.message}`);
-      return false;
-    }
+    return this.mongoRepository.uploadDocument(recordId, columnName, filePath);
   }
-
-  // Méthodes spécifiques par type de document (noms de colonnes Airtable)
 
   async uploadCV(recordId: string, filePath: string): Promise<boolean> {
-    return this.uploadDocument(recordId, 'CV', filePath);
+    return this.mongoRepository.uploadCV(recordId, filePath);
   }
 
   async uploadCIN(recordId: string, filePath: string): Promise<boolean> {
-    return this.uploadDocument(recordId, 'CIN', filePath);
+    return this.mongoRepository.uploadCIN(recordId, filePath);
   }
 
   async uploadLettreMotivation(recordId: string, filePath: string): Promise<boolean> {
-    return this.uploadDocument(recordId, 'lettre de motivation', filePath);
+    return this.mongoRepository.uploadLettreMotivation(recordId, filePath);
   }
 
   async uploadCarteVitale(recordId: string, filePath: string): Promise<boolean> {
-    return this.uploadDocument(recordId, 'Photocopie carte vitale', filePath);
+    return this.mongoRepository.uploadCarteVitale(recordId, filePath);
   }
 
   async uploadDernierDiplome(recordId: string, filePath: string): Promise<boolean> {
-    return this.uploadDocument(recordId, 'dernier diplome', filePath);
+    return this.mongoRepository.uploadDernierDiplome(recordId, filePath);
   }
 
   async uploadSuivieEntretien(recordId: string, filePath: string): Promise<boolean> {
-    return this.uploadDocument(recordId, 'Suivie entretien', filePath);
+    return this.mongoRepository.uploadSuivieEntretien(recordId, filePath);
   }
-
-  // =====================================================
-  // SUPPRESSION DE DOCUMENTS
-  // =====================================================
 
   async removeAttachmentByFilename(
     recordId: string,
@@ -223,6 +74,11 @@ export class CandidatRepository {
   ): Promise<{ success: boolean; removedCount: number; remainingCount: number; usedColumn?: string; matchedFilename?: string }> {
     const record = await this.getById(recordId);
     if (!record) {
+      return { success: false, removedCount: 0, remainingCount: 0 };
+    }
+
+    const attachments = (record.fields as Record<string, Attachment[] | undefined>)[columnName];
+    if (!attachments || !Array.isArray(attachments)) {
       return { success: false, removedCount: 0, remainingCount: 0 };
     }
 
@@ -235,66 +91,40 @@ export class CandidatRepository {
         .replace(/[^a-z0-9._-]/g, '');
 
     const trimExtension = (value: string): string => value.replace(/\.[a-z0-9]+$/i, '');
-
-    const filenameQuery = filename.trim();
-    const normalizedQuery = normalizeName(filenameQuery);
+    const normalizedQuery = normalizeName(filename.trim());
     const normalizedQueryNoExt = trimExtension(normalizedQuery);
 
-    const normalizedColumnName = Buffer.from(columnName, 'latin1').toString('utf8');
-    const triedNames = new Set<string>();
+    const toRemove = attachments.filter((attachment) => {
+      const normalizedAttachment = normalizeName(attachment.filename || '');
+      if (!normalizedAttachment) return false;
+      if (normalizedAttachment === normalizedQuery) return true;
+      if (trimExtension(normalizedAttachment) === normalizedQueryNoExt) return true;
+      if (normalizedAttachment.includes(normalizedQuery) || normalizedQuery.includes(normalizedAttachment)) return true;
+      if (normalizedQueryNoExt && trimExtension(normalizedAttachment).includes(normalizedQueryNoExt)) return true;
+      return false;
+    });
 
-    for (const nameToTry of [columnName, normalizedColumnName]) {
-      if (!nameToTry || triedNames.has(nameToTry)) {
-        continue;
-      }
-      triedNames.add(nameToTry);
-
-      const attachments = (record.fields as Record<string, Attachment[] | undefined>)[nameToTry];
-      if (!attachments || !Array.isArray(attachments)) {
-        continue;
-      }
-
-      const toRemove = attachments.filter((attachment) => {
-        const normalizedAttachment = normalizeName(attachment.filename || '');
-        if (!normalizedAttachment) {
-          return false;
-        }
-        if (normalizedAttachment === normalizedQuery) {
-          return true;
-        }
-        if (trimExtension(normalizedAttachment) === normalizedQueryNoExt) {
-          return true;
-        }
-        if (normalizedAttachment.includes(normalizedQuery) || normalizedQuery.includes(normalizedAttachment)) {
-          return true;
-        }
-        if (normalizedQueryNoExt && trimExtension(normalizedAttachment).includes(normalizedQueryNoExt)) {
-          return true;
-        }
-        return false;
-      });
-
-      if (toRemove.length === 0) {
-        continue;
-      }
-
-      const remaining = attachments.filter((attachment) => !toRemove.includes(attachment));
-
-      const updateData: Partial<CandidatFields> = {
-        [nameToTry]: remaining,
-      };
-
-      await airtableClient.update<CandidatFields>(this.tableName, recordId, updateData);
-      return {
-        success: true,
-        removedCount: attachments.length - remaining.length,
-        remainingCount: remaining.length,
-        usedColumn: nameToTry,
-        matchedFilename: toRemove[0]?.filename,
-      };
+    if (toRemove.length === 0) {
+      return { success: false, removedCount: 0, remainingCount: attachments.length };
     }
 
-    return { success: false, removedCount: 0, remainingCount: 0 };
+    await Promise.all(
+      toRemove
+        .map((attachment) => attachment.fileId)
+        .filter((value): value is string => typeof value === 'string' && value.length > 0)
+        .map((fileId) => deleteFile(fileId))
+    );
+
+    const remaining = attachments.filter((attachment) => !toRemove.includes(attachment));
+    await this.update(recordId, { [columnName]: remaining } as Partial<CandidatFields>);
+
+    return {
+      success: true,
+      removedCount: toRemove.length,
+      remainingCount: remaining.length,
+      usedColumn: columnName,
+      matchedFilename: toRemove[0]?.filename,
+    };
   }
 }
 

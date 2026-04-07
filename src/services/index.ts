@@ -5,7 +5,6 @@ export * from './compteRenduGeneratorService';
 export * from './reglementGeneratorService';
 export * from './livretApprentissageService';
 export * from './conventionApprentissageGeneratorService';
-export * from './student.service';
 
 export { default as PdfGeneratorService } from './pdfGeneratorService';
 export { default as CerfaGeneratorService } from './cerfaGeneratorService';

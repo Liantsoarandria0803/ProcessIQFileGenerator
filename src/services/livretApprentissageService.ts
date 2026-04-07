@@ -12,7 +12,7 @@ import logger from '../utils/logger';
 const { promises: fsPromises } = fs;
 
 // Colonne Airtable pour le livret d'apprentissage
-const LIVRET_AIRTABLE_COLUMN = 'livret dapprentissage';
+const LIVRET_DOCUMENT_FIELD = 'livret dapprentissage';
 
 // Mapping formation → template PDF
 const FORMATION_TEMPLATES: { keyword: string; filename: string }[] = [
@@ -263,10 +263,10 @@ export class LivretApprentissageService {
       let uploadSuccess = false;
       try {
         // 6. Upload vers Airtable
-        logger.info(`[LivretApprentissage] Upload vers Airtable colonne: "${LIVRET_AIRTABLE_COLUMN}"`);
+        logger.info(`[LivretApprentissage] Upload vers le champ document: "${LIVRET_DOCUMENT_FIELD}"`);
         uploadSuccess = await this.candidatRepo.uploadDocument(
           idEtudiant,
-          LIVRET_AIRTABLE_COLUMN,
+          LIVRET_DOCUMENT_FIELD,
           tmpPath
         );
       } finally {

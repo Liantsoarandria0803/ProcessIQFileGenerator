@@ -1,240 +1,73 @@
-# Process IQ Rush School - API Node.js/TypeScript
+# Process IQ Rush School API
 
-API backend pour la gestion des candidats et la génération de documents administratifs (CERFA, Fiches de renseignements).
+Backend Node.js/TypeScript pour la gestion des candidats, des fiches entreprise et la génération de documents administratifs.
 
-## � Documentation API
+## Stack
 
-Une documentation interactive Swagger/OpenAPI est disponible :
+- Express
+- MongoDB / Mongoose
+- GridFS pour le stockage des documents
+- Swagger pour la documentation API
 
-- **Interface Swagger UI** : http://localhost:8001/api-docs
-- **Spec OpenAPI JSON** : http://localhost:8001/api-docs.json
-- **Guide de configuration** : [SWAGGER_SETUP.md](./SWAGGER_SETUP.md)
-
-## �🚀 Prérequis
-
-- Node.js >= 18
-- npm ou yarn
-- Compte Airtable avec Personal Access Token
-
-## 📦 Installation
+## Installation
 
 ```bash
-# Installation des dépendances
 npm install
-
-# Copier le fichier d'environnement
-cp .env.example .env
-
-# Éditer .env avec vos credentials Airtable
-nano .env
 ```
 
-## ⚙️ Configuration
+## Variables d'environnement
 
-Créez un fichier `.env` à la racine du projet avec les variables suivantes :
+Créer un fichier `.env` à la racine avec au minimum :
 
 ```env
-# Configuration Airtable
-AIRTABLE_API_TOKEN=pat_xxxxxxxxxxxxxxx
-AIRTABLE_BASE_ID=appXXXXXXXXXXXXX
-
-# Configuration serveur
 PORT=8001
 NODE_ENV=development
 CORS_ORIGIN=*
-
-# Logging
-LOG_LEVEL=info
+MONGO_URI=mongodb://localhost:27017/processiq
+DB_NAME=processiq
 ```
 
-### Obtenir vos credentials Airtable
+Variables encore supportées pour compatibilité :
 
-1. Allez sur [airtable.com/create/tokens](https://airtable.com/create/tokens)
-2. Créez un Personal Access Token avec les permissions :
-   - `data.records:read`
-   - `data.records:write`
-   - `schema.bases:read`
-3. Copiez le token dans `.env` (`AIRTABLE_API_TOKEN`)
-4. Récupérez votre Base ID depuis l'URL Airtable et mettez-le dans `AIRTABLE_BASE_ID`
+```env
+MONGODB_URI=mongodb://localhost:27017/processiq
+MONGODB_DATABASE=processiq
+```
 
-## 🏃 Démarrage
+## Démarrage
 
 ```bash
-# Mode développement (avec hot-reload)
 npm run dev
-
-# Build production
 npm run build
-
-# Démarrer la version production
 npm start
 ```
 
-Le serveur démarre sur `http://localhost:8001` (ou le port configuré dans `.env`)
+Documentation disponible sur :
 
-## 📁 Structure du projet
+- `http://localhost:8001/api-docs`
+- `http://localhost:8001/api-docs.json`
 
-```
-node-api/
-├── src/
-│   ├── config/          # Configuration (env, constantes)
-│   ├── repositories/    # Accès aux données Airtable
-│   │   ├── candidatRepository.ts
-│   │   ├── entrepriseRepository.ts
-│   │   └── index.ts
-│   ├── services/        # Logique métier, génération PDF
-│   │   ├── mappings/    # Mappings champs PDF (CERFA, Fiche)
-│   │   ├── pdfGeneratorService.ts
-│   │   ├── cerfaGeneratorService.ts
-│   │   └── index.ts
-│   ├── routes/          # Routes Express
-│   │   ├── admission.ts
-│   │   └── index.ts
-│   ├── types/           # Types TypeScript
-│   │   └── index.ts
-│   ├── utils/           # Utilitaires (logger, etc.)
-│   │   └── logger.ts
-│   └── index.ts         # Point d'entrée principal
-├── assets/
-│   └── templates_pdf/   # Templates PDF (CERFA, Fiche de renseignements)
-├── dist/                # Code TypeScript compilé (généré)
-├── node_modules/        # Dépendances (généré)
-├── .env                 # Variables d'environnement (ne pas committer)
-├── .env.example         # Exemple de configuration
-├── .gitignore           # Fichiers à ignorer par Git
-├── package.json         # Dépendances et scripts
-├── tsconfig.json        # Configuration TypeScript
-└── README.md            # Cette documentation
-```
+## Architecture
 
-## 📡 Endpoints API
+- `src/repositories/` : accès aux données MongoDB
+- `src/repositories/mongo/` : implémentations Mongo spécialisées
+- `src/services/gridfsService.ts` : stockage des fichiers dans GridFS
+- `src/routes/` : endpoints Express
+- `src/models/` : schémas Mongoose
 
-### Santé
-- `GET /` - Page d'accueil de l'API
-- `GET /api/health` - Vérifie l'état de l'API
+## Déploiement
 
-### Candidats
-- `GET /api/admission/candidats` - Liste tous les candidats
-- `GET /api/admission/candidats/:id` - Récupère un candidat par ID
-- `GET /api/admission/candidats/:id/entreprise` - Données entreprise d'un candidat
-- `POST /api/admission/candidats` - Crée un nouveau candidat
-- `PUT /api/admission/candidats/:id` - Met à jour un candidat
-- `DELETE /api/admission/candidats/:id` - Supprime un candidat
-
-### Génération PDF
-- `POST /api/admission/candidats/:id/fiche-renseignement` - Génère la fiche de renseignements PDF
-- `POST /api/admission/candidats/:id/cerfa` - Génère le CERFA FA13 PDF
-
-### Entreprises
-- `GET /api/admission/entreprises` - Liste toutes les fiches entreprises
-- `POST /api/admission/entreprises` - Crée une fiche entreprise
-- `PUT /api/admission/entreprises/:id` - Met à jour une fiche entreprise
-- `DELETE /api/admission/entreprises/:id` - Supprime une fiche entreprise
-- `POST /api/admission/entreprises` - Crée une fiche entreprise
-- `PUT /api/admission/entreprises/:id` - Met à jour une fiche
-- `DELETE /api/admission/entreprises/:id` - Supprime une fiche
-
-## Tables Airtable utilisées
-
-- **Liste des candidats** - Informations personnelles des candidats
-- **Fiche entreprise** - Informations entreprise et contrat d'apprentissage
-
-## Templates PDF
-
-Placez les templates PDF dans `assets/templates_pdf/` :
-- `Fiche de renseignements.pdf`
-- `Cerfa FA13_remplissable.pdf`
-
----
-
-## DocuSign Integration (Documents a signer)
-
-### Variables `.env` a ajouter
+Configurer au minimum :
 
 ```env
-DOCUSIGN_ENABLED=true
-DOCUSIGN_AUTH_SERVER=account-d.docusign.com
-DOCUSIGN_BASE_PATH=https://demo.docusign.net/restapi
-DOCUSIGN_INTEGRATION_KEY=your_integration_key
-DOCUSIGN_USER_ID=your_impersonated_user_guid
-DOCUSIGN_ACCOUNT_ID=your_account_id
-DOCUSIGN_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
-DOCUSIGN_PRIVATE_KEY_FILE=./secrets/docusign-private.pem
-DOCUSIGN_RETURN_URL=https://your-frontend.example/signature/complete
+NODE_ENV=production
+PORT=8001
+MONGO_URI=mongodb://<host>:27017/processiq
+DB_NAME=processiq
 ```
 
-### Endpoints backend ajoutes
+## Notes
 
-- `POST /api/documents/:id/signature/request`
-- `POST /api/documents/:id/signature/signing-link`
-
-### Workflow documents/signataires
-
-La config metier est dans:
-
-- `src/config/udocsign.signature-workflows.ts` (re-exporte aussi via `src/config/docusign.signature-workflows.ts`)
-
-Tu peux y ajuster les pages et signataires par document sans toucher au code API.
-
-### Script batch (generation automatique)
-
-Script:
-
-- `npm run udocsign:batch`
-- `npm run docusign:batch`
-
-Variables utiles:
-
-- `DOCUSIGN_STUDENT_ID` (obligatoire)
-- `DOCUSIGN_DOCUMENT_STATUSES` (par defaut: `to_sign,pending`)
-- `DOCUSIGN_WORKFLOW_KEY` (optionnel)
-- `DOCUSIGN_DOCUMENT_URL` (optionnel, URL publique du PDF)
-- `DOCUSIGN_PARTICIPANTS_JSON` ou `DOCUSIGN_PARTICIPANTS_FILE` (optionnels)
-
-## 🚀 Déploiement sur Render
-
-### Déploiement rapide
-
-```bash
-# Lancer le script de déploiement automatique
-./deploy-to-render.sh
-```
-
-### Configuration manuelle
-
-1. **Préparer le projet**
-   ```bash
-   npm run build  # Vérifier que le build fonctionne
-   git add .
-   git commit -m "Deploy to Render"
-   git push origin main
-   ```
-
-2. **Créer le service sur Render**
-   - Aller sur https://dashboard.render.com
-   - New → Blueprint (ou Web Service)
-   - Connecter le repository GitHub
-   - Configurer les variables d'environnement :
-     - `AIRTABLE_API_TOKEN`
-     - `AIRTABLE_BASE_ID`
-     - `NODE_ENV=production`
-
-3. **Vérifier le déploiement**
-   ```bash
-   curl https://votre-app.onrender.com/health
-   ```
-
-### Documentation complète
-
-- 📖 **Guide rapide** : [RENDER_QUICK_START.md](./RENDER_QUICK_START.md)
-- 📚 **Guide détaillé** : [DEPLOYMENT_RENDER.md](./DEPLOYMENT_RENDER.md)
-- 📋 **Récapitulatif** : [DEPLOY_SUMMARY.md](./DEPLOY_SUMMARY.md)
-
-### Fichiers de configuration Render
-
-- `render.yaml` - Configuration Blueprint
-- `Procfile` - Process web
-- `prepare-deploy.sh` - Script de vérification
-- `deploy-to-render.sh` - Déploiement automatique
-
----
+- Les endpoints d’API historiques sont conservés.
+- La persistance applicative repose désormais sur MongoDB.
+- Les fichiers uploadés sont servis via GridFS à travers `/api/gridfs/:fileId`.
