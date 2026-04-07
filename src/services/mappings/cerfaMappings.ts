@@ -712,7 +712,7 @@ export const CERFA_DATE_FIELDS: Record<string, {
     annee: "Zone de texte 21_21",
   },
   "date_debut_formation_pratique": {
-    source: ["entreprise", "Date de début de formation pratique chez employeur"],
+    source: ["entreprise", "Date de début exécution"],
     jour: "Zone de texte 21_22",
     mois: "Zone de texte 21_23",
     annee: "Zone de texte 21_24",
