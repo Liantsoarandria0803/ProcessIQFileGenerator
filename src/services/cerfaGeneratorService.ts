@@ -1022,8 +1022,14 @@ export class CerfaGeneratorService {
                 const salaireComplet = entrepriseData['Salaire brut mensuel 1'] || '';
                 const [, centimes] = this.splitPrice(salaireComplet);
                 value = centimes;
-              } else if ((matchName === 'Zone de texte 8_68' || matchName === 'Zone de texte 8_69') && key === 'DurÃ©e hebdomadaire') {
-                const dureeComplet = entrepriseData['DurÃ©e hebdomadaire'] || '';
+              } else if (matchName === 'Zone de texte 8_68' || matchName === 'Zone de texte 8_69') {
+                // Durée hebdomadaire du travail: 2 champs PDF distincts (heures / minutes)
+                // Airtable peut contenir la clé correctement encodée ou une variante mal encodée.
+                const dureeComplet =
+                  entrepriseData['Durée hebdomadaire'] ??
+                  entrepriseData['DurÃ©e hebdomadaire'] ??
+                  value ??
+                  '';
                 const [heures, minutes] = this.splitWeeklyDuration(dureeComplet);
                 value = matchName === 'Zone de texte 8_68' ? heures : minutes;
               }
