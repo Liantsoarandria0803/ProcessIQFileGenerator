@@ -1576,13 +1576,13 @@ const CANDIDATE_ATTACHMENT_COLUMNS: Record<string, string | string[]> = {
  *         required: true
  *         schema:
  *           type: string
- *         description: ID du record Airtable du candidat
+ *         description: ID du candidat
  *       - in: path
  *         name: documentType
  *         required: true
  *         schema:
  *           type: string
- *         description: Type du document (ex: cv, cin, cerfa, atre, compte-rendu, reglement-interieur)
+ *         description: "Type du document (ex: cv, cin, cerfa, atre, compte-rendu, reglement-interieur)"
  *       - in: query
  *         name: filename
  *         required: true
