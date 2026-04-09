@@ -71,3 +71,5 @@ DB_NAME=processiq
 - Les endpoints d’API historiques sont conservés.
 - La persistance applicative repose désormais sur MongoDB.
 - Les fichiers uploadés sont servis via GridFS à travers `/api/gridfs/:fileId`.
+
+test deloiement auto
