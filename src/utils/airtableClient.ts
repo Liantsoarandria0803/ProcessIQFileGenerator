@@ -179,7 +179,14 @@ class AirtableClient {
       const status = error.response?.status;
       const errorType = error.response?.data?.error?.type;
 
-      if (status === 422 && errorType === 'UNKNOWN_FIELD_NAME') {
+      if (
+        status === 422 &&
+        (
+          errorType === 'UNKNOWN_FIELD_NAME' ||
+          errorType === 'INVALID_VALUE_FOR_COLUMN' ||
+          errorType === 'INVALID_MULTIPLE_CHOICE_OPTIONS'
+        )
+      ) {
         throw error;
       }
 

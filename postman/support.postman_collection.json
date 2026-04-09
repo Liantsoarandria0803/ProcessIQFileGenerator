@@ -1,0 +1,168 @@
+{
+  "info": {
+    "_postman_id": "3f1f9b0f-8f2f-4d1e-b4c3-6f0baf7d3f0a",
+    "name": "ProcessIQ Support",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection Postman pour tester les endpoints support."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8001"
+    },
+    {
+      "key": "userRole",
+      "value": "admin"
+    },
+    {
+      "key": "ticketId",
+      "value": "recXXXXXXXXXXXXXX"
+    },
+    {
+      "key": "reporterEmail",
+      "value": "admin@example.com"
+    }
+  ],
+  "item": [
+    {
+      "name": "Support",
+      "item": [
+        {
+          "name": "Lister les bugs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-user-role",
+                "value": "{{userRole}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/support/bugs?scope=all&limit=100&reporterEmail={{reporterEmail}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "support",
+                "bugs"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "all"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "reporterEmail",
+                  "value": "{{reporterEmail}}",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Creer un bug",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Impossible de generer le CERFA\",\n  \"description\": \"Une erreur 500 apparait au clic sur le bouton de generation.\",\n  \"module\": \"admission\",\n  \"priority\": \"high\",\n  \"reporterRole\": \"{{userRole}}\",\n  \"reporterName\": \"Admin Test\",\n  \"reporterEmail\": \"{{reporterEmail}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/support/bugs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "support",
+                "bugs"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload screenshot",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/support/bugs/upload-screenshot",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "support",
+                "bugs",
+                "upload-screenshot"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mettre a jour le statut",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "x-user-role",
+                "value": "{{userRole}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"resolved\",\n  \"requesterRole\": \"{{userRole}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/support/bugs/{{ticketId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "support",
+                "bugs",
+                "{{ticketId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

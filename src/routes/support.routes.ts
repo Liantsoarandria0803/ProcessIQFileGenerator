@@ -76,10 +76,32 @@ const parseRole = (value: unknown): ReporterRole => {
   return 'unknown';
 };
 
-const parseStatus = (value: unknown): BugStatus => {
-  const status = String(value || '').trim();
-  if (status === 'in_progress' || status === 'resolved') return status;
-  return 'new';
+const normalizeStatus = (value: unknown): BugStatus | null => {
+  const status = String(value || '').trim().toLowerCase();
+  if (!status) return null;
+  if (status === 'new' || status === 'nouveau') return 'new';
+  if (
+    status === 'in_progress' ||
+    status === 'in progress' ||
+    status === 'en cours' ||
+    status === 'encours'
+  ) {
+    return 'in_progress';
+  }
+  if (
+    status === 'resolved' ||
+    status === 'resolu' ||
+    status === 'résolu' ||
+    status === 'termine' ||
+    status === 'terminé'
+  ) {
+    return 'resolved';
+  }
+  return null;
+};
+
+const parseStatus = (value: unknown, fallback: BugStatus = 'new'): BugStatus => {
+  return normalizeStatus(value) || fallback;
 };
 
 const parsePriority = (value: unknown): BugPriority => {
@@ -285,21 +307,36 @@ const createBugWithFallbackFieldSets = async (payload: any) => {
 const updateStatusWithFallbackFieldSets = async (recordId: string, status: BugStatus) => {
   let lastError: any = null;
   for (const tableName of SUPPORT_TABLE_CANDIDATES) {
+    let tryNextTable = false;
     for (const s of FIELD_SETS) {
-      try {
-        const updated = await airtableClient.update<BugRecordFields>(tableName, recordId, { [s.status]: status });
-        if (updated) return updated;
-        return null;
-      } catch (error: any) {
-        lastError = error;
-        if (isRetryableTableError(error)) {
-          logger.warn(`[Support] table "${tableName}" not usable for update, trying next table`);
-          break;
+      const attempts = [
+        { [s.status]: [status] },
+        { [s.status]: status },
+      ];
+
+      for (const attempt of attempts) {
+        try {
+          const updated = await airtableClient.update<BugRecordFields>(tableName, recordId, attempt as any);
+          if (updated) return updated;
+          return null;
+        } catch (error: any) {
+          lastError = error;
+          if (isRetryableTableError(error)) {
+            logger.warn(`[Support] table "${tableName}" not usable for update, trying next table`);
+            tryNextTable = true;
+            break;
+          }
+          const code = error?.response?.data?.error?.type;
+          if (code === 'INVALID_VALUE_FOR_COLUMN') {
+            logger.warn(`[Support] Airtable status update format rejected for "${s.status}", trying next format.`);
+            continue;
+          }
+          if (code !== 'UNKNOWN_FIELD_NAME') throw error;
         }
-        const code = error?.response?.data?.error?.type;
-        if (code !== 'UNKNOWN_FIELD_NAME') throw error;
       }
+      if (tryNextTable) break;
     }
+    if (tryNextTable) continue;
   }
   throw lastError || new Error('Impossible de mettre a jour le statut dans Airtable');
 };
@@ -398,7 +435,11 @@ router.post(
 router.get(
   '/bugs',
   [
-    query('status').optional().isIn(['new', 'in_progress', 'resolved']),
+    query('status')
+      .optional()
+      .custom((v) => normalizeStatus(v) !== null)
+      .withMessage('status invalide')
+      .customSanitizer((v) => parseStatus(v)),
     query('module').optional().isIn(['admission', 'rh', 'commercial', 'other']),
     query('priority').optional().isIn(['low', 'medium', 'high', 'critical']),
     query('scope').optional().isIn(['all', 'mine']),
@@ -500,7 +541,10 @@ router.patch(
   '/bugs/:id/status',
   [
     param('id').isString().trim().isLength({ min: 3 }),
-    body('status').isIn(['new', 'in_progress', 'resolved']),
+    body('status')
+      .custom((v) => normalizeStatus(v) !== null)
+      .withMessage('status invalide')
+      .customSanitizer((v) => parseStatus(v)),
     body('requesterRole')
       .optional()
       .customSanitizer((v) => parseRole(v))
@@ -546,4 +590,3 @@ router.patch(
 );
 
 export default router;
-
