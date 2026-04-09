@@ -592,15 +592,24 @@ export class CerfaGeneratorService {
     candidatData: Record<string, any>,
     entrepriseData: Record<string, any>
   ): string {
+    const normalizedKey = String(key)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+
     // ADRESSE DE L'APPRENTI - PARSING AUTOMATIQUE
-    const addressKeys = ['NumÃ©ro de voie', 'Nom de la rue', 'Ville', 'Complement adresse', 'Code postal'];
-    if (addressKeys.includes(key)) {
+    const isApprenticeAddressSubfield =
+      source === 'candidat' &&
+      ['numerodevoie', 'nomdelarue', 'ville', 'complementadresse', 'codepostal'].includes(normalizedKey);
+
+    if (isApprenticeAddressSubfield) {
       const parsed = this.getCandidateAddress(candidatData);
-      if (key === 'NumÃ©ro de voie') return parsed.numero;
-      if (key === 'Nom de la rue') return parsed.voie;
-      if (key === 'Ville') return parsed.commune;
-      if (key === 'Complement adresse') return parsed.complement;
-      if (key === 'Code postal') return parsed.code_postal;
+      if (normalizedKey === 'numerodevoie') return parsed.numero;
+      if (normalizedKey === 'nomdelarue') return parsed.voie;
+      if (normalizedKey === 'ville') return parsed.commune;
+      if (normalizedKey === 'complementadresse') return parsed.complement;
+      if (normalizedKey === 'codepostal') return parsed.code_postal;
     }
 
     // FORMATION - GESTION SPECIALE
@@ -637,12 +646,6 @@ export class CerfaGeneratorService {
       if (CFA_RUSH_SCHOOL[key] !== undefined) return CFA_RUSH_SCHOOL[key];
       return '';
     }
-
-    const normalizedKey = String(key)
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '');
 
     // RECUPERATION STANDARD
     // Use nullish coalescing / explicit undefined checks so that numeric 0 is preserved
