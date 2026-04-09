@@ -71,3 +71,33 @@ DB_NAME=processiq
 - Les endpoints d’API historiques sont conservés.
 - La persistance applicative repose désormais sur MongoDB.
 - Les fichiers uploadés sont servis via GridFS à travers `/api/gridfs/:fileId`.
+
+## OPCO
+
+Une integration OPCO generique est maintenant disponible dans le backend.
+
+Variables d'environnement attendues :
+
+```env
+OPCO_ENABLED=false
+OPCO_NAME=generic-opco
+OPCO_API_BASE_URL=
+OPCO_API_KEY=
+OPCO_API_KEY_HEADER=x-api-key
+OPCO_CLIENT_ID=
+OPCO_CLIENT_SECRET=
+OPCO_CREATE_DOSSIER_PATH=/dossiers
+OPCO_STATUS_PATH=/dossiers/{externalId}
+OPCO_TIMEOUT_MS=15000
+```
+
+Endpoints disponibles :
+
+- `GET /api/opco/config`
+- `GET /api/opco/dossiers`
+- `GET /api/opco/dossiers/:id`
+- `POST /api/opco/dossiers`
+- `POST /api/opco/dossiers/:id/resubmit`
+- `POST /api/opco/dossiers/:id/sync`
+
+Sans configuration `OPCO_*`, les dossiers restent stockes en MongoDB avec le statut `draft`.

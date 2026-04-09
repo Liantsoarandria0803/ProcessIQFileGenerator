@@ -67,6 +67,19 @@ export const config = {
     createSigningLinkPath:
       process.env.UDOCSIGN_CREATE_SIGNING_LINK_PATH || '/signature-requests/{requestId}/signing-links',
     callbackUrl: process.env.UDOCSIGN_CALLBACK_URL || ''
+  },
+
+  opco: {
+    enabled: String(process.env.OPCO_ENABLED || '').toLowerCase() === 'true',
+    name: process.env.OPCO_NAME || 'generic-opco',
+    baseUrl: process.env.OPCO_API_BASE_URL || '',
+    apiKey: process.env.OPCO_API_KEY || '',
+    apiKeyHeader: process.env.OPCO_API_KEY_HEADER || 'x-api-key',
+    clientId: process.env.OPCO_CLIENT_ID || '',
+    clientSecret: process.env.OPCO_CLIENT_SECRET || '',
+    createDossierPath: process.env.OPCO_CREATE_DOSSIER_PATH || '/dossiers',
+    statusPath: process.env.OPCO_STATUS_PATH || '/dossiers/{externalId}',
+    timeoutMs: parseInt(process.env.OPCO_TIMEOUT_MS || '15000', 10)
   }
 };
 

@@ -12,6 +12,7 @@ import questionnaireRoutes from './questionnaire.routes';
 import gridfsDocumentRoutes from './gridfsDocuments';
 import authRoutes from './auth.routes';
 import supportRoutes from './support.routes';
+import opcoRoutes from './opco.routes';
 import { authenticateRequest } from '../middlewares/auth.middleware';
 import { isMongoConnected } from '../config/database';
 
@@ -50,5 +51,6 @@ router.use('/events', requireMongoConnection, authenticateRequest, eventRoutes);
 router.use('/appointments', requireMongoConnection, authenticateRequest, appointmentRoutes);
 router.use('/documents', requireMongoConnection, authenticateRequest, documentRoutes);
 router.use('/questionnaires', requireMongoConnection, authenticateRequest, questionnaireRoutes);
+router.use('/opco', requireMongoConnection, authenticateRequest, opcoRoutes);
 
 export default router;

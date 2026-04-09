@@ -77,6 +77,8 @@ app.get('/', (req: Request, res: Response) => {
       events: '/api/events',
       appointments: '/api/appointments',
       documents: '/api/documents',
+      opcoConfig: '/api/opco/config',
+      opcoDossiers: '/api/opco/dossiers',
       gridfs: '/api/gridfs/:fileId',
       candidatesMongo: '/api/candidates',
       candidats: '/api/admission/candidats',
