@@ -424,17 +424,31 @@ export class CerfaGeneratorService {
     if (!nationaliteStr) return '';
     const n = String(nationaliteStr).trim();
     if (/^[123]$/.test(n)) return n;
-    const normalized = n.toLowerCase();
+    const normalize = (value: string): string =>
+      value
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .toLowerCase()
+        .trim();
 
-    if (normalized.includes('franÃ§aise') || normalized.includes('francaise')) return '1';
-    if (normalized.includes('union europÃ©enne') || normalized.includes('union europeenne') || normalized.includes('ue')) return '2';
-    if (normalized.includes('Ã©tranger') || normalized.includes('etranger')) return '3';
+    const normalized = normalize(n);
+
+    if (normalized.includes('francaise') || normalized.includes('francais')) return '1';
+    if (
+      normalized.includes('union europeenne') ||
+      normalized.includes('union europeen') ||
+      normalized === 'ue' ||
+      normalized.includes(' ue ')
+    ) {
+      return '2';
+    }
+    if (normalized.includes('etranger')) return '3';
 
     for (const pf of PAYS_FRANCE) {
-      if (normalized.includes(pf.toLowerCase())) return '1';
+      if (normalized.includes(normalize(pf))) return '1';
     }
     for (const pu of PAYS_UE) {
-      if (normalized.includes(pu.toLowerCase())) return '2';
+      if (normalized.includes(normalize(pu))) return '2';
     }
     return '3';
   }
@@ -443,8 +457,17 @@ export class CerfaGeneratorService {
     if (!regimeStr) return '2';
     const r = String(regimeStr).trim();
     if (/^[12]$/.test(r)) return r;
+    const normalize = (value: string): string =>
+      value
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .toLowerCase()
+        .trim();
+
+    const normalized = normalize(r);
+
     for (const [key, code] of Object.entries(CODES_REGIME_SOCIAL)) {
-      if (r.toLowerCase().includes(key.toLowerCase())) return code;
+      if (normalized.includes(normalize(key))) return code;
     }
     return '2';
   }
@@ -708,8 +731,8 @@ export class CerfaGeneratorService {
       const raw = entrepriseData['DiplÃ´me MaÃ®tre apprentissage 2'];
       return raw ? String(raw) : '';
     }
-    if (key === 'NationalitÃ©') return this.getCodeNationalite(valueStr);
-    if (key === 'RÃ©gime social') return this.getCodeRegimeSocial(valueStr);
+    if (normalizedKey === 'nationalite') return this.getCodeNationalite(valueStr);
+    if (normalizedKey === 'regimesocial') return this.getCodeRegimeSocial(valueStr);
     if (key === 'Situation avant le contrat') return this.getCodeSituationAvantContrat(valueStr);
     if (key.toLowerCase().includes('partement')) return this.getCodeDepartement(valueStr);
     if (key === 'Salaire brut mensuel 1') return valueStr;
