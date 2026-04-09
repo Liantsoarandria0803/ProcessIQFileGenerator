@@ -1528,11 +1528,25 @@ router.post('/entreprise', async (req: Request, res: Response) => {
       record_id: recordId
     });
   } catch (error) {
-    logger.error('❌ ERREUR création entreprise:', error);
-    console.error('❌ Traceback:', error);
+    const err: any = error as any;
+    const airtableError = err?.response?.data?.error;
+    const airtableDetails = airtableError && typeof airtableError === 'object'
+      ? {
+          type: typeof airtableError.type === 'string' ? airtableError.type : undefined,
+          message: typeof airtableError.message === 'string' ? airtableError.message : undefined,
+        }
+      : undefined;
+
+    logger.error('❌ ERREUR création entreprise', {
+      message: err?.message,
+      status: err?.response?.status,
+      airtable: airtableDetails,
+    });
+
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Erreur lors de la création de la fiche entreprise'
+      error: err instanceof Error ? err.message : 'Erreur lors de la création de la fiche entreprise',
+      ...(config.nodeEnv !== 'production' && airtableDetails ? { airtable: airtableDetails } : {}),
     });
   }
 });

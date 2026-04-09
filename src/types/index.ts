@@ -87,7 +87,7 @@ export interface EntrepriseFields {
   'Date de naissance Maître apprentissage'?: string;
   'Fonction Maître apprentissage'?: string;
   'Diplôme Maître apprentissage'?: string;
-  'Année experience pro Maître apprentissage'?: number;
+  'Année experience pro Maître apprentissage'?: string;
   'Téléphone Maître apprentissage'?: string;
   'Email Maître apprentissage'?: string;
   

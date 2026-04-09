@@ -121,6 +121,27 @@ export class EntrepriseRepository {
   private mapFicheEntrepriseToAirtableData(fiche: FicheRenseignementEntreprise): Partial<EntrepriseFields> {
     const airtableData: Partial<EntrepriseFields> = {};
 
+    const readNonEmptyString = (value: unknown): string | undefined => {
+      if (typeof value !== 'string') return undefined;
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : undefined;
+    };
+
+    const readNonEmptyStringLike = (value: unknown): string | undefined => {
+      if (typeof value === 'string') return readNonEmptyString(value);
+      if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+      return undefined;
+    };
+
+    const pickString = (obj: Record<string, any> | undefined, ...keys: string[]): string | undefined => {
+      if (!obj) return undefined;
+      for (const key of keys) {
+        const value = readNonEmptyString(obj[key]);
+        if (value !== undefined) return value;
+      }
+      return undefined;
+    };
+
     // Section 1: Identification de l'entreprise
     if (fiche.identification) {
       if (fiche.identification.raison_sociale) {
@@ -173,6 +194,7 @@ export class EntrepriseRepository {
 
     // Section 4: Maître d'apprentissage
     if (fiche.maitre_apprentissage) {
+      const maitre = fiche.maitre_apprentissage as Record<string, any>;
       if (fiche.maitre_apprentissage.nom) {
         airtableData['Nom Maître apprentissage'] = fiche.maitre_apprentissage.nom;
       }
@@ -188,8 +210,16 @@ export class EntrepriseRepository {
       if (fiche.maitre_apprentissage.niveau_diplome) {
         airtableData['Diplôme Maître apprentissage'] = fiche.maitre_apprentissage.niveau_diplome;
       }
-      if (fiche.maitre_apprentissage.annees_experience) {
-        airtableData['Année experience pro Maître apprentissage'] = fiche.maitre_apprentissage.annees_experience;
+      {
+        const anneesExpRaw =
+          (fiche.maitre_apprentissage as any).annees_experience ??
+          maitre['années_experience'] ??
+          maitre['annees_experience'];
+
+        const anneesExp = readNonEmptyStringLike(anneesExpRaw);
+        if (anneesExp !== undefined) {
+          airtableData['Année experience pro Maître apprentissage'] = anneesExp;
+        }
       }
       if (fiche.maitre_apprentissage.telephone) {
         airtableData['Téléphone Maître apprentissage'] = fiche.maitre_apprentissage.telephone;
@@ -206,6 +236,7 @@ export class EntrepriseRepository {
 
     // Section 8: Informations sur le contrat
     if (fiche.contrat) {
+      const contrat = fiche.contrat as Record<string, any>;
       if (fiche.contrat.type_contrat) {
         airtableData['Type de contrat'] = fiche.contrat.type_contrat;
       }
@@ -277,58 +308,172 @@ export class EntrepriseRepository {
       }
 
       // Dates des périodes
-      if (fiche.contrat.date_debut_2periode_1er_annee) {
-        airtableData['date_debut_2periode_1er_annee'] = fiche.contrat.date_debut_2periode_1er_annee;
-      }
-      if (fiche.contrat.date_fin_1periode_1ere_annee) {
-        airtableData['date_fin_1periode_1ere_annee'] = fiche.contrat.date_fin_1periode_1ere_annee;
-      }
-      if (fiche.contrat.date_fin_2periode_1er_annee) {
-        airtableData['date_fin_2periode_1er_annee'] = fiche.contrat.date_fin_2periode_1er_annee;
-      }
-      if (fiche.contrat.date_debut_1periode_2eme_annee) {
-        airtableData['date_debut_1periode_2eme_annee'] = fiche.contrat.date_debut_1periode_2eme_annee;
-      }
-      if (fiche.contrat.date_fin_1periode_2eme_annee) {
-        airtableData['date_fin_1periode_2eme_annee'] = fiche.contrat.date_fin_1periode_2eme_annee;
-      }
-      if (fiche.contrat.date_debut_2periode_2eme_annee) {
-        airtableData['date_debut_2periode_2eme_annee'] = fiche.contrat.date_debut_2periode_2eme_annee;
-      }
-      if (fiche.contrat.date_fin_2periode_2eme_annee) {
-        airtableData['date_fin_2periode_2eme_annee'] = fiche.contrat.date_fin_2periode_2eme_annee;
-      }
-      if (fiche.contrat.date_debut_1periode_3eme_annee) {
-        airtableData['date_debut_1periode_3eme_annee'] = fiche.contrat.date_debut_1periode_3eme_annee;
-      }
-      if (fiche.contrat.date_fin_1periode_3eme_annee) {
-        airtableData['date_fin_1periode_3eme_annee'] = fiche.contrat.date_fin_1periode_3eme_annee;
-      }
-      if (fiche.contrat.date_debut_2periode_3eme_annee) {
-        airtableData['date_debut_2periode_3eme_annee'] = fiche.contrat.date_debut_2periode_3eme_annee;
-      }
-      if (fiche.contrat.date_fin_2periode_3eme_annee) {
-        airtableData['date_fin_2periode_3eme_annee'] = fiche.contrat.date_fin_2periode_3eme_annee;
-      }
-      if (fiche.contrat.date_debut_1periode_4eme_annee) {
-        airtableData['date_debut_1periode_4eme_annee'] = fiche.contrat.date_debut_1periode_4eme_annee;
-      }
-      if (fiche.contrat.date_fin_1periode_4eme_annee) {
-        airtableData['date_fin_1periode_4eme_annee'] = fiche.contrat.date_fin_1periode_4eme_annee;
-      }
-      if (fiche.contrat.date_debut_2periode_4eme_annee) {
-        airtableData['date_debut_2periode_4eme_annee'] = fiche.contrat.date_debut_2periode_4eme_annee;
-      }
-      if (fiche.contrat.date_fin_2periode_4eme_annee) {
-        airtableData['date_fin_2periode_4eme_annee'] = fiche.contrat.date_fin_2periode_4eme_annee;
+      {
+        // Tolérer les payloads qui contiennent "année" avec accent (ex: date_debut_1periode_2eme_année)
+        // et la variante "1er" vs "1ere" sur certaines clés.
+        const dateFin1p1a = pickString(
+          contrat,
+          'date_fin_1periode_1ere_annee',
+          'date_fin_1periode_1er_annee',
+          'date_fin_1periode_1er_année'
+        );
+        if (dateFin1p1a) {
+          airtableData['date_fin_1periode_1ere_annee'] = dateFin1p1a;
+        }
+
+        const dateDebut2p1a = pickString(
+          contrat,
+          'date_debut_2periode_1er_annee',
+          'date_debut_2periode_1er_année'
+        );
+        if (dateDebut2p1a) {
+          airtableData['date_debut_2periode_1er_annee'] = dateDebut2p1a;
+        }
+
+        const dateFin2p1a = pickString(
+          contrat,
+          'date_fin_2periode_1er_annee',
+          'date_fin_2periode_1er_année'
+        );
+        if (dateFin2p1a) {
+          airtableData['date_fin_2periode_1er_annee'] = dateFin2p1a;
+        }
+
+        const dateDebut1p2a = pickString(
+          contrat,
+          'date_debut_1periode_2eme_annee',
+          'date_debut_1periode_2eme_année'
+        );
+        if (dateDebut1p2a) {
+          airtableData['date_debut_1periode_2eme_annee'] = dateDebut1p2a;
+        }
+
+        const dateFin1p2a = pickString(
+          contrat,
+          'date_fin_1periode_2eme_annee',
+          'date_fin_1periode_2eme_année'
+        );
+        if (dateFin1p2a) {
+          airtableData['date_fin_1periode_2eme_annee'] = dateFin1p2a;
+        }
+
+        const dateDebut2p2a = pickString(
+          contrat,
+          'date_debut_2periode_2eme_annee',
+          'date_debut_2periode_2eme_année'
+        );
+        if (dateDebut2p2a) {
+          airtableData['date_debut_2periode_2eme_annee'] = dateDebut2p2a;
+        }
+
+        const dateFin2p2a = pickString(
+          contrat,
+          'date_fin_2periode_2eme_annee',
+          'date_fin_2periode_2eme_année'
+        );
+        if (dateFin2p2a) {
+          airtableData['date_fin_2periode_2eme_annee'] = dateFin2p2a;
+        }
+
+        const dateDebut1p3a = pickString(
+          contrat,
+          'date_debut_1periode_3eme_annee',
+          'date_debut_1periode_3eme_année'
+        );
+        if (dateDebut1p3a) {
+          airtableData['date_debut_1periode_3eme_annee'] = dateDebut1p3a;
+        }
+
+        const dateFin1p3a = pickString(
+          contrat,
+          'date_fin_1periode_3eme_annee',
+          'date_fin_1periode_3eme_année'
+        );
+        if (dateFin1p3a) {
+          airtableData['date_fin_1periode_3eme_annee'] = dateFin1p3a;
+        }
+
+        const dateDebut2p3a = pickString(
+          contrat,
+          'date_debut_2periode_3eme_annee',
+          'date_debut_2periode_3eme_année'
+        );
+        if (dateDebut2p3a) {
+          airtableData['date_debut_2periode_3eme_annee'] = dateDebut2p3a;
+        }
+
+        const dateFin2p3a = pickString(
+          contrat,
+          'date_fin_2periode_3eme_annee',
+          'date_fin_2periode_3eme_année'
+        );
+        if (dateFin2p3a) {
+          airtableData['date_fin_2periode_3eme_annee'] = dateFin2p3a;
+        }
+
+        const dateDebut1p4a = pickString(
+          contrat,
+          'date_debut_1periode_4eme_annee',
+          'date_debut_1periode_4eme_année'
+        );
+        if (dateDebut1p4a) {
+          airtableData['date_debut_1periode_4eme_annee'] = dateDebut1p4a;
+        }
+
+        const dateFin1p4a = pickString(
+          contrat,
+          'date_fin_1periode_4eme_annee',
+          'date_fin_1periode_4eme_année'
+        );
+        if (dateFin1p4a) {
+          airtableData['date_fin_1periode_4eme_annee'] = dateFin1p4a;
+        }
+
+        const dateDebut2p4a = pickString(
+          contrat,
+          'date_debut_2periode_4eme_annee',
+          'date_debut_2periode_4eme_année'
+        );
+        if (dateDebut2p4a) {
+          airtableData['date_debut_2periode_4eme_annee'] = dateDebut2p4a;
+        }
+
+        const dateFin2p4a = pickString(
+          contrat,
+          'date_fin_2periode_4eme_annee',
+          'date_fin_2periode_4eme_année'
+        );
+        if (dateFin2p4a) {
+          airtableData['date_fin_2periode_4eme_annee'] = dateFin2p4a;
+        }
+
+        // Optionnel: certains clients envoient aussi la date de début de 1ère période 1ère année.
+        // On tente de la pousser si la colonne existe côté Airtable.
+        const dateDebut1p1a = pickString(
+          contrat,
+          'date_debut_1periode_1er_annee',
+          'date_debut_1periode_1er_année',
+          'date_debut_1periode_1ere_annee',
+          'date_debut_1periode_1ere_année'
+        );
+        if (dateDebut1p1a) {
+          // Airtable utilise la convention "1ere" (ex: date_fin_1periode_1ere_annee)
+          // donc on mappe systématiquement vers `date_debut_1periode_1ere_annee`.
+          airtableData['date_debut_1periode_1ere_annee'] = dateDebut1p1a;
+        }
       }
 
       // Autres champs du contrat
       if (fiche.contrat.date_conclusion) {
         airtableData['Date de conclusion'] = fiche.contrat.date_conclusion;
       }
-      if (fiche.contrat.date_debut_execution) {
-        airtableData['Date de début exécution'] = fiche.contrat.date_debut_execution;
+      {
+        const dateDebutExecution =
+          readNonEmptyString((fiche.contrat as any).date_debut_execution) ??
+          pickString(contrat, 'date_debut_execution', 'date_debut_exécution');
+        if (dateDebutExecution) {
+          airtableData['Date de début exécution'] = dateDebutExecution;
+        }
       }
       if (fiche.contrat.numero_deca_ancien_contrat) {
         airtableData['Numéro DECA de ancien contrat'] = fiche.contrat.numero_deca_ancien_contrat;
