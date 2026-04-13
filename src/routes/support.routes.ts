@@ -232,7 +232,9 @@ const toOutputRecord = (record: { id: string; fields: BugRecordFields }): any =>
     reporterName: String(reporterName),
     reporterEmail: String(reporterEmail),
     screenshotUrl: String(screenshotUrl),
-    createdAt: createdAt ? String(createdAt) : new Date().toISOString(),
+    // Important: on renvoie la valeur réellement stockée dans Airtable.
+    // Ne pas substituer par "now" ici (sinon on masque les tickets sans date).
+    createdAt: createdAt ? String(createdAt) : null,
   };
 };
 
@@ -306,19 +308,6 @@ const createBugWithFallbackFieldSets = async (payload: any) => {
             throw error;
           }
           logger.warn(`[Support] Airtable create fallback field-set ${idx + 1} failed (${code || 'UNKNOWN'}), trying next.`);
-
-          // Si l'erreur concerne potentiellement le champ date "created At", retenter sans ce champ.
-          // (Évite de casser la création si la colonne n'existe pas / est calculée.)
-          try {
-            const fields = buildCreateFields(idx, payload, attempt);
-            const createdAtKey = FIELD_SETS[idx]?.createdAt;
-            if (createdAtKey && createdAtKey in fields) {
-              delete fields[createdAtKey];
-              return await airtableClient.create<BugRecordFields>(tableName, fields);
-            }
-          } catch (fallbackError: any) {
-            lastError = fallbackError;
-          }
         }
       }
     }
@@ -334,11 +323,9 @@ const updateStatusWithFallbackFieldSets = async (recordId: string, status: BugSt
     for (const s of FIELD_SETS) {
       const attempts = [
         // On "touche" createdAt lors des modifications pour que la table reflète la dernière activité.
+        // On conserve createdAt dans toutes les tentatives (pas de fallback silencieux sans date).
         { [s.status]: [status], ...(s.createdAt ? { [s.createdAt]: nowIso } : {}) },
         { [s.status]: status, ...(s.createdAt ? { [s.createdAt]: nowIso } : {}) },
-        // Fallbacks sans createdAt
-        { [s.status]: [status] },
-        { [s.status]: status },
       ];
 
       for (const attempt of attempts) {
@@ -524,7 +511,7 @@ router.get(
         );
       }
 
-      rows.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+      rows.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
 
       const total = rows.length;
       const start = (page - 1) * limit;
