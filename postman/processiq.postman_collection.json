@@ -1,0 +1,1898 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "ProcessIQ API - Collection complète",
+    "description": "Collection Postman complète pour tous les endpoints de l'API ProcessIQ.\n\nModules couverts :\n- Auth, Health\n- Candidats MongoDB (CRUD)\n- Étudiants, Présences, Notes, Événements, RDV, Documents, Questionnaires\n- Admission Airtable (candidats + génération PDF)\n- Entreprises Airtable (CRUD fiche)\n- RH (fiches & statistiques)\n- Support (tickets bugs)\n\n## Variables à configurer\n- `baseUrl` : URL de base de l'API\n- `token` : JWT obtenu après /auth/login (auto-rempli)\n- `airtableRecordId` : ID Airtable d'un candidat (ex: rec1BBjsjxhdqEKuq)\n- `entrepriseId` : ID Airtable d'une fiche entreprise",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8001", "description": "URL de base de l'API" },
+    { "key": "token", "value": "", "description": "JWT Bearer token (rempli automatiquement après login)" },
+    { "key": "candidateId", "value": "000000000000000000000001", "description": "ID MongoDB d'un candidat" },
+    { "key": "studentId", "value": "000000000000000000000002", "description": "ID MongoDB d'un étudiant" },
+    { "key": "attendanceId", "value": "000000000000000000000003", "description": "ID MongoDB d'une présence" },
+    { "key": "gradeId", "value": "000000000000000000000004", "description": "ID MongoDB d'une note" },
+    { "key": "eventId", "value": "000000000000000000000005", "description": "ID MongoDB d'un événement" },
+    { "key": "appointmentId", "value": "000000000000000000000006", "description": "ID MongoDB d'un RDV" },
+    { "key": "documentId", "value": "000000000000000000000007", "description": "ID MongoDB d'un document" },
+    { "key": "questionnaireId", "value": "000000000000000000000008", "description": "ID MongoDB d'un questionnaire" },
+    { "key": "ticketId", "value": "recXXXXXXXXXXXXXX", "description": "ID Airtable d'un ticket support" },
+    { "key": "userRole", "value": "admin", "description": "Rôle utilisateur pour le support" },
+    { "key": "reporterEmail", "value": "admin@rush-school.fr", "description": "Email du reporter" },
+    { "key": "airtableRecordId", "value": "rec1BBjsjxhdqEKuq", "description": "ID Airtable d'un candidat (module admission)" },
+    { "key": "entrepriseId", "value": "recABCDEFGHIJKLMN", "description": "ID Airtable d'une fiche entreprise" }
+  ],
+  "item": [
+
+    {
+      "name": "🔐 Auth",
+      "description": "Authentification et gestion des utilisateurs",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "  pm.collectionVariables.set('token', json.access_token);",
+                  "  console.log('Token enregistré automatiquement.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@rush-school.fr\",\n  \"password\": \"admin\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Connexion. Le token JWT est automatiquement stocké dans la variable `token`.\n\nComptes de test disponibles :\n- `admin@rush-school.fr` / `admin`\n- `admission@rush-school.fr` / `admission123`\n- `rh@rush-school.fr` / `rh123`\n- `commercial@rush-school.fr` / `commercial123`\n- `eleve@rush-school.fr` / `eleve123`"
+          },
+          "response": []
+        },
+        {
+          "name": "Profil (me)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "Retourne les infos de l'utilisateur connecté (user + student si applicable)."
+          },
+          "response": []
+        },
+        {
+          "name": "Profil (token brut)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "profile"]
+            },
+            "description": "Retourne le contenu brut du JWT décodé."
+          },
+          "response": []
+        },
+        {
+          "name": "Créer un utilisateur (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nouveau@rush-school.fr\",\n  \"password\": \"MotDePasse123!\",\n  \"name\": \"Nouvel Utilisateur\",\n  \"role\": \"admission\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register-user",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register-user"]
+            },
+            "description": "Crée un compte utilisateur. Réservé aux admins.\n\nRôles valides : `admin`, `student`, `staff`, `commercial`, `admission`, `rh`\n\nPour le rôle `student`, `studentId` est obligatoire."
+          },
+          "response": []
+        },
+        {
+          "name": "Créer un compte étudiant",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"etudiant@example.fr\",\n  \"password\": \"MotDePasse123!\",\n  \"name\": \"Jean Etudiant\",\n  \"studentId\": \"{{studentId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register-student",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register-student"]
+            },
+            "description": "Crée un compte avec le rôle `student` lié à un étudiant MongoDB existant."
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "🔍 Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Vérifie que l'API est opérationnelle."
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "👥 Candidats",
+      "description": "CRUD candidats — Routes protégées (Bearer token requis)",
+      "item": [
+        {
+          "name": "Lister les candidats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "program", "value": "BTS MCO", "disabled": true },
+                { "key": "status", "value": "candidat", "disabled": true, "description": "candidat | admis | inscrit | abandon | diplômé" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "enrollmentYear", "value": "2025", "disabled": true },
+                { "key": "alternance", "value": "true", "disabled": true },
+                { "key": "sortBy", "value": "createdAt", "disabled": true },
+                { "key": "sortOrder", "value": "desc", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Statistiques candidats",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates", "stats"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Recherche avancée",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates/search/advanced?query=dupont&program=BTS MCO",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates", "search", "advanced"],
+              "query": [
+                { "key": "query", "value": "dupont" },
+                { "key": "program", "value": "BTS MCO", "disabled": true },
+                { "key": "fromDate", "value": "2025-01-01", "disabled": true },
+                { "key": "toDate", "value": "2025-12-31", "disabled": true },
+                { "key": "hasDocuments", "value": "true", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtenir un candidat par ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates/{{candidateId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates", "{{candidateId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtenir un candidat par email",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates/email/jean.dupont@example.com",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates", "email", "jean.dupont@example.com"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Documents d'un candidat",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates/{{candidateId}}/documents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates", "{{candidateId}}", "documents"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer un candidat",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Jean\",\n  \"lastName\": \"Dupont\",\n  \"email\": \"jean.dupont@example.com\",\n  \"birthDate\": \"2003-05-15\",\n  \"birthPlace\": \"Paris\",\n  \"gender\": \"Masculin\",\n  \"nationality\": \"Française\",\n  \"address\": \"12 rue de la Paix\",\n  \"postalCode\": \"75001\",\n  \"city\": \"Paris\",\n  \"phone\": \"0612345678\",\n  \"program\": \"BTS MCO\",\n  \"enrollmentYear\": 2025,\n  \"alternance\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates"]
+            },
+            "description": "Programmes valides : `BTS MCO`, `BTS NDRC`, `TP NTC`, `Titre Pro NTC B`\nGenre : `Masculin` ou `Féminin`"
+          },
+          "response": []
+        },
+        {
+          "name": "Mettre à jour un candidat",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"0698765432\",\n  \"status\": \"admis\",\n  \"alternance\": false\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates/{{candidateId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates", "{{candidateId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Changer le statut d'un candidat",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"inscrit\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates/{{candidateId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates", "{{candidateId}}", "status"]
+            },
+            "description": "Valeurs : `candidat` | `admis` | `inscrit` | `abandon` | `diplômé`"
+          },
+          "response": []
+        },
+        {
+          "name": "Supprimer un candidat (soft delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/candidates/{{candidateId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "candidates", "{{candidateId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "🎓 Étudiants",
+      "description": "CRUD étudiants — Routes protégées",
+      "item": [
+        {
+          "name": "Lister les étudiants",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/students?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "students"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "status", "value": "active", "disabled": true, "description": "active | inactive | graduated | suspended" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtenir un étudiant par ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/students/{{studentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "students", "{{studentId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtenir un étudiant par numéro",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/students/student-number/2025001",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "students", "student-number", "2025001"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer un étudiant",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Marie\",\n  \"lastName\": \"Martin\",\n  \"email\": \"marie.martin@rush-school.fr\",\n  \"studentNumber\": \"2025001\",\n  \"formation\": \"BTS MCO\",\n  \"status\": \"active\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/students",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "students"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mettre à jour un étudiant",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"graduated\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/students/{{studentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "students", "{{studentId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Supprimer un étudiant",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/students/{{studentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "students", "{{studentId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "📋 Présences",
+      "description": "Absences, retards et présences — Routes protégées",
+      "item": [
+        {
+          "name": "Lister les présences",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/attendances?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendances"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "studentId", "value": "{{studentId}}", "disabled": true },
+                { "key": "status", "value": "pending", "disabled": true, "description": "pending | justified | unjustified" },
+                { "key": "type", "value": "absence", "disabled": true, "description": "absence | delay | present" },
+                { "key": "startDate", "value": "2025-01-01", "disabled": true },
+                { "key": "endDate", "value": "2025-12-31", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtenir une présence par ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/attendances/{{attendanceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendances", "{{attendanceId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer une ligne de présence",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"date\": \"2025-04-09\",\n  \"type\": \"absence\",\n  \"status\": \"pending\",\n  \"reason\": \"Raison non communiquée\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/attendances",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendances"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mettre à jour une présence",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"justified\",\n  \"reason\": \"Certificat médical fourni\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/attendances/{{attendanceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendances", "{{attendanceId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Supprimer une présence",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/attendances/{{attendanceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendances", "{{attendanceId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "📊 Notes",
+      "description": "Gestion des notes — Routes protégées",
+      "item": [
+        {
+          "name": "Lister les notes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/grades?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "grades"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "studentId", "value": "{{studentId}}", "disabled": true },
+                { "key": "subject", "value": "Mathématiques", "disabled": true },
+                { "key": "type", "value": "exam", "disabled": true, "description": "exam | quiz | homework | project | participation | oral | lab" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtenir une note par ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/grades/{{gradeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "grades", "{{gradeId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer une note",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"subject\": \"Mathématiques\",\n  \"type\": \"exam\",\n  \"score\": 15.5,\n  \"maxScore\": 20,\n  \"date\": \"2025-04-09\",\n  \"comment\": \"Bon travail\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/grades",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "grades"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mettre à jour une note",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"score\": 16,\n  \"comment\": \"Note corrigée après réclamation\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/grades/{{gradeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "grades", "{{gradeId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Supprimer une note",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/grades/{{gradeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "grades", "{{gradeId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "📅 Événements",
+      "description": "Calendrier — Routes protégées",
+      "item": [
+        {
+          "name": "Lister les événements",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/events?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "type", "value": "course", "disabled": true, "description": "course | company | exam | meeting | global | holiday | workshop" },
+                { "key": "source", "value": "school", "disabled": true, "description": "school | company | student" },
+                { "key": "ownerId", "value": "", "disabled": true },
+                { "key": "studentId", "value": "{{studentId}}", "disabled": true },
+                { "key": "startDate", "value": "2025-01-01", "disabled": true },
+                { "key": "endDate", "value": "2025-12-31", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtenir un événement par ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{eventId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{eventId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer un événement",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Cours de Marketing\",\n  \"type\": \"course\",\n  \"source\": \"school\",\n  \"startDate\": \"2025-04-10T09:00:00.000Z\",\n  \"endDate\": \"2025-04-10T11:00:00.000Z\",\n  \"location\": \"Salle 101\",\n  \"description\": \"Introduction au marketing digital\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mettre à jour un événement",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"location\": \"Salle 202\",\n  \"description\": \"Cours déplacé en salle 202\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{eventId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{eventId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Supprimer un événement",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{eventId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{eventId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "🗓️ Rendez-vous",
+      "description": "Gestion des RDV — Routes protégées",
+      "item": [
+        {
+          "name": "Lister les rendez-vous",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appointments"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "studentId", "value": "{{studentId}}", "disabled": true },
+                { "key": "advisorId", "value": "", "disabled": true },
+                { "key": "status", "value": "upcoming", "disabled": true, "description": "upcoming | completed | cancelled" },
+                { "key": "type", "value": "suivi", "disabled": true, "description": "orientation | suivi | discipline | family | career | administratif | technique" },
+                { "key": "startDate", "value": "2025-01-01", "disabled": true },
+                { "key": "endDate", "value": "2025-12-31", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtenir un rendez-vous par ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appointments", "{{appointmentId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer un rendez-vous",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"type\": \"suivi\",\n  \"date\": \"2025-04-15T14:00:00.000Z\",\n  \"duration\": 30,\n  \"notes\": \"Suivi mensuel de l'étudiant\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appointments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mettre à jour un rendez-vous",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\",\n  \"notes\": \"RDV effectué, points abordés : scolarité, alternance\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appointments", "{{appointmentId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Supprimer un rendez-vous",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/{{appointmentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appointments", "{{appointmentId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "📁 Documents",
+      "description": "Gestion des documents étudiants — Routes protégées",
+      "item": [
+        {
+          "name": "Lister les documents",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/documents?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "studentId", "value": "{{studentId}}", "disabled": true },
+                { "key": "category", "value": "contract", "disabled": true, "description": "contract | certificate | id | transcript | parental_consent | medical | insurance | payment | internship | other" },
+                { "key": "status", "value": "pending", "disabled": true, "description": "pending | valid | expired | rejected | to_sign | signed" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtenir un document par ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/{{documentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "{{documentId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Télécharger un document",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/{{documentId}}/download",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "{{documentId}}", "download"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer un document",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"category\": \"contract\",\n  \"title\": \"Contrat d'alternance\",\n  \"status\": \"pending\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Uploader un fichier document",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" },
+                { "key": "studentId", "value": "{{studentId}}", "type": "text" },
+                { "key": "category", "value": "contract", "type": "text" },
+                { "key": "title", "value": "Contrat alternance", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "upload"]
+            },
+            "description": "Upload d'un fichier (max 10 Mo)."
+          },
+          "response": []
+        },
+        {
+          "name": "Mettre à jour un document",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Contrat d'alternance - version signée\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/{{documentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "{{documentId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Changer le statut d'un document",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"valid\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/{{documentId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "{{documentId}}", "status"]
+            },
+            "description": "Statuts : `pending` | `valid` | `expired` | `rejected` | `to_sign` | `signed`"
+          },
+          "response": []
+        },
+        {
+          "name": "Demander une signature électronique",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"workflowKey\": \"contrat_alternance\",\n  \"documentUrl\": \"https://example.com/document.pdf\",\n  \"callbackUrl\": \"https://example.com/callback\",\n  \"participants\": {\n    \"student\": { \"email\": \"etudiant@example.fr\", \"name\": \"Jean Etudiant\" }\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/{{documentId}}/signature/request",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "{{documentId}}", "signature", "request"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtenir un lien de signature",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"signerRole\": \"student\",\n  \"signerEmail\": \"etudiant@example.fr\",\n  \"signerName\": \"Jean Etudiant\",\n  \"returnUrl\": \"https://app.rush-school.fr/documents\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/{{documentId}}/signature/signing-link",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "{{documentId}}", "signature", "signing-link"]
+            },
+            "description": "Roles : `student` | `cfa` | `maitre_apprentissage` | `charge_admission` | `charge_rh` | `commercial`"
+          },
+          "response": []
+        },
+        {
+          "name": "Supprimer un document",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/{{documentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "{{documentId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "📝 Questionnaires",
+      "description": "Tests et questionnaires d'admission — Routes protégées",
+      "item": [
+        {
+          "name": "Lister les questionnaires",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/questionnaires?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "questionnaires"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "candidateId", "value": "{{candidateId}}", "disabled": true },
+                { "key": "studentId", "value": "{{studentId}}", "disabled": true },
+                { "key": "statut", "value": "pending", "disabled": true, "description": "pending | in_progress | completed | expired" },
+                { "key": "formation", "value": "bts_mco", "disabled": true, "description": "bts_mco | bts_ndrc | bachelor_rdc | tp_ntc" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtenir un questionnaire par ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/questionnaires/{{questionnaireId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "questionnaires", "{{questionnaireId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer un questionnaire",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"candidateId\": \"{{candidateId}}\",\n  \"formation\": \"bts_mco\",\n  \"statut\": \"pending\",\n  \"questions\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questionnaires",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "questionnaires"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mettre à jour un questionnaire",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"statut\": \"in_progress\",\n  \"answers\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questionnaires/{{questionnaireId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "questionnaires", "{{questionnaireId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Changer le statut d'un questionnaire",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"statut\": \"completed\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/questionnaires/{{questionnaireId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "questionnaires", "{{questionnaireId}}", "status"]
+            },
+            "description": "Statuts : `pending` | `in_progress` | `completed` | `expired`"
+          },
+          "response": []
+        },
+        {
+          "name": "Supprimer un questionnaire",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/questionnaires/{{questionnaireId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "questionnaires", "{{questionnaireId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "🐛 Support (Bugs)",
+      "description": "Tickets de bugs via Airtable — Pas d'authentification requise",
+      "item": [
+        {
+          "name": "Lister les bugs",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-user-role", "value": "{{userRole}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/support/bugs?scope=all&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "support", "bugs"],
+              "query": [
+                { "key": "scope", "value": "all", "description": "all (admin/super_admin) | mine (défaut)" },
+                { "key": "limit", "value": "50" },
+                { "key": "page", "value": "1", "disabled": true },
+                { "key": "status", "value": "new", "disabled": true, "description": "new | in_progress | resolved" },
+                { "key": "module", "value": "admission", "disabled": true, "description": "admission | rh | commercial | other" },
+                { "key": "priority", "value": "high", "disabled": true, "description": "low | medium | high | critical" },
+                { "key": "reporterEmail", "value": "{{reporterEmail}}", "disabled": true },
+                { "key": "reporterRole", "value": "admission", "disabled": true },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            },
+            "description": "scope=all nécessite le rôle admin ou super_admin (via header `x-user-role`)."
+          },
+          "response": []
+        },
+        {
+          "name": "Signaler un bug (JSON)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Impossible de générer le CERFA\",\n  \"description\": \"Une erreur 500 apparaît au clic sur le bouton de génération. Reproductible à chaque tentative.\",\n  \"module\": \"admission\",\n  \"priority\": \"high\",\n  \"reporterRole\": \"admission\",\n  \"reporterName\": \"Alice Dupont\",\n  \"reporterEmail\": \"alice@rush-school.fr\",\n  \"screenshotUrl\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/support/bugs",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "support", "bugs"]
+            },
+            "description": "Modules valides : `admission` | `rh` | `commercial` | `other`\nPriorités : `low` | `medium` | `high` | `critical`\nRôles : `admission` | `rh` | `commercial` | `student` | `staff` | `admin` | `super_admin`"
+          },
+          "response": []
+        },
+        {
+          "name": "Signaler un bug (avec screenshot)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Erreur d'affichage sur la liste des candidats", "type": "text" },
+                { "key": "description", "value": "La liste ne se charge pas correctement, affiche une page blanche après filtrage.", "type": "text" },
+                { "key": "module", "value": "admission", "type": "text" },
+                { "key": "priority", "value": "medium", "type": "text" },
+                { "key": "reporterRole", "value": "admission", "type": "text" },
+                { "key": "reporterName", "value": "Bob Martin", "type": "text" },
+                { "key": "reporterEmail", "value": "bob@rush-school.fr", "type": "text" },
+                { "key": "file", "type": "file", "src": "", "description": "PNG, JPG, JPEG ou WebP — max 8 Mo" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/support/bugs",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "support", "bugs"]
+            },
+            "description": "Envoie un bug en multipart/form-data avec un screenshot joint directement."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload screenshot uniquement",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "", "description": "PNG, JPG, JPEG ou WebP — max 8 Mo" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/support/bugs/upload-screenshot",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "support", "bugs", "upload-screenshot"]
+            },
+            "description": "Upload un screenshot et retourne son URL publique (tmpfiles.org). Utiliser cette URL dans `screenshotUrl` lors de la création du bug."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload screenshot (alias)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/support/upload-screenshot",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "support", "upload-screenshot"]
+            },
+            "description": "Alias de /bugs/upload-screenshot."
+          },
+          "response": []
+        },
+        {
+          "name": "Mettre à jour le statut d'un bug",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-role", "value": "{{userRole}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"in_progress\",\n  \"requesterRole\": \"{{userRole}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/support/bugs/{{ticketId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "support", "bugs", "{{ticketId}}", "status"]
+            },
+            "description": "Réservé aux rôles `admin` et `super_admin`.\n\nStatuts : `new` | `in_progress` | `resolved`\n\nRemplacez `{{ticketId}}` par l'ID Airtable du ticket (ex: `recXXXXXXXXXXXXXX`)."
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "🏢 Admission — Candidats (Airtable)",
+      "description": "Gestion des candidats via Airtable. Ces routes sont sous /api/admission et n'ont pas d'authentification JWT obligatoire.",
+      "item": [
+        {
+          "name": "Lister tous les candidats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidats"]
+            },
+            "description": "Récupère tous les candidats depuis Airtable."
+          },
+          "response": []
+        },
+        {
+          "name": "Candidats avec documents (jointure email)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidats-with-documents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidats-with-documents"]
+            },
+            "description": "Candidats + jointure email sur les tables Résultats PDF, Suivi entretien et Projet pro."
+          },
+          "response": []
+        },
+        {
+          "name": "Obtenir un candidat par ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidats/{{airtableRecordId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidats", "{{airtableRecordId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Candidat avec documents par ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidats/{{airtableRecordId}}/with-documents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidats", "{{airtableRecordId}}", "with-documents"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Entreprise d'un candidat",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidats/{{airtableRecordId}}/entreprise",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidats", "{{airtableRecordId}}", "entreprise"]
+            },
+            "description": "Retourne la fiche entreprise liée au candidat."
+          },
+          "response": []
+        },
+        {
+          "name": "Historique utilisateurs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/historique-utilisateurs?includeUnknown=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "historique-utilisateurs"],
+              "query": [
+                { "key": "includeUnknown", "value": "false", "description": "Inclure les entrées sans utilisateur" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer un candidat (informations personnelles)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prenom\": \"Jean\",\n  \"nom_naissance\": \"Dupont\",\n  \"sexe\": \"Masculin\",\n  \"date_naissance\": \"2004-03-15\",\n  \"nationalite\": \"Française\",\n  \"commune_naissance\": \"Paris\",\n  \"departement\": \"Paris\",\n  \"adresse_residence\": \"12 Rue de la Paix\",\n  \"code_postal\": 75001,\n  \"ville\": \"Paris\",\n  \"email\": \"jean.dupont@example.com\",\n  \"telephone\": \"0601020304\",\n  \"bac\": \"Général\",\n  \"utilisateur\": \"agent.admission\",\n  \"validation\": \"En attente\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidates"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Profil complet d'un candidat",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidates/{{airtableRecordId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidates", "{{airtableRecordId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mettre à jour un candidat (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telephone\": \"0699887766\",\n  \"validation\": \"Validé\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidates/{{airtableRecordId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidates", "{{airtableRecordId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Supprimer un candidat (Airtable)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidates/{{airtableRecordId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidates", "{{airtableRecordId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload CV",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "", "description": "PDF, DOC, DOCX, JPG, PNG" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidates/{{airtableRecordId}}/documents/cv",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidates", "{{airtableRecordId}}", "documents", "cv"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload CIN (carte d'identité)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidates/{{airtableRecordId}}/documents/cin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidates", "{{airtableRecordId}}", "documents", "cin"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Lettre de motivation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidates/{{airtableRecordId}}/documents/lettre-motivation",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidates", "{{airtableRecordId}}", "documents", "lettre-motivation"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Carte vitale",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidates/{{airtableRecordId}}/documents/carte-vitale",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidates", "{{airtableRecordId}}", "documents", "carte-vitale"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Dernier diplôme",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidates/{{airtableRecordId}}/documents/dernier-diplome",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidates", "{{airtableRecordId}}", "documents", "dernier-diplome"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Supprimer un document attaché",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidates/{{airtableRecordId}}/documents/cv?filename=mon_cv.pdf",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidates", "{{airtableRecordId}}", "documents", "cv"],
+              "query": [
+                { "key": "filename", "value": "mon_cv.pdf", "description": "Nom complet ou partiel du fichier" }
+              ]
+            },
+            "description": "Types valides : `cv`, `cin`, `lettre-motivation`, `carte-vitale`, `dernier-diplome`, `fiche-entreprise`, `cerfa`, `convention`, `atre`, `compte-rendu`, `reglement-interieur`, `livret-apprentissage`, `prise-connaissance`, `certificat-scolarite`"
+          },
+          "response": []
+        },
+        {
+          "name": "Upload suivi d'entretien",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "email", "value": "jean.dupont@example.com", "type": "text" },
+                { "key": "file", "type": "file", "src": "", "description": "Fichier PDF du suivi" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/suivie-entretien",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "suivie-entretien"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload résultat PDF",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "email", "value": "jean.dupont@example.com", "type": "text" },
+                { "key": "file", "type": "file", "src": "", "description": "Fichier PDF résultat" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/resultats-pdf",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "resultats-pdf"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload projet pro",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "email", "value": "jean.dupont@example.com", "type": "text" },
+                { "key": "file", "type": "file", "src": "", "description": "Fichier PDF projet pro" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/projet-pro",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "projet-pro"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "📄 Admission — Génération PDF",
+      "description": "Génération des PDF pour les candidats Airtable. Chaque endpoint génère et uploade le PDF directement dans Airtable.",
+      "item": [
+        {
+          "name": "Générer Fiche de Renseignement",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidats/{{airtableRecordId}}/fiche-renseignement",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidats", "{{airtableRecordId}}", "fiche-renseignement"]
+            },
+            "description": "Génère la fiche de renseignement PDF et l'uploade dans Airtable (colonne 'Fiche entreprise')."
+          },
+          "response": []
+        },
+        {
+          "name": "Générer CERFA FA13",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidats/{{airtableRecordId}}/cerfa",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidats", "{{airtableRecordId}}", "cerfa"]
+            },
+            "description": "Génère le formulaire CERFA FA13 et l'uploade dans Airtable (colonne 'cerfa')."
+          },
+          "response": []
+        },
+        {
+          "name": "Générer Convention d'apprentissage",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidats/{{airtableRecordId}}/convention-apprentissage",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidats", "{{airtableRecordId}}", "convention-apprentissage"]
+            },
+            "description": "Génère la convention de formation apprentissage et l'uploade dans Airtable (colonne 'Convention')."
+          },
+          "response": []
+        },
+        {
+          "name": "Générer Fiche ATRE",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidats/{{airtableRecordId}}/atre",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidats", "{{airtableRecordId}}", "atre"]
+            },
+            "description": "Génère la fiche de détection ATRE. Réponse : PDF binaire (application/pdf)."
+          },
+          "response": []
+        },
+        {
+          "name": "Générer Compte Rendu de Visite",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidats/{{airtableRecordId}}/compte-rendu",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidats", "{{airtableRecordId}}", "compte-rendu"]
+            },
+            "description": "Génère le compte rendu de visite entretien. Réponse : PDF binaire."
+          },
+          "response": []
+        },
+        {
+          "name": "Générer Règlement Intérieur",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidats/{{airtableRecordId}}/reglement-interieur",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidats", "{{airtableRecordId}}", "reglement-interieur"]
+            },
+            "description": "Génère le règlement intérieur. Réponse : PDF binaire."
+          },
+          "response": []
+        },
+        {
+          "name": "Générer Livret d'apprentissage",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidats/{{airtableRecordId}}/livret-apprentissage",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidats", "{{airtableRecordId}}", "livret-apprentissage"]
+            },
+            "description": "Détecte la formation (MCO / NDRC / Bachelor / TP NTC) et génère le livret correspondant. Uploade dans Airtable."
+          },
+          "response": []
+        },
+        {
+          "name": "Générer Prise de Connaissance",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidats/{{airtableRecordId}}/prise-connaissance",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidats", "{{airtableRecordId}}", "prise-connaissance"]
+            },
+            "description": "Génère le document Prise de Connaissance et l'uploade dans Airtable. Réponse : PDF binaire."
+          },
+          "response": []
+        },
+        {
+          "name": "Générer Certificat de Scolarité",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/candidats/{{airtableRecordId}}/certificat-scolarite",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "candidats", "{{airtableRecordId}}", "certificat-scolarite"]
+            },
+            "description": "Génère le certificat de scolarité en alternance et l'uploade dans Airtable (colonne 'certificat de scolarité')."
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "🏭 Entreprises (Airtable)",
+      "description": "CRUD des fiches entreprises dans Airtable. Route de base : /api/admission/entreprise(s)",
+      "item": [
+        {
+          "name": "Lister toutes les entreprises",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/entreprises",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "entreprises"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer une fiche entreprise (structurée)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identification\": {\n    \"raison_sociale\": \"ACME Corporation\",\n    \"siret\": 12345678901234,\n    \"code_ape_naf\": \"6201Z\",\n    \"type_employeur\": \"Entreprise privée\",\n    \"nombre_salaries\": 50,\n    \"convention_collective\": \"SYNTEC\"\n  },\n  \"adresse\": {\n    \"numero\": \"12\",\n    \"voie\": \"Rue de la Paix\",\n    \"code_postal\": 75001,\n    \"ville\": \"Paris\",\n    \"telephone\": \"0123456789\",\n    \"email\": \"contact@acme.com\"\n  },\n  \"maitre_apprentissage\": {\n    \"nom\": \"Dupont\",\n    \"prenom\": \"Marie\",\n    \"date_naissance\": \"1985-05-15\",\n    \"fonction\": \"Responsable Formation\",\n    \"diplome_plus_eleve\": \"Master\",\n    \"annees_experience\": 10,\n    \"telephone\": \"0612345678\",\n    \"email\": \"marie.dupont@acme.com\"\n  },\n  \"opco\": {\n    \"nom_opco\": \"OPCO Atlas\"\n  },\n  \"contrat\": {\n    \"type_contrat\": \"Contrat d'apprentissage\",\n    \"date_debut\": \"2026-09-01\",\n    \"date_fin\": \"2028-08-31\",\n    \"duree_hebdomadaire\": \"35h\",\n    \"poste_occupe\": \"Assistant commercial\",\n    \"lieu_execution\": \"Paris 75001\",\n    \"pourcentage_smic1\": 53,\n    \"smic1\": 966.21,\n    \"montant_salaire_brut1\": 966.21\n  },\n  \"formation_missions\": {\n    \"formation_alternant\": \"BTS MCO\",\n    \"code_rncp\": \"RNCP38362\",\n    \"nombre_heures_formation\": 675,\n    \"jours_de_cours\": 2,\n    \"missions\": \"Gestion clientèle et développement commercial\"\n  },\n  \"record_id_etudiant\": \"{{airtableRecordId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/entreprise",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "entreprise"]
+            },
+            "description": "Route structurée avec mapping automatique vers Airtable. Inclut retry 3 tentatives."
+          },
+          "response": []
+        },
+        {
+          "name": "Créer une fiche entreprise (champs bruts Airtable)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recordIdetudiant\": \"{{airtableRecordId}}\",\n  \"Raison sociale\": \"ACME Corporation\",\n  \"Numéro SIRET\": 12345678901234,\n  \"Code APE/NAF\": \"6201Z\",\n  \"Type demployeur\": \"Entreprise privée\",\n  \"Convention collective\": \"SYNTEC\",\n  \"Voie entreprise\": \"Rue de la Paix\",\n  \"Code postal entreprise\": 75001,\n  \"Ville entreprise\": \"Paris\",\n  \"Téléphone entreprise\": \"0123456789\",\n  \"Email entreprise\": \"contact@acme.com\",\n  \"Nom Maître apprentissage\": \"Dupont\",\n  \"Prénom Maître apprentissage\": \"Marie\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/entreprises",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "entreprises"]
+            },
+            "description": "Route avec noms de colonnes Airtable bruts (sans mapping auto)."
+          },
+          "response": []
+        },
+        {
+          "name": "Mettre à jour une fiche entreprise (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Téléphone entreprise\": \"0987654321\",\n  \"Email entreprise\": \"nouveau@acme.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/entreprises/{{entrepriseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "entreprises", "{{entrepriseId}}"]
+            },
+            "description": "Mise à jour partielle. Accepte aussi les clés structurées (identification, adresse, maitre_apprentissage, etc.)."
+          },
+          "response": []
+        },
+        {
+          "name": "Supprimer une fiche entreprise",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admission/entreprises/{{entrepriseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admission", "entreprises", "{{entrepriseId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "👔 RH",
+      "description": "Module RH — Fiches de renseignement et CERFA des étudiants",
+      "item": [
+        {
+          "name": "Lister les étudiants avec fiches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rh/etudiants-fiches",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rh", "etudiants-fiches"],
+              "query": [
+                { "key": "avec_fiche_uniquement", "value": "true", "disabled": true, "description": "Uniquement ceux avec une fiche PDF" },
+                { "key": "avec_cerfa_uniquement", "value": "true", "disabled": true, "description": "Uniquement ceux avec un CERFA" },
+                { "key": "avec_atre_uniquement", "value": "true", "disabled": true, "description": "Uniquement ceux avec une fiche ATRE" },
+                { "key": "avec_compte_rendu_uniquement", "value": "true", "disabled": true },
+                { "key": "avec_reglement_uniquement", "value": "true", "disabled": true },
+                { "key": "avec_convention_uniquement", "value": "true", "disabled": true },
+                { "key": "dossier_complet_uniquement", "value": "true", "disabled": true, "description": "Tous les documents présents" }
+              ]
+            },
+            "description": "Retourne les étudiants avec l'état de leurs documents (fiche, CERFA, ATRE, compte rendu, règlement)."
+          },
+          "response": []
+        },
+        {
+          "name": "Détail étudiant RH par ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rh/etudiants-fiches/{{airtableRecordId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rh", "etudiants-fiches", "{{airtableRecordId}}"]
+            },
+            "description": "Retourne le détail complet d'un étudiant avec tous ses documents."
+          },
+          "response": []
+        },
+        {
+          "name": "Statistiques RH",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/rh/statistiques",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "rh", "statistiques"]
+            },
+            "description": "Statistiques globales : nombre d'étudiants, taux de complétion par type de document, dossiers complets."
+          },
+          "response": []
+        }
+      ]
+    }
+
+  ]
+}
