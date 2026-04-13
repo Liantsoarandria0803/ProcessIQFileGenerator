@@ -50,7 +50,7 @@ const FIELD_SETS = [
     reporterName: 'reporter name',
     reporterEmail: 'reporter email',
     screenshotUrl: 'screenshot',
-  createdAt: 'created At',
+    createdAt: 'created At',
   },
 ];
 
@@ -243,6 +243,7 @@ const buildCreateFields = (
 ): Record<string, any> => {
   const s = FIELD_SETS[setIndex];
   const screenshotValue = String(input.screenshotUrl || '').trim();
+  const nowIso = new Date().toISOString();
   const fields: Record<string, any> = {
     [s.title]: String(input.title || '').trim(),
     [s.description]: String(input.description || '').trim(),
@@ -250,6 +251,13 @@ const buildCreateFields = (
     [s.reporterName]: String(input.reporterName || '').trim(),
     [s.reporterEmail]: String(input.reporterEmail || '').trim().toLowerCase(),
   };
+
+  // Le champ "created At" (Airtable) sert de date de ticket (création/modification).
+  // On tente de l'écrire systématiquement; les fallbacks plus bas gèrent le cas où
+  // la colonne n'existe pas ou refuse le format.
+  if (s.createdAt) {
+    fields[s.createdAt] = nowIso;
+  }
 
   if (options?.screenshotMode !== 'omit' && screenshotValue) {
     if (options?.screenshotMode === 'attachment') {
@@ -273,6 +281,7 @@ const createBugWithFallbackFieldSets = async (payload: any) => {
   for (const tableName of SUPPORT_TABLE_CANDIDATES) {
     for (let idx = 0; idx < FIELD_SETS.length; idx += 1) {
       const attempts = [
+        // 1) Tentatives avec createdAt (désiré)
         { includeSelectFields: true, screenshotMode: 'attachment' as const },
         { includeSelectFields: true, screenshotMode: 'omit' as const },
         { includeSelectFields: false, screenshotMode: 'attachment' as const },
@@ -297,6 +306,19 @@ const createBugWithFallbackFieldSets = async (payload: any) => {
             throw error;
           }
           logger.warn(`[Support] Airtable create fallback field-set ${idx + 1} failed (${code || 'UNKNOWN'}), trying next.`);
+
+          // Si l'erreur concerne potentiellement le champ date "created At", retenter sans ce champ.
+          // (Évite de casser la création si la colonne n'existe pas / est calculée.)
+          try {
+            const fields = buildCreateFields(idx, payload, attempt);
+            const createdAtKey = FIELD_SETS[idx]?.createdAt;
+            if (createdAtKey && createdAtKey in fields) {
+              delete fields[createdAtKey];
+              return await airtableClient.create<BugRecordFields>(tableName, fields);
+            }
+          } catch (fallbackError: any) {
+            lastError = fallbackError;
+          }
         }
       }
     }
@@ -306,10 +328,15 @@ const createBugWithFallbackFieldSets = async (payload: any) => {
 
 const updateStatusWithFallbackFieldSets = async (recordId: string, status: BugStatus) => {
   let lastError: any = null;
+  const nowIso = new Date().toISOString();
   for (const tableName of SUPPORT_TABLE_CANDIDATES) {
     let tryNextTable = false;
     for (const s of FIELD_SETS) {
       const attempts = [
+        // On "touche" createdAt lors des modifications pour que la table reflète la dernière activité.
+        { [s.status]: [status], ...(s.createdAt ? { [s.createdAt]: nowIso } : {}) },
+        { [s.status]: status, ...(s.createdAt ? { [s.createdAt]: nowIso } : {}) },
+        // Fallbacks sans createdAt
         { [s.status]: [status] },
         { [s.status]: status },
       ];
@@ -328,7 +355,7 @@ const updateStatusWithFallbackFieldSets = async (recordId: string, status: BugSt
           }
           const code = error?.response?.data?.error?.type;
           if (code === 'INVALID_VALUE_FOR_COLUMN') {
-            logger.warn(`[Support] Airtable status update format rejected for "${s.status}", trying next format.`);
+            logger.warn(`[Support] Airtable update payload rejected (INVALID_VALUE_FOR_COLUMN), trying next format.`);
             continue;
           }
           if (code !== 'UNKNOWN_FIELD_NAME') throw error;
