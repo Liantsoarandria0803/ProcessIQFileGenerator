@@ -20,32 +20,45 @@ const shouldSyncDefaultPasswords = (): boolean =>
   process.env.DEFAULT_USERS_SYNC_PASSWORDS === 'true' || process.env.NODE_ENV !== 'production';
 
 const getDefaultUsers = (): DefaultUser[] => {
-  return [
-    {
-      email: process.env.DEFAULT_ADMIN_EMAIL || 'superadmin@processiq.fr',
+  const users: DefaultUser[] = [];
+  
+  if (process.env.DEFAULT_ADMIN_EMAIL && process.env.DEFAULT_ADMIN_PASSWORD) {
+    users.push({
+      email: process.env.DEFAULT_ADMIN_EMAIL,
       name: 'Super Admin ProcessIQ',
       role: 'admin',
-      password: process.env.DEFAULT_ADMIN_PASSWORD || '8xK#mZ2P!qL5vW1y'
-    },
-    {
-      email: process.env.DEFAULT_ADMISSION_EMAIL || 'admission@processiq.fr',
+      password: process.env.DEFAULT_ADMIN_PASSWORD
+    });
+  }
+
+  if (process.env.DEFAULT_ADMISSION_EMAIL && process.env.DEFAULT_ADMISSION_PASSWORD) {
+    users.push({
+      email: process.env.DEFAULT_ADMISSION_EMAIL,
       name: 'Admission ProcessIQ',
       role: 'admission',
-      password: process.env.DEFAULT_ADMISSION_PASSWORD || '3nR@tY7u*X9pC4eB'
-    },
-    {
-      email: process.env.DEFAULT_COMMERCIAL_EMAIL || 'commercial@processiq.fr',
+      password: process.env.DEFAULT_ADMISSION_PASSWORD
+    });
+  }
+
+  if (process.env.DEFAULT_COMMERCIAL_EMAIL && process.env.DEFAULT_COMMERCIAL_PASSWORD) {
+    users.push({
+      email: process.env.DEFAULT_COMMERCIAL_EMAIL,
       name: 'Commercial ProcessIQ',
       role: 'commercial',
-      password: process.env.DEFAULT_COMMERCIAL_PASSWORD || '6vS$aG1h&M0kJ8fL'
-    },
-    {
-      email: process.env.DEFAULT_RH_EMAIL || 'rh@processiq.fr',
+      password: process.env.DEFAULT_COMMERCIAL_PASSWORD
+    });
+  }
+
+  if (process.env.DEFAULT_RH_EMAIL && process.env.DEFAULT_RH_PASSWORD) {
+    users.push({
+      email: process.env.DEFAULT_RH_EMAIL,
       name: 'RH ProcessIQ',
       role: 'rh',
-      password: process.env.DEFAULT_RH_PASSWORD || '9wD%bN3j+Q5zK7rM'
-    }
-  ];
+      password: process.env.DEFAULT_RH_PASSWORD
+    });
+  }
+
+  return users;
 };
 
 export const ensureDefaultUsers = async (): Promise<void> => {

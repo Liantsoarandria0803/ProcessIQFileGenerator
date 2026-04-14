@@ -59,50 +59,20 @@ const normalizeRole = (rawRole: unknown): UserRole | null => {
 };
 
 const getFallbackUsers = (): FallbackUser[] => {
-  return [
-    {
-      email: process.env.DEFAULT_ADMIN_EMAIL || 'superadmin@processiq.fr',
-      password: process.env.DEFAULT_ADMIN_PASSWORD || '8xK#mZ2P!qL5vW1y',
-      name: 'Super Admin ProcessIQ',
-      role: 'admin'
-    },
-    {
-      email: process.env.DEFAULT_ADMISSION_EMAIL || 'admission@processiq.fr',
-      password: process.env.DEFAULT_ADMISSION_PASSWORD || '3nR@tY7u*X9pC4eB',
-      name: 'Admission ProcessIQ',
-      role: 'admission'
-    },
-    {
-      email: 'admission1@rush-school.fr',
-      password: process.env.DEFAULT_ADMISSION_1_PASSWORD || 'Admission123!',
-      name: 'Admission 1',
-      role: 'admission'
-    },
-    {
-      email: 'admission2@rush-school.fr',
-      password: process.env.DEFAULT_ADMISSION_2_PASSWORD || 'Admission456!',
-      name: 'Admission 2',
-      role: 'admission'
-    },
-    {
-      email: 'responsable.admission@rush-school.fr',
-      password: process.env.DEFAULT_ADMISSION_MANAGER_PASSWORD || 'RespAdmission789!',
-      name: 'Responsable Admission',
-      role: 'admission'
-    },
-    {
-      email: process.env.DEFAULT_COMMERCIAL_EMAIL || 'commercial@processiq.fr',
-      password: process.env.DEFAULT_COMMERCIAL_PASSWORD || '6vS$aG1h&M0kJ8fL',
-      name: 'Commercial ProcessIQ',
-      role: 'commercial'
-    },
-    {
-      email: process.env.DEFAULT_RH_EMAIL || 'rh@processiq.fr',
-      password: process.env.DEFAULT_RH_PASSWORD || '9wD%bN3j+Q5zK7rM',
-      name: 'RH ProcessIQ',
-      role: 'rh'
+  const users: FallbackUser[] = [];
+  
+  const add = (email?: string, password?: string, role?: string, name?: string) => {
+    if (email && password && role) {
+      users.push({ email, password, role: role as UserRole, name: name || email.split('@')[0] });
     }
-  ];
+  };
+
+  add(process.env.DEFAULT_ADMIN_EMAIL, process.env.DEFAULT_ADMIN_PASSWORD, 'admin', 'Super Admin ProcessIQ');
+  add(process.env.DEFAULT_ADMISSION_EMAIL, process.env.DEFAULT_ADMISSION_PASSWORD, 'admission', 'Admission ProcessIQ');
+  add(process.env.DEFAULT_COMMERCIAL_EMAIL, process.env.DEFAULT_COMMERCIAL_PASSWORD, 'commercial', 'Commercial ProcessIQ');
+  add(process.env.DEFAULT_RH_EMAIL, process.env.DEFAULT_RH_PASSWORD, 'rh', 'RH ProcessIQ');
+
+  return users;
 };
 
 const findFallbackUser = (email: string, password: string): FallbackUser | null => {
