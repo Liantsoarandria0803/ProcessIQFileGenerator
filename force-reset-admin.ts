@@ -8,7 +8,7 @@ dotenv.config();
 
 const hashPassword = (plain: string): string => {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(plain, salt, 64, { N: 16384, r: 8, p: 1 }).toString('hex');
+  const hash = crypto.scryptSync(plain, Buffer.from(salt, 'hex'), 64, { N: 16384, r: 8, p: 1 }).toString('hex');
   return `scrypt$${salt}$${hash}`;
 };
 
@@ -24,10 +24,11 @@ async function resetPassword() {
   const newPass = '8xK#mZ2P!qL5vW1y';
   
   console.log(`Password to set: ${newPass}`);
-  console.log(`Password details - Length: ${newPass.length}, First/Last: ${newPass[0]}...${newPass[newPass.length-1]}`);
+  console.log(`Password details - Length: ${newPass.length}`);
   console.log(`Password charCodes: ${newPass.split('').map(c => c.charCodeAt(0)).join(',')}`);
 
   const hashedPassword = hashPassword(newPass);
+  console.log(`FULL HASHED PASSWORD TO STORE: ${hashedPassword}`);
 
   const User = mongoose.connection.collection('users');
 

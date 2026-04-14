@@ -27,7 +27,7 @@ type FallbackUser = {
 
 const hashPassword = (plain: string): string => {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(plain, salt, 64, { N: 16384, r: 8, p: 1 }).toString('hex');
+  const hash = crypto.scryptSync(plain, Buffer.from(salt, 'hex'), 64, { N: 16384, r: 8, p: 1 }).toString('hex');
   return `scrypt$${salt}$${hash}`;
 };
 
@@ -42,14 +42,14 @@ const verifyPassword = (plain: string, stored: string): boolean => {
   }
 
   const [, salt, hashHex] = parts;
-  console.log(`[AUTH] Salt [length ${salt.length}]: ${salt.substring(0, 5)}...`);
-  console.log(`[AUTH] HashHex [length ${hashHex.length}]: ${hashHex.substring(0, 5)}...`);
+  console.log(`[AUTH] Full Salt (hex): ${salt}`);
+  console.log(`[AUTH] Full HashHex: ${hashHex}`);
   
   const expected = Buffer.from(hashHex, 'hex');
-  const actual = crypto.scryptSync(plain, salt, 64, { N: 16384, r: 8, p: 1 });
+  const actual = crypto.scryptSync(plain, Buffer.from(salt, 'hex'), 64, { N: 16384, r: 8, p: 1 });
   
   console.log(`[AUTH] Expected length: ${expected.length}, Actual length: ${actual.length}`);
-  console.log(`[AUTH] Actual hash (hex): ${actual.toString('hex').substring(0, 20)}...`);
+  console.log(`[AUTH] Actual hash (hex): ${actual.toString('hex')}`);
   
   const matches = crypto.timingSafeEqual(expected, actual);
   console.log(`[AUTH] Scrypt match result: ${matches}`);
