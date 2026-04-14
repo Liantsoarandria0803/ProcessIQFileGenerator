@@ -15,7 +15,8 @@ const hashPassword = (plain: string): string => {
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://ProcessIQ:processIQ@processiq.e1iwrik.mongodb.net/?appName=ProcessIQ';
 
 async function resetPassword() {
-  console.log('Connecting to MongoDB...');
+  const obfuscatedUri = MONGO_URI.replace(/:([^@]+)@/, ':****@');
+  console.log('Connecting to MongoDB at:', obfuscatedUri);
   await mongoose.connect(MONGO_URI);
   console.log('Connected.');
 

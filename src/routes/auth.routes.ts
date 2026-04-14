@@ -189,8 +189,13 @@ router.post('/login', async (req, res) => {
     }
 
     const user = await User.findOne({ email });
-    if (!user || !verifyPassword(password, user.password)) {
-      console.log(`[AUTH] Login failed for ${email}: Invalid credentials`);
+    if (!user) {
+      console.log(`[AUTH] Login failed: User ${email} NOT FOUND in database`);
+      return res.status(401).json({ message: 'Identifiants invalides' });
+    }
+
+    if (!verifyPassword(password, user.password)) {
+      console.log(`[AUTH] Login failed: Password MISMATCH for ${email}`);
       return res.status(401).json({ message: 'Identifiants invalides' });
     }
 
