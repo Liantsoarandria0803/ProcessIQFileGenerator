@@ -32,28 +32,16 @@ const hashPassword = (plain: string): string => {
 };
 
 const verifyPassword = (plain: string, stored: string): boolean => {
-  console.log(`[AUTH] Verifying password. Stored hash [length ${String(stored).length}] starts with: ${String(stored).substring(0, 30)}...`);
   const parts = String(stored || '').split('$');
-  console.log(`[AUTH] Split into ${parts.length} parts. Prefix: ${parts[0]}`);
-  
   if (parts.length !== 3 || parts[0] !== 'scrypt') {
-    console.log(`[AUTH] Legacy password detected (not scrypt)`);
     return plain === stored;
   }
 
   const [, salt, hashHex] = parts;
-  console.log(`[AUTH] Full Salt (hex): ${salt}`);
-  console.log(`[AUTH] Full HashHex: ${hashHex}`);
-  
   const expected = Buffer.from(hashHex, 'hex');
   const actual = crypto.scryptSync(plain, Buffer.from(salt, 'hex'), 64, { N: 16384, r: 8, p: 1 });
   
-  console.log(`[AUTH] Expected length: ${expected.length}, Actual length: ${actual.length}`);
-  console.log(`[AUTH] Actual hash (hex): ${actual.toString('hex')}`);
-  
-  const matches = crypto.timingSafeEqual(expected, actual);
-  console.log(`[AUTH] Scrypt match result: ${matches}`);
-  return matches;
+  return crypto.timingSafeEqual(expected, actual);
 };
 
 const normalizeRole = (rawRole: unknown): UserRole | null => {
@@ -187,12 +175,7 @@ router.post('/login', async (req, res) => {
     const email = String(req.body?.email || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
 
-    console.log(`[AUTH] Login attempt for: ${email}`);
-    console.log(`[AUTH] Password details - Length: ${password.length}, First/Last: ${password[0]}...${password[password.length-1]}`);
-    console.log(`[AUTH] Password charCodes: ${password.split('').map(c => c.charCodeAt(0)).join(',')}`);
-
     if (!email || !password) {
-      console.log(`[AUTH] Login failed: Missing email or password`);
       return res.status(400).json({ message: 'Email et mot de passe requis' });
     }
 
@@ -203,17 +186,9 @@ router.post('/login', async (req, res) => {
     }
 
     const user = await User.findOne({ email });
-    if (!user) {
-      console.log(`[AUTH] Login failed: User ${email} NOT FOUND in database`);
+    if (!user || !verifyPassword(password, user.password)) {
       return res.status(401).json({ message: 'Identifiants invalides' });
     }
-
-    if (!verifyPassword(password, user.password)) {
-      console.log(`[AUTH] Login failed: Password MISMATCH for ${email}`);
-      return res.status(401).json({ message: 'Identifiants invalides' });
-    }
-
-    console.log(`[AUTH] Login success for ${email}`);
 
     // Migrate legacy plain text passwords to scrypt after a successful login.
     if (!String(user.password || '').startsWith('scrypt$')) {

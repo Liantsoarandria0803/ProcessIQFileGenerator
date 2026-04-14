@@ -1,10 +1,7 @@
 import mongoose from 'mongoose';
 import crypto from 'crypto';
-import dotenv from 'dotenv';
-import path from 'path';
 
-// Load .env
-dotenv.config();
+const MONGO_URI = 'mongodb+srv://ProcessIQ:processIQ@processiq.e1iwrik.mongodb.net/?appName=ProcessIQ';
 
 const hashPassword = (plain: string): string => {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -12,58 +9,61 @@ const hashPassword = (plain: string): string => {
   return `scrypt$${salt}$${hash}`;
 };
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://ProcessIQ:processIQ@processiq.e1iwrik.mongodb.net/?appName=ProcessIQ';
-
-async function resetPassword() {
-  const obfuscatedUri = MONGO_URI.replace(/:([^@]+)@/, ':****@');
-  console.log('Connecting to MongoDB at:', obfuscatedUri);
-  await mongoose.connect(MONGO_URI);
-  console.log('Connected.');
-
-  const email = 'superadmin@processiq.fr';
-  const newPass = '8xK#mZ2P!qL5vW1y';
-  
-  console.log(`Password to set: ${newPass}`);
-  console.log(`Password details - Length: ${newPass.length}`);
-  console.log(`Password charCodes: ${newPass.split('').map(c => c.charCodeAt(0)).join(',')}`);
-
-  const hashedPassword = hashPassword(newPass);
-  console.log(`FULL HASHED PASSWORD TO STORE: ${hashedPassword}`);
-
-  const User = mongoose.connection.collection('users');
-
-  const result = await User.updateOne(
-    { email: email.toLowerCase() },
-    { 
-      $set: { 
-        password: hashedPassword,
-        name: 'Super Admin ProcessIQ',
-        role: 'admin'
-      } 
-    },
-    { upsert: true }
-  );
-
-  if (result.matchedCount > 0) {
-    console.log(`Updated password for ${email}`);
-  } else {
-    // If not found, create it
-    await User.insertOne({
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        name: 'Super Admin ProcessIQ',
-        role: 'admin',
-        createdAt: new Date(),
-        updatedAt: new Date()
-    });
-    console.log(`Created new user ${email} with the secure password.`);
+const usersToSync = [
+  {
+    email: 'superadmin@processiq.fr',
+    password: '8xK#mZ2P!qL5vW1y',
+    name: 'Super Admin ProcessIQ',
+    role: 'admin'
+  },
+  {
+    email: 'admission@processiq.fr',
+    password: '3nR@tY7u*X9pC4eB',
+    name: 'Admission ProcessIQ',
+    role: 'admission'
+  },
+  {
+    email: 'commercial@processiq.fr',
+    password: '6vS$aG1h&M0kJ8fL',
+    name: 'Commercial ProcessIQ',
+    role: 'commercial'
+  },
+  {
+    email: 'rh@processiq.fr',
+    password: '9wD%bN3j+Q5zK7rM',
+    name: 'RH ProcessIQ',
+    role: 'rh'
   }
+];
 
-  await mongoose.disconnect();
-  console.log('Done.');
+async function syncAllUsers() {
+  console.log('Connecting to MongoDB Atlas (database: processiq)...');
+  try {
+    await mongoose.connect(MONGO_URI, { dbName: 'processiq' });
+    const User = mongoose.connection.collection('users');
+
+    for (const user of usersToSync) {
+      const hashedPassword = hashPassword(user.password);
+      await User.updateOne(
+        { email: user.email.toLowerCase() },
+        { 
+          $set: { 
+            password: hashedPassword,
+            name: user.name,
+            role: user.role
+          } 
+        },
+        { upsert: true }
+      );
+      console.log(`✓ Synchronized: ${user.email}`);
+    }
+    
+    console.log('\nAll users successfully synchronized with secure credentials.');
+    process.exit(0);
+  } catch (error) {
+    console.error('Error:', error);
+    process.exit(1);
+  }
 }
 
-resetPassword().catch(err => {
-    console.error('Error:', err);
-    process.exit(1);
-});
+syncAllUsers();
