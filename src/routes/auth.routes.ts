@@ -175,7 +175,10 @@ router.post('/login', async (req, res) => {
     const email = String(req.body?.email || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
 
+    console.log(`[AUTH] Login attempt for: ${email}`);
+
     if (!email || !password) {
+      console.log(`[AUTH] Login failed: Missing email or password`);
       return res.status(400).json({ message: 'Email et mot de passe requis' });
     }
 
@@ -187,8 +190,11 @@ router.post('/login', async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user || !verifyPassword(password, user.password)) {
+      console.log(`[AUTH] Login failed for ${email}: Invalid credentials`);
       return res.status(401).json({ message: 'Identifiants invalides' });
     }
+
+    console.log(`[AUTH] Login success for ${email}`);
 
     // Migrate legacy plain text passwords to scrypt after a successful login.
     if (!String(user.password || '').startsWith('scrypt$')) {
