@@ -32,17 +32,20 @@ const hashPassword = (plain: string): string => {
 };
 
 const verifyPassword = (plain: string, stored: string): boolean => {
+  console.log(`[AUTH] Verifying password. Stored hash starts with: ${String(stored).substring(0, 20)}...`);
   const parts = String(stored || '').split('$');
   if (parts.length !== 3 || parts[0] !== 'scrypt') {
-    // Backward compatibility with legacy plain-text values
+    console.log(`[AUTH] Legacy password detected (not scrypt)`);
     return plain === stored;
   }
 
   const [, salt, hashHex] = parts;
   const expected = Buffer.from(hashHex, 'hex');
   const actual = crypto.scryptSync(plain, salt, 64);
-  if (expected.length !== actual.length) return false;
-  return crypto.timingSafeEqual(expected, actual);
+  
+  const matches = crypto.timingSafeEqual(expected, actual);
+  console.log(`[AUTH] Scrypt match result: ${matches}`);
+  return matches;
 };
 
 const normalizeRole = (rawRole: unknown): UserRole | null => {
