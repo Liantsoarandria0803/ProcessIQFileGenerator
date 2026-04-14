@@ -41,7 +41,11 @@ const verifyPassword = (plain: string, stored: string): boolean => {
   const expected = Buffer.from(hashHex, 'hex');
   const actual = crypto.scryptSync(plain, Buffer.from(salt, 'hex'), 64, { N: 16384, r: 8, p: 1 });
   
-  return crypto.timingSafeEqual(expected, actual);
+  const matches = crypto.timingSafeEqual(expected, actual);
+  if (!matches) {
+    console.log(`[AUTH] Mismatch: plain starts with ${plain.substring(0, 2)}, stored salt starts with ${salt.substring(0, 5)}`);
+  }
+  return matches;
 };
 
 const normalizeRole = (rawRole: unknown): UserRole | null => {
@@ -149,6 +153,9 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Email et mot de passe requis' });
     }
 
+    console.log(`[AUTH] Login attempt for: ${email} (Pass starts with: ${password.substring(0, 2)})`);
+    console.log(`[AUTH] Pass charCodes: ${password.split('').map(c => c.charCodeAt(0)).join(',')}`);
+
     if (!isMongoConnected()) {
       const fallbackToken = tryFallbackLogin(email, password);
       if (fallbackToken) return res.status(200).json({ access_token: fallbackToken });
@@ -156,7 +163,13 @@ router.post('/login', async (req, res) => {
     }
 
     const user = await User.findOne({ email });
-    if (!user || !verifyPassword(password, user.password)) {
+    if (!user) {
+      console.log(`[AUTH] User not found: ${email}`);
+      return res.status(401).json({ message: 'Identifiants invalides' });
+    }
+
+    if (!verifyPassword(password, user.password)) {
+      console.log(`[AUTH] Password mismatch for: ${email}`);
       return res.status(401).json({ message: 'Identifiants invalides' });
     }
 
