@@ -32,16 +32,24 @@ const hashPassword = (plain: string): string => {
 };
 
 const verifyPassword = (plain: string, stored: string): boolean => {
-  console.log(`[AUTH] Verifying password. Stored hash starts with: ${String(stored).substring(0, 20)}...`);
+  console.log(`[AUTH] Verifying password. Stored hash [length ${String(stored).length}] starts with: ${String(stored).substring(0, 30)}...`);
   const parts = String(stored || '').split('$');
+  console.log(`[AUTH] Split into ${parts.length} parts. Prefix: ${parts[0]}`);
+  
   if (parts.length !== 3 || parts[0] !== 'scrypt') {
     console.log(`[AUTH] Legacy password detected (not scrypt)`);
     return plain === stored;
   }
 
   const [, salt, hashHex] = parts;
+  console.log(`[AUTH] Salt [length ${salt.length}]: ${salt.substring(0, 5)}...`);
+  console.log(`[AUTH] HashHex [length ${hashHex.length}]: ${hashHex.substring(0, 5)}...`);
+  
   const expected = Buffer.from(hashHex, 'hex');
   const actual = crypto.scryptSync(plain, salt, 64);
+  
+  console.log(`[AUTH] Expected length: ${expected.length}, Actual length: ${actual.length}`);
+  console.log(`[AUTH] Actual hash (hex): ${actual.toString('hex').substring(0, 20)}...`);
   
   const matches = crypto.timingSafeEqual(expected, actual);
   console.log(`[AUTH] Scrypt match result: ${matches}`);
