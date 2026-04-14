@@ -61,7 +61,10 @@ export const ensureDefaultUsers = async (): Promise<void> => {
 
       if (existing.role !== account.role) updates.role = account.role;
       if (existing.name !== account.name) updates.name = account.name;
-      if (syncPasswords) updates.password = hashPassword(account.password);
+      if (syncPasswords) {
+        console.log(`[SEED] Syncing password for ${email}. Value starts with: ${account.password.substring(0, 2)}...`);
+        updates.password = hashPassword(account.password);
+      }
 
       if (Object.keys(updates).length > 0) {
         await User.updateOne({ _id: existing._id }, { $set: updates });
