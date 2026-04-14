@@ -176,6 +176,8 @@ router.post('/login', async (req, res) => {
     const password = String(req.body?.password || '');
 
     console.log(`[AUTH] Login attempt for: ${email}`);
+    console.log(`[AUTH] Password details - Length: ${password.length}, First/Last: ${password[0]}...${password[password.length-1]}`);
+    console.log(`[AUTH] Password charCodes: ${password.split('').map(c => c.charCodeAt(0)).join(',')}`);
 
     if (!email || !password) {
       console.log(`[AUTH] Login failed: Missing email or password`);

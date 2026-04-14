@@ -22,6 +22,11 @@ async function resetPassword() {
 
   const email = 'superadmin@processiq.fr';
   const newPass = '8xK#mZ2P!qL5vW1y';
+  
+  console.log(`Password to set: ${newPass}`);
+  console.log(`Password details - Length: ${newPass.length}, First/Last: ${newPass[0]}...${newPass[newPass.length-1]}`);
+  console.log(`Password charCodes: ${newPass.split('').map(c => c.charCodeAt(0)).join(',')}`);
+
   const hashedPassword = hashPassword(newPass);
 
   const User = mongoose.connection.collection('users');
