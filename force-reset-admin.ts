@@ -8,7 +8,7 @@ dotenv.config();
 
 const hashPassword = (plain: string): string => {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(plain, salt, 64).toString('hex');
+  const hash = crypto.scryptSync(plain, salt, 64, { N: 16384, r: 8, p: 1 }).toString('hex');
   return `scrypt$${salt}$${hash}`;
 };
 

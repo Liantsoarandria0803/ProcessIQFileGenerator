@@ -27,7 +27,7 @@ type FallbackUser = {
 
 const hashPassword = (plain: string): string => {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(plain, salt, 64).toString('hex');
+  const hash = crypto.scryptSync(plain, salt, 64, { N: 16384, r: 8, p: 1 }).toString('hex');
   return `scrypt$${salt}$${hash}`;
 };
 
@@ -46,7 +46,7 @@ const verifyPassword = (plain: string, stored: string): boolean => {
   console.log(`[AUTH] HashHex [length ${hashHex.length}]: ${hashHex.substring(0, 5)}...`);
   
   const expected = Buffer.from(hashHex, 'hex');
-  const actual = crypto.scryptSync(plain, salt, 64);
+  const actual = crypto.scryptSync(plain, salt, 64, { N: 16384, r: 8, p: 1 });
   
   console.log(`[AUTH] Expected length: ${expected.length}, Actual length: ${actual.length}`);
   console.log(`[AUTH] Actual hash (hex): ${actual.toString('hex').substring(0, 20)}...`);
@@ -182,6 +182,7 @@ router.use((req, res, next) => {
 });
 
 router.post('/login', async (req, res) => {
+  console.log(`[AUTH] Node version: ${process.version}`);
   try {
     const email = String(req.body?.email || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
