@@ -22,34 +22,28 @@ const shouldSyncDefaultPasswords = (): boolean =>
 const getDefaultUsers = (): DefaultUser[] => {
   return [
     {
-      email: 'admin@rush-school.fr',
-      name: 'Admin Rush School',
+      email: process.env.DEFAULT_ADMIN_EMAIL || 'superadmin@processiq.fr',
+      name: 'Super Admin ProcessIQ',
       role: 'admin',
-      password: process.env.DEFAULT_ADMIN_PASSWORD || 'admin'
+      password: process.env.DEFAULT_ADMIN_PASSWORD || '8xK#mZ2P!qL5vW1y'
     },
     {
-      email: 'admission@rush-school.fr',
-      name: 'Admission Rush School',
+      email: process.env.DEFAULT_ADMISSION_EMAIL || 'admission@processiq.fr',
+      name: 'Admission ProcessIQ',
       role: 'admission',
-      password: process.env.DEFAULT_ADMISSION_PASSWORD || 'admission123'
+      password: process.env.DEFAULT_ADMISSION_PASSWORD || '3nR@tY7u*X9pC4eB'
     },
     {
-      email: 'commercial@rush-school.fr',
-      name: 'Commercial Rush School',
+      email: process.env.DEFAULT_COMMERCIAL_EMAIL || 'commercial@processiq.fr',
+      name: 'Commercial ProcessIQ',
       role: 'commercial',
-      password: process.env.DEFAULT_COMMERCIAL_PASSWORD || 'commercial123'
+      password: process.env.DEFAULT_COMMERCIAL_PASSWORD || '6vS$aG1h&M0kJ8fL'
     },
     {
-      email: 'rh@rush-school.fr',
-      name: 'RH Rush School',
+      email: process.env.DEFAULT_RH_EMAIL || 'rh@processiq.fr',
+      name: 'RH ProcessIQ',
       role: 'rh',
-      password: process.env.DEFAULT_RH_PASSWORD || 'rh123'
-    },
-    {
-      email: 'eleve@rush-school.fr',
-      name: 'Eleve Demo Rush School',
-      role: 'student',
-      password: process.env.DEFAULT_ELEVE_PASSWORD || 'eleve123'
+      password: process.env.DEFAULT_RH_PASSWORD || '9wD%bN3j+Q5zK7rM'
     }
   ];
 };
