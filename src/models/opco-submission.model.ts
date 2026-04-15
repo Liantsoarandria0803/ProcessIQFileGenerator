@@ -1,13 +1,17 @@
 import mongoose, { Document, Schema, Types } from 'mongoose';
 
 export type OpcoSubmissionStatus =
-  | 'draft'
-  | 'pending_submission'
-  | 'submitted'
-  | 'in_review'
-  | 'accepted'
-  | 'rejected'
-  | 'error';
+  | 'BROUILLON'
+  | 'EN_PREPARATION'
+  | 'PRET_A_ENVOYER'
+  | 'ENVOYE'
+  | 'EN_ATTENTE_VALIDATION'
+  | 'COMPLEMENT_DEMANDE'
+  | 'ACCEPTE'
+  | 'REFUSE'
+  | 'REFUSE_DEFINITIF'
+  | 'ANNULE'
+  | 'CLOTURE';
 
 export interface IOpcoSyncAttempt {
   attemptedAt: Date;
@@ -18,11 +22,26 @@ export interface IOpcoSyncAttempt {
 }
 
 export interface IOpcoSubmission extends Document {
+  opcoCode?: string | null;
   opcoName: string;
+  opcoPortal?: string | null;
   candidateId?: Types.ObjectId | null;
   studentId?: Types.ObjectId | null;
   companyId?: Types.ObjectId | null;
+  contratId?: string | null;
+  apprentiNom?: string | null;
+  formationLabel?: string | null;
+  employerName?: string | null;
+  employerSiret?: string | null;
+  montantAnnuel?: number | null;
+  montantMensuel?: number | null;
   status: OpcoSubmissionStatus;
+  dateLimiteEnvoi?: Date | null;
+  dateEnvoiOpco?: Date | null;
+  dateReponseOpco?: Date | null;
+  numeroDossierOpco?: string | null;
+  montantAccorde?: number | null;
+  motifRefus?: string | null;
   remoteStatus?: string | null;
   remoteId?: string | null;
   endpointUrl?: string | null;
@@ -73,16 +92,31 @@ const OpcoSyncAttemptSchema = new Schema<IOpcoSyncAttempt>(
 
 const OpcoSubmissionSchema = new Schema<IOpcoSubmission>(
   {
+    opcoCode: { type: String, default: null, maxlength: 20, index: true },
     opcoName: { type: String, required: true, trim: true, maxlength: 120, index: true },
+    opcoPortal: { type: String, default: null, maxlength: 500 },
     candidateId: { type: Schema.Types.ObjectId, ref: 'Candidate', default: null, index: true },
     studentId: { type: Schema.Types.ObjectId, ref: 'Student', default: null, index: true },
     companyId: { type: Schema.Types.ObjectId, ref: 'CompanyEtudiant', default: null, index: true },
+    contratId: { type: String, default: null, maxlength: 255, index: true },
+    apprentiNom: { type: String, default: null, maxlength: 255, index: true },
+    formationLabel: { type: String, default: null, maxlength: 255, index: true },
+    employerName: { type: String, default: null, maxlength: 255, index: true },
+    employerSiret: { type: String, default: null, maxlength: 20, index: true },
+    montantAnnuel: { type: Number, default: null, min: 0 },
+    montantMensuel: { type: Number, default: null, min: 0 },
     status: {
       type: String,
-      enum: ['draft', 'pending_submission', 'submitted', 'in_review', 'accepted', 'rejected', 'error'],
-      default: 'draft',
+      enum: ['BROUILLON', 'EN_PREPARATION', 'PRET_A_ENVOYER', 'ENVOYE', 'EN_ATTENTE_VALIDATION', 'COMPLEMENT_DEMANDE', 'ACCEPTE', 'REFUSE', 'REFUSE_DEFINITIF', 'ANNULE', 'CLOTURE'],
+      default: 'BROUILLON',
       index: true
     },
+    dateLimiteEnvoi: { type: Date, default: null, index: true },
+    dateEnvoiOpco: { type: Date, default: null },
+    dateReponseOpco: { type: Date, default: null },
+    numeroDossierOpco: { type: String, default: null, maxlength: 100, index: true },
+    montantAccorde: { type: Number, default: null, min: 0 },
+    motifRefus: { type: String, default: null, maxlength: 2000 },
     remoteStatus: { type: String, default: null, maxlength: 100 },
     remoteId: { type: String, default: null, maxlength: 255, index: true },
     endpointUrl: { type: String, default: null, maxlength: 500 },
@@ -104,6 +138,7 @@ const OpcoSubmissionSchema = new Schema<IOpcoSubmission>(
   }
 );
 
+OpcoSubmissionSchema.index({ contratId: 1 }, { unique: true, sparse: true });
 OpcoSubmissionSchema.index({ candidateId: 1, createdAt: -1 });
 OpcoSubmissionSchema.index({ studentId: 1, createdAt: -1 });
 OpcoSubmissionSchema.index({ companyId: 1, createdAt: -1 });

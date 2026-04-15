@@ -22,6 +22,19 @@ export class OpcoController {
     });
   };
 
+  getFinancementInfo = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const item = await this.opcoService.getFinancementPreview(String(req.query.codeNaf || ''), String(req.query.diplomeRncp || ''));
+      if (!item) {
+        res.status(404).json({ success: false, error: 'Aucun OPCO trouvé pour ce code NAF' });
+        return;
+      }
+      res.status(200).json({ success: true, data: item });
+    } catch (error: any) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  };
+
   list = async (req: Request, res: Response): Promise<void> => {
     try {
       const items = await this.opcoService.list({
@@ -63,10 +76,10 @@ export class OpcoController {
         autoSubmit: req.body.autoSubmit !== false
       });
 
-      res.status(created.status === 'draft' ? 202 : 201).json({
+      res.status(created.status === 'BROUILLON' ? 202 : 201).json({
         success: true,
         message:
-          created.status === 'draft'
+          created.status === 'BROUILLON'
             ? 'Dossier OPCO enregistre localement. Ajoute la configuration OPCO dans le .env pour activer l’envoi.'
             : 'Dossier OPCO cree avec succes',
         data: created
@@ -99,6 +112,37 @@ export class OpcoController {
       });
     } catch (error: any) {
       res.status(400).json({ success: false, error: error.message });
+    }
+  };
+
+  getDeadline = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const dossier = await this.opcoService.getById(req.params.id);
+      if (!dossier) {
+        res.status(404).json({ success: false, error: 'Dossier OPCO introuvable' });
+        return;
+      }
+
+      const dateDebut = new Date(
+        dossier.payload?.contrat?.date_debut_execution ||
+        dossier.payload?.contrat?.date_debut ||
+        dossier.payload?.date_debut_contrat ||
+        Date.now()
+      );
+
+      const deadline = this.opcoService.getDeadlineStatus(dateDebut);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          dossierId: dossier._id,
+          dateDebut: dateDebut.toISOString(),
+          dateLimite: new Date(dateDebut.getTime() + (5 * 7 * 24 * 60 * 60 * 1000)).toISOString(),
+          ...deadline
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
     }
   };
 

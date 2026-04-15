@@ -75,6 +75,7 @@ router.post(
     body('name').isString().trim().notEmpty().withMessage("Le nom de l'integration est requis"),
     body('type').isString().trim().notEmpty().withMessage("Le type d'integration est requis"),
     body('apiKey').optional({ values: 'falsy' }).isString(),
+    body('apiSecret').optional({ values: 'falsy' }).isString(),
   ],
   async (req, res) => {
     if (!validateRequest(req, res)) return;
@@ -86,6 +87,7 @@ router.post(
 
     const name = String(req.body?.name || '').trim();
     const apiKey = String(req.body?.apiKey || '').trim();
+    const apiSecret = String(req.body?.apiSecret || '').trim();
 
     if (normalizedType === 'api_insee_siren' && !apiKey) {
       return res.status(400).json({ success: false, error: 'La cle API INSEE est requise' });
@@ -104,6 +106,13 @@ router.post(
         payload.encryptedApiKey = secret.encrypted;
         payload.iv = secret.iv;
         payload.authTag = secret.authTag;
+
+        if (apiSecret) {
+          const clientSecret = encryptSecret(apiSecret);
+          payload.encryptedApiSecret = clientSecret.encrypted;
+          payload.secretIv = clientSecret.iv;
+          payload.secretAuthTag = clientSecret.authTag;
+        }
       }
 
       const created = await Integration.create(payload);

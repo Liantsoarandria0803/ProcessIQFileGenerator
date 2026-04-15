@@ -15,6 +15,10 @@ type RemoteSubmitResult = {
 const replacePathParam = (pathTemplate: string, externalId: string): string =>
   pathTemplate.replace('{externalId}', encodeURIComponent(externalId));
 
+/**
+ * 🔥 NOUVELLE LOGIQUE: Détermination robuste du statut OPCO
+ * Analyse la réponse OPCO et détermine le statut local basé sur plusieurs indicateurs
+ */
 const normalizeStatus = (status?: string | null, responseBody?: GenericObject): OpcoSubmissionStatus => {
   const value = String(status || '').trim().toLowerCase();
   
@@ -22,38 +26,34 @@ const normalizeStatus = (status?: string | null, responseBody?: GenericObject): 
   if (!value) {
     // Si pas de statut string, vérifier la réponse pour des indicateurs
     if (responseBody) {
-      if (responseBody.montantAccorde || responseBody.montant_accorde) {
-        return 'ACCEPTE';
-      }
-      if (responseBody.motifRefus || responseBody.motif_refus || responseBody.motif) {
-        return 'REFUSE';
-      }
+      if (responseBody.montantAccorde || responseBody.montant_accorde) return 'ACCEPTE';
+      if (responseBody.motifRefus || responseBody.motif_refus || responseBody.motif) return 'REFUSE';
     }
     return 'ENVOYE';
   }
 
   // Acceptation
-  if (['accepted', 'approved', 'validated', 'success', 'accepte'].includes(value)) {
+  if (['accepted', 'approved', 'validated', 'success', 'accepte', 'validation_complete'].includes(value)) {
     return 'ACCEPTE';
   }
 
   // Refus
-  if (['rejected', 'refused', 'denied', 'failed', 'refuse'].includes(value)) {
+  if (['rejected', 'refused', 'denied', 'failed', 'refuse', 'refus'].includes(value)) {
     return 'REFUSE';
   }
 
   // Soumis/Envoyé
-  if (['submitted', 'sent', 'envoye', 'transmission_effectuee'].includes(value)) {
+  if (['submitted', 'sent', 'envoye', 'transmission_effectuee', 'envoi_effectue'].includes(value)) {
     return 'ENVOYE';
   }
 
   // En traitement/révision
-  if (['processing', 'review', 'in_review', 'pending_review', 'en_cours', 'a_traiter'].includes(value)) {
+  if (['processing', 'review', 'in_review', 'pending_review', 'en_cours', 'a_traiter', 'instruction'].includes(value)) {
     return 'EN_ATTENTE_VALIDATION';
   }
 
   // Complément demandé
-  if (['complement', 'complement_demande', 'demande_complement', 'additional_info_required'].includes(value)) {
+  if (['complement', 'complement_demande', 'demande_complement', 'additional_info_required', 'piece_manquante'].includes(value)) {
     return 'COMPLEMENT_DEMANDE';
   }
 
@@ -63,18 +63,23 @@ const normalizeStatus = (status?: string | null, responseBody?: GenericObject): 
   }
 
   // En préparation
-  if (['pending_submission', 'en_preparation', 'a_envoyer'].includes(value)) {
+  if (['pending_submission', 'en_preparation', 'a_envoyer', 'pret'].includes(value)) {
     return 'EN_PREPARATION';
   }
 
   // Clôturé
-  if (['closed', 'cloture'].includes(value)) {
+  if (['closed', 'cloture', 'finalise'].includes(value)) {
     return 'CLOTURE';
   }
 
   // Annulé
-  if (['cancelled', 'annule'].includes(value)) {
+  if (['cancelled', 'annule', 'retrait'].includes(value)) {
     return 'ANNULE';
+  }
+
+  // Refus définitif
+  if (['permanent_refusal', 'refus_definitif'].includes(value)) {
+    return 'REFUSE_DEFINITIF';
   }
 
   // Default: on considère que c'est envoyé
@@ -83,12 +88,12 @@ const normalizeStatus = (status?: string | null, responseBody?: GenericObject): 
 
 const extractRemoteId = (payload: GenericObject | null): string | null => {
   if (!payload || typeof payload !== 'object') return null;
-  return String(payload.id || payload.remoteId || payload.externalId || payload.dossierId || payload.reference || '').trim() || null;
+  return String(payload.id || payload.remoteId || payload.externalId || payload.dossierId || payload.reference || payload.numero_dossier || '').trim() || null;
 };
 
 const extractRemoteStatus = (payload: GenericObject | null): string | null => {
   if (!payload || typeof payload !== 'object') return null;
-  return String(payload.status || payload.remoteStatus || payload.state || payload.dossierStatus || '').trim() || null;
+  return String(payload.status || payload.remoteStatus || payload.state || payload.dossierStatus || payload.etat || payload.statut || '').trim() || null;
 };
 
 export class OpcoService {
@@ -188,9 +193,9 @@ export class OpcoService {
       endpointUrl: config.opco.baseUrl || null,
       status: this.isConfigured() && params.autoSubmit !== false ? 'EN_PREPARATION' : 'BROUILLON',
       dateLimiteEnvoi,
-      lastError: this.isConfigured() || params.autoSubmit === false
+      lastError: this.isConfigured() && (params.autoSubmit !== false || !params.autoSubmit === undefined)
         ? null
-        : 'Configuration OPCO absente. Ajoute les variables OPCO_* dans le .env pour activer l’envoi distant.',
+        : 'Configuration OPCO absente. Ajoute les variables OPCO_* dans le .env pour activer l\'envoi distant.',
     });
 
     await this.appendHistory({
@@ -210,6 +215,9 @@ export class OpcoService {
     return submission;
   }
 
+  /**
+   * 🔥 NOUVEAU: Envoie dossier OPCO avec PDF généré automatiquement
+   */
   async submitExisting(id: string, updatedBy?: string): Promise<IOpcoSubmission> {
     const submission = await OpcoSubmissionModel.findById(id);
     if (!submission) {
@@ -218,19 +226,51 @@ export class OpcoService {
 
     if (!this.isConfigured()) {
       submission.status = 'BROUILLON';
-      submission.lastError = 'Configuration OPCO absente. Ajoute les variables OPCO_* dans le .env pour activer l’envoi distant.';
+      submission.lastError = 'Configuration OPCO absente. Ajoute les variables OPCO_* dans le .env pour activer l\'envoi distant.';
       submission.updatedBy = updatedBy || submission.updatedBy;
       await submission.save();
       return submission;
     }
 
     try {
-      const remote = await this.sendCreateRequest(submission.payload);
+      // 🔥 NOUVELLE ÉTAPE: Générer le PDF du dossier OPCO
+      let pdfInfo: any = null;
+      try {
+        pdfInfo = await opcoDocumentGeneratorService.generateOpcoSummaryPDF(submission);
+        console.log(`✅ PDF OPCO généré: ${pdfInfo.filename}`);
+        
+        // Ajouter le PDF aux documents du dossier
+        submission.documents.push({
+          type: 'Dossier OPCO Synthèse',
+          url: pdfInfo.url,
+          filename: pdfInfo.filename,
+          documentId: pdfInfo.fileId,
+        });
+        
+        await submission.save();
+      } catch (pdfError: any) {
+        console.warn(`⚠️  Erreur génération PDF: ${pdfError?.message || 'Erreur inconnue'}`);
+        // On continue sans PDF plutôt que d'échouer complètement
+      }
+
+      // Préparer le payload enrichi avec les documents
+      const payloadWithDocs = {
+        ...submission.payload,
+        documents: submission.documents.map(doc => ({
+          type: doc.type,
+          url: doc.url || `${config.api?.baseUrl || ''}/api/gridfs/${doc.documentId}`,
+          filename: doc.filename,
+          documentId: doc.documentId?.toString() || null,
+        })),
+      };
+
+      const remote = await this.sendCreateRequest(payloadWithDocs);
       const previousStatus = submission.status;
       submission.remoteId = remote.remoteId || submission.remoteId || null;
       submission.remoteStatus = remote.remoteStatus || submission.remoteStatus || 'submitted';
-      submission.status = normalizeStatus(remote.remoteStatus);
-      submission.lastRequestBody = submission.payload;
+      // 🔥 AMÉLIORATION: Utiliser la détermination de statut robuste avec responseBody
+      submission.status = normalizeStatus(remote.remoteStatus, remote.responseBody);
+      submission.lastRequestBody = payloadWithDocs;
       submission.lastResponseBody = remote.responseBody;
       submission.lastError = null;
       submission.lastSubmittedAt = new Date();
@@ -243,7 +283,7 @@ export class OpcoService {
         action: 'submit',
         success: true,
         remoteStatus: submission.remoteStatus || undefined,
-        message: 'Dossier envoye a l’OPCO',
+        message: `Dossier envoye a l'OPCO${pdfInfo ? ' (PDF genere et attache)' : ''}`,
       });
       await submission.save();
       await this.appendHistory({
@@ -252,14 +292,14 @@ export class OpcoService {
         oldStatus: previousStatus,
         newStatus: submission.status,
         userId: updatedBy || null,
-        comment: 'Dossier transmis au portail OPCO',
-        documentIds: [],
+        comment: `Dossier transmis au portail OPCO. Statut determine: ${submission.status}${pdfInfo ? '. PDF genere.' : ''}`,
+        documentIds: pdfInfo ? [pdfInfo.fileId] : [],
       });
       return submission;
     } catch (error: any) {
       const previousStatus = submission.status;
       submission.status = 'COMPLEMENT_DEMANDE';
-      submission.lastError = error?.message || 'Erreur inconnue lors de l’envoi OPCO';
+      submission.lastError = error?.message || 'Erreur inconnue lors de l\'envoi OPCO';
       submission.lastSubmittedAt = new Date();
       submission.updatedBy = updatedBy || submission.updatedBy;
       submission.syncAttempts.push({
@@ -296,15 +336,16 @@ export class OpcoService {
     }
 
     if (!submission.remoteId) {
-      throw new Error('Aucun identifiant distant OPCO n’est disponible pour ce dossier');
+      throw new Error('Aucun identifiant distant OPCO n\'est disponible pour ce dossier');
     }
 
     try {
       const remote = await this.fetchRemoteStatus(submission.remoteId);
       const previousStatus = submission.status;
       submission.remoteStatus = remote.remoteStatus || submission.remoteStatus || null;
-      submission.status = normalizeStatus(remote.remoteStatus || submission.remoteStatus);
-      if (submission.status === 'ACCEPTE' || submission.status === 'REFUSE') {
+      // 🔥 AMÉLIORATION: Utiliser normalizeStatus robuste lors de la synchro aussi
+      submission.status = normalizeStatus(remote.remoteStatus || submission.remoteStatus, remote.responseBody);
+      if (submission.status === 'ACCEPTE' || submission.status === 'REFUSE' || submission.status === 'REFUSE_DEFINITIF') {
         submission.dateReponseOpco = new Date();
       }
       submission.lastResponseBody = remote.responseBody;
@@ -325,7 +366,7 @@ export class OpcoService {
         oldStatus: previousStatus,
         newStatus: submission.status,
         userId: updatedBy || null,
-        comment: `Statut distant: ${submission.remoteStatus || 'non renseigne'}`,
+        comment: `Statut distant: ${submission.remoteStatus || 'non renseigne'}. Statut local: ${submission.status}`,
         documentIds: [],
       });
       return submission;
@@ -482,53 +523,5 @@ export class OpcoService {
       comment: entry.comment || null,
       documentIds: entry.documentIds || [],
     });
-  }
-
-  /**
-   * 🆕 VÉRIFIER DÉLAI CRITIQUE (5 jours ouvrés)
-   * Cahier des charges Filiz F04 2.7
-   */
-  getDeadlineStatus(
-    dateDebut: Date,
-    now: Date = new Date()
-  ): {
-    daysRemaining: number;
-    workDaysRemaining: number;
-    isUrgent: boolean;
-    isOverdue: boolean;
-    label: string;
-    color: 'green' | 'orange' | 'red';
-  } {
-    const deadline = addBusinessDays(dateDebut, 5);
-    const msPerDay = 86400000;
-    const daysRemaining = Math.ceil((deadline.getTime() - now.getTime()) / msPerDay);
-
-    // Calcul jours ouvrés (lun-ven)
-    let workDaysRemaining = 0;
-    let currentDate = new Date(now);
-    while (currentDate < deadline) {
-      const dayOfWeek = currentDate.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) workDaysRemaining++;
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    const isOverdue = daysRemaining < 0;
-    const isUrgent = daysRemaining <= 2 && !isOverdue;
-
-    let label = '';
-    let color: 'green' | 'orange' | 'red' = 'green';
-
-    if (isOverdue) {
-      label = `RETARD: ${Math.abs(daysRemaining)} jour(s)`;
-      color = 'red';
-    } else if (isUrgent) {
-      label = `URGENT: ${daysRemaining} jour(s) restant(s)`;
-      color = 'orange';
-    } else {
-      label = `${daysRemaining} jour(s) (${workDaysRemaining} ouvrés)`;
-      color = 'green';
-    }
-
-    return { daysRemaining, workDaysRemaining, isUrgent, isOverdue, label, color };
   }
 }

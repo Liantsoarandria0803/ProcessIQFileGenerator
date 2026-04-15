@@ -25,12 +25,17 @@ export const lookupCompanyBySiret = async (siret: string) => {
   }
 
   const apiKey = decryptSecret(integration.encryptedApiKey, integration.iv, integration.authTag);
+  const apiSecret =
+    integration.encryptedApiSecret && integration.secretIv && integration.secretAuthTag
+      ? decryptSecret(integration.encryptedApiSecret, integration.secretIv, integration.secretAuthTag)
+      : '';
 
   try {
     const response = await axios.get(`https://api.insee.fr/api-sirene/3.11/siret/${encodeURIComponent(siret)}`, {
       headers: {
         Accept: 'application/json',
         'X-Client-Id': apiKey,
+        ...(apiSecret ? { 'X-Client-Secret': apiSecret } : {}),
       },
       timeout: 15000,
     });

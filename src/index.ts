@@ -12,6 +12,7 @@ import logger from './utils/logger';
 import { swaggerSpec } from './config/swagger';
 import { connectDB } from './config/database';
 import { ensureDefaultUsers } from './services/default-users.service';
+import { ensureOpcoReferenceData } from './services/opcoReferenceData.service';
 
 const app: Express = express();
 
@@ -135,6 +136,11 @@ connectDB().then(async () => {
     await ensureDefaultUsers();
   } catch (error: any) {
     logger.warn('Auth seed: impossible de creer les comptes par defaut:', error?.message || error);
+  }
+  try {
+    await ensureOpcoReferenceData();
+  } catch (error: any) {
+    logger.warn('OPCO seed: impossible de charger les referentiels OPCO:', error?.message || error);
   }
 
   startServer();

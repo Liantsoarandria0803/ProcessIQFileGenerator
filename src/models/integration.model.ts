@@ -6,8 +6,11 @@ export interface IIntegration extends Document {
   name: string;
   type: IntegrationType;
   encryptedApiKey?: string | null;
+  encryptedApiSecret?: string | null;
   iv?: string | null;
+  secretIv?: string | null;
   authTag?: string | null;
+  secretAuthTag?: string | null;
   createdBy?: string | null;
   updatedBy?: string | null;
   createdAt: Date;
@@ -32,11 +35,23 @@ const IntegrationSchema = new Schema<IIntegration>(
       type: String,
       default: null,
     },
+    encryptedApiSecret: {
+      type: String,
+      default: null,
+    },
     iv: {
       type: String,
       default: null,
     },
+    secretIv: {
+      type: String,
+      default: null,
+    },
     authTag: {
+      type: String,
+      default: null,
+    },
+    secretAuthTag: {
       type: String,
       default: null,
     },
