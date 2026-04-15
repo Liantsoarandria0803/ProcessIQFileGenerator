@@ -1,4 +1,5 @@
 import config from '../config';
+import mongoose from 'mongoose';
 import { OpcoHistoryModel } from '../models/opco-history.model';
 import { IOpcoSubmission, OpcoSubmissionModel, OpcoSubmissionStatus } from '../models/opco-submission.model';
 import { addBusinessDays, getFinancementInfo, validateOPCOCreation } from './opcoRules.service';
@@ -12,12 +13,22 @@ type RemoteSubmitResult = {
   responseBody: GenericObject | null;
 };
 
+const asObjectIdOrNull = (value: string | null | undefined, fieldName: string): mongoose.Types.ObjectId | null => {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+  if (!mongoose.Types.ObjectId.isValid(trimmed)) {
+    throw new Error(`${fieldName} invalide`);
+  }
+  return new mongoose.Types.ObjectId(trimmed);
+};
+
 const replacePathParam = (pathTemplate: string, externalId: string): string =>
   pathTemplate.replace('{externalId}', encodeURIComponent(externalId));
 
 const normalizeStatus = (status?: string | null, responseBody?: GenericObject): OpcoSubmissionStatus => {
   const value = String(status || '').trim().toLowerCase();
-  
+
   // Logique robuste de détermination du statut
   if (!value) {
     // Si pas de statut string, vérifier la réponse pour des indicateurs
@@ -156,9 +167,9 @@ export class OpcoService {
     const opcoName = params.opcoName || financement.opco_nom || config.opco.name;
     const dateDebut = new Date(
       payload?.contrat?.date_debut_execution ||
-        payload?.contrat?.date_debut ||
-        payload?.date_debut_contrat ||
-        Date.now()
+      payload?.contrat?.date_debut ||
+      payload?.date_debut_contrat ||
+      Date.now()
     );
     const dateLimiteEnvoi = addBusinessDays(dateDebut, 5);
     const apprentiNom = String(payload?.apprenti?.nom_complet || payload?.apprentiNom || payload?.candidateName || '').trim() || null;
@@ -363,12 +374,19 @@ export class OpcoService {
     }
 
     if (typeof updates.opcoName === 'string') submission.opcoName = updates.opcoName;
-    if (typeof updates.candidateId !== 'undefined') submission.candidateId = updates.candidateId || null;
-    if (typeof updates.studentId !== 'undefined') submission.studentId = updates.studentId || null;
-    if (typeof updates.companyId !== 'undefined') submission.companyId = updates.companyId || null;
+    if (typeof updates.candidateId !== 'undefined') submission.candidateId = asObjectIdOrNull(updates.candidateId, 'candidateId');
+    if (typeof updates.studentId !== 'undefined') submission.studentId = asObjectIdOrNull(updates.studentId, 'studentId');
+    if (typeof updates.companyId !== 'undefined') submission.companyId = asObjectIdOrNull(updates.companyId, 'companyId');
     if (typeof updates.payload !== 'undefined') submission.payload = updates.payload || {};
     if (typeof updates.metadata !== 'undefined') submission.metadata = updates.metadata || {};
-    if (typeof updates.documents !== 'undefined') submission.documents = updates.documents || [];
+    if (typeof updates.documents !== 'undefined') {
+      submission.documents = (updates.documents || []).map((doc) => ({
+        type: String(doc.type || '').trim(),
+        documentId: doc.documentId ? asObjectIdOrNull(doc.documentId, 'documentId') : null,
+        url: typeof doc.url === 'string' ? doc.url : null,
+        filename: typeof doc.filename === 'string' ? doc.filename : null,
+      }));
+    }
 
     submission.updatedBy = updatedBy || submission.updatedBy;
     await submission.save();

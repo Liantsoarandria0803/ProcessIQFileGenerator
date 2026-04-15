@@ -94,7 +94,7 @@ export class OpcoController {
       const updated = await this.opcoService.submitExisting(req.params.id, req.auth?.sub || undefined);
       res.status(200).json({
         success: true,
-        message: updated.status === 'error' ? 'Tentative d’envoi OPCO terminee avec erreur' : 'Dossier OPCO envoye',
+        message: updated.lastError ? 'Tentative d’envoi OPCO terminee avec erreur' : 'Dossier OPCO envoye',
         data: updated
       });
     } catch (error: any) {

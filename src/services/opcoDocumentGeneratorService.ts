@@ -1,9 +1,10 @@
-import { PDFDocument, PDFPage, rgb } from 'pdf-lib';
+import { PDFDocument, PDFPage, PDFFont, StandardFonts, rgb } from 'pdf-lib';
 import { GridFSBucket } from 'mongodb';
 import { getMongoDb } from '../config/mongoDb';
 import { Readable } from 'stream';
 
 type GenericObject = Record<string, any>;
+type PdfFonts = { regular: PDFFont; bold: PDFFont };
 
 /**
  * Service pour générer le PDF de synthèse d'un dossier OPCO
@@ -26,6 +27,11 @@ export class OpcoDocumentGeneratorService {
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([595, 842]); // A4 size
 
+    const fonts: PdfFonts = {
+      regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
+      bold: await pdfDoc.embedFont(StandardFonts.HelveticaBold),
+    };
+
     const { width, height } = page.getSize();
     const margin = 40;
     let yPosition = height - margin;
@@ -43,7 +49,7 @@ export class OpcoDocumentGeneratorService {
       y: yPosition,
       size: 24,
       color: primaryColor,
-      fontName: 'Helvetica-Bold',
+      font: fonts.bold,
     });
     yPosition -= 10;
 
@@ -52,7 +58,7 @@ export class OpcoDocumentGeneratorService {
       y: yPosition,
       size: 12,
       color: secondaryColor,
-      fontName: 'Helvetica',
+      font: fonts.regular,
     });
     yPosition -= 25;
 
@@ -68,7 +74,7 @@ export class OpcoDocumentGeneratorService {
     // ──────────────────────────────────────────────────────
     // SECTION 1: INFORMATIONS APPRENTI
     // ──────────────────────────────────────────────────────
-    yPosition = this.drawSection(page, 'INFORMATIONS APPRENTI', margin, yPosition, width, primaryColor);
+    yPosition = this.drawSection(page, 'INFORMATIONS APPRENTI', margin, yPosition, width, primaryColor, fonts);
 
     const apprentiInfo = [
       { label: 'Nom Complet', value: submission.apprentiNom || 'N/A' },
@@ -78,13 +84,13 @@ export class OpcoDocumentGeneratorService {
       { label: 'Téléphone', value: submission.payload?.apprenti?.telephone || 'N/A' },
     ];
 
-    yPosition = this.drawInfoTable(page, apprentiInfo, margin, yPosition, width);
+    yPosition = this.drawInfoTable(page, apprentiInfo, margin, yPosition, width, fonts);
     yPosition -= 15;
 
     // ──────────────────────────────────────────────────────
     // SECTION 2: INFORMATIONS EMPLOYEUR
     // ──────────────────────────────────────────────────────
-    yPosition = this.drawSection(page, 'INFORMATIONS EMPLOYEUR', margin, yPosition, width, primaryColor);
+    yPosition = this.drawSection(page, 'INFORMATIONS EMPLOYEUR', margin, yPosition, width, primaryColor, fonts);
 
     const employerInfo = [
       { label: 'Raison Sociale', value: submission.employerName || 'N/A' },
@@ -95,13 +101,13 @@ export class OpcoDocumentGeneratorService {
       { label: 'Ville', value: submission.payload?.identification?.ville || 'N/A' },
     ];
 
-    yPosition = this.drawInfoTable(page, employerInfo, margin, yPosition, width);
+    yPosition = this.drawInfoTable(page, employerInfo, margin, yPosition, width, fonts);
     yPosition -= 15;
 
     // ──────────────────────────────────────────────────────
     // SECTION 3: INFORMATIONS CONTRAT
     // ──────────────────────────────────────────────────────
-    yPosition = this.drawSection(page, 'INFORMATIONS CONTRAT', margin, yPosition, width, primaryColor);
+    yPosition = this.drawSection(page, 'INFORMATIONS CONTRAT', margin, yPosition, width, primaryColor, fonts);
 
     const dateDebut = submission.payload?.contrat?.date_debut_execution
       ? new Date(submission.payload.contrat.date_debut_execution).toLocaleDateString('fr-FR')
@@ -123,13 +129,13 @@ export class OpcoDocumentGeneratorService {
       { label: 'Date Limite d\'Envoi OPCO', value: dateLimiteEnvoi },
     ];
 
-    yPosition = this.drawInfoTable(page, contractInfo, margin, yPosition, width);
+    yPosition = this.drawInfoTable(page, contractInfo, margin, yPosition, width, fonts);
     yPosition -= 15;
 
     // ──────────────────────────────────────────────────────
     // SECTION 4: FINANCEMENT
     // ──────────────────────────────────────────────────────
-    yPosition = this.drawSection(page, 'FINANCEMENT OPCO', margin, yPosition, width, primaryColor);
+    yPosition = this.drawSection(page, 'FINANCEMENT OPCO', margin, yPosition, width, primaryColor, fonts);
 
     const financingInfo = [
       {
@@ -146,13 +152,13 @@ export class OpcoDocumentGeneratorService {
       },
     ];
 
-    yPosition = this.drawInfoTable(page, financingInfo, margin, yPosition, width);
+    yPosition = this.drawInfoTable(page, financingInfo, margin, yPosition, width, fonts);
     yPosition -= 15;
 
     // ──────────────────────────────────────────────────────
     // SECTION 5: STATUT & HISTORIQUE
     // ──────────────────────────────────────────────────────
-    yPosition = this.drawSection(page, 'STATUT & HISTORIQUE', margin, yPosition, width, primaryColor);
+    yPosition = this.drawSection(page, 'STATUT & HISTORIQUE', margin, yPosition, width, primaryColor, fonts);
 
     const statusInfo = [
       { label: 'Statut Local', value: submission.status || 'BROUILLON' },
@@ -162,7 +168,7 @@ export class OpcoDocumentGeneratorService {
       { label: 'Dernière Synchro', value: submission.lastSyncedAt ? new Date(submission.lastSyncedAt).toLocaleDateString('fr-FR') : '—' },
     ];
 
-    yPosition = this.drawInfoTable(page, statusInfo, margin, yPosition, width);
+    yPosition = this.drawInfoTable(page, statusInfo, margin, yPosition, width, fonts);
 
     // ──────────────────────────────────────────────────────
     // PIED DE PAGE
@@ -172,7 +178,7 @@ export class OpcoDocumentGeneratorService {
       y: 20,
       size: 9,
       color: rgb(0.6, 0.6, 0.6),
-      fontName: 'Helvetica',
+      font: fonts.regular,
     });
 
     // Générer le PDF en bytes
@@ -219,7 +225,8 @@ export class OpcoDocumentGeneratorService {
     x: number,
     y: number,
     width: number,
-    color: any
+    color: any,
+    fonts: PdfFonts
   ): number {
     page.drawRectangle({
       x,
@@ -236,7 +243,7 @@ export class OpcoDocumentGeneratorService {
       y: y - 20,
       size: 12,
       color,
-      fontName: 'Helvetica-Bold',
+      font: fonts.bold,
     });
 
     return y - 35;
@@ -250,7 +257,8 @@ export class OpcoDocumentGeneratorService {
     items: Array<{ label: string; value: string }>,
     x: number,
     y: number,
-    width: number
+    width: number,
+    fonts: PdfFonts
   ): number {
     const colWidth = (width - 2 * x) / 2;
     let currentY = y;
@@ -273,7 +281,7 @@ export class OpcoDocumentGeneratorService {
         y: currentY - 15,
         size: 10,
         color: rgb(0.4, 0.4, 0.4),
-        fontName: 'Helvetica-Bold',
+        font: fonts.bold,
       });
 
       // Valeur
@@ -282,7 +290,7 @@ export class OpcoDocumentGeneratorService {
         y: currentY - 15,
         size: 10,
         color: rgb(0.2, 0.2, 0.2),
-        fontName: 'Helvetica',
+        font: fonts.regular,
       });
 
       currentY -= 20;

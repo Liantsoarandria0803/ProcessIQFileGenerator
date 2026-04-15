@@ -1,5 +1,6 @@
-import { db } from '../config/database';
-import { GenericObject } from '../types';
+import type { Collection } from 'mongodb';
+import { getMongoDb } from '../config/mongoDb';
+import type { GenericObject } from '../types';
 
 /**
  * Service France Compétences - Barèmes de financement
@@ -26,7 +27,9 @@ export interface FranceCompetencesRate {
 }
 
 export class FranceCompetencesService {
-  private collection = db.collection<FranceCompetencesRate>('franceCompetencesRates');
+  private get collection(): Collection<FranceCompetencesRate> {
+    return getMongoDb().collection<FranceCompetencesRate>('franceCompetencesRates');
+  }
 
   /**
    * Initialiser les barèmes France Compétences 2025-2026

@@ -1,5 +1,5 @@
-import { db } from '../config/database';
-import { GenericObject } from '../types';
+import type { Collection } from 'mongodb';
+import { getMongoDb } from '../config/mongoDb';
 
 /**
  * Service de mapping automatique NAF → OPCO
@@ -18,7 +18,9 @@ export interface NafOpcoEntry {
 }
 
 export class NafOpcoMappingService {
-  private collection = db.collection<NafOpcoEntry>('nafOpcoMapping');
+  private get collection(): Collection<NafOpcoEntry> {
+    return getMongoDb().collection<NafOpcoEntry>('nafOpcoMapping');
+  }
 
   /**
    * Initialiser la table NAF → OPCO (à faire une fois au démarrage)

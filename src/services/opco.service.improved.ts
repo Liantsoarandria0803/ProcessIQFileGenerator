@@ -41,7 +41,7 @@ const OPCO_STATUTS_EN_COURS = ['BROUILLON', 'EN_PREPARATION', 'ENVOYE', 'EN_ATTE
  */
 const normalizeStatus = (status?: string | null, responseBody?: GenericObject): OpcoSubmissionStatus => {
   const value = String(status || '').trim().toLowerCase();
-  
+
   if (!value) {
     // Si pas de statut string, vérifier la réponse pour des indicateurs
     if (responseBody) {
@@ -119,7 +119,7 @@ const calculateDeadlineStatus = (dateDebut: Date, now: Date = new Date()): {
   const deadline = addBusinessDays(dateDebut, 5);
   const msPerDay = 86400000;
   const daysRemaining = Math.ceil((deadline.getTime() - now.getTime()) / msPerDay);
-  
+
   // Calcul jours ouvrés (simplifié: lun-ven)
   let workDaysRemaining = 0;
   let currentDate = new Date(now);
@@ -270,9 +270,9 @@ export class OpcoService {
 
     const dateDebut = new Date(
       payload?.contrat?.date_debut_execution ||
-        payload?.contrat?.date_debut ||
-        payload?.date_debut_contrat ||
-        Date.now()
+      payload?.contrat?.date_debut ||
+      payload?.date_debut_contrat ||
+      Date.now()
     );
     const deadline = calculateDeadlineStatus(dateDebut);
     const dateLimiteEnvoi = addBusinessDays(dateDebut, 5);
@@ -358,14 +358,14 @@ export class OpcoService {
       try {
         pdfInfo = await opcoDocumentGeneratorService.generateOpcoSummaryPDF(submission);
         console.log(`✅ PDF OPCO généré: ${pdfInfo.filename}`);
-        
+
         submission.documents.push({
           type: 'Dossier OPCO Synthèse',
           url: pdfInfo.url,
           filename: pdfInfo.filename,
           documentId: pdfInfo.fileId,
         });
-        
+
         await submission.save();
       } catch (pdfError: any) {
         console.warn(`⚠️  Erreur génération PDF: ${pdfError?.message}`);
