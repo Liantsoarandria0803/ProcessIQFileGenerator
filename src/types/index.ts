@@ -180,6 +180,8 @@ export interface AirtableRecord<T> {
   createdTime?: string;
 }
 
+export type GenericObject = Record<string, any>;
+
 // =====================================================
 // API RESPONSE TYPES
 // =====================================================
