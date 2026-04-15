@@ -71,7 +71,7 @@ const getFallbackUsers = (): FallbackUser[] => {
     }
   };
 
-  add(process.env.DEFAULT_ADMIN_EMAIL, process.env.DEFAULT_ADMIN_PASSWORD, 'admin', 'Super Admin ProcessIQ');
+  add(process.env.DEFAULT_ADMIN_EMAIL, process.env.DEFAULT_ADMIN_PASSWORD, 'super_admin', 'Super Admin ProcessIQ');
   add(process.env.DEFAULT_ADMISSION_EMAIL, process.env.DEFAULT_ADMISSION_PASSWORD, 'admission', 'Admission ProcessIQ');
   add(process.env.DEFAULT_COMMERCIAL_EMAIL, process.env.DEFAULT_COMMERCIAL_PASSWORD, 'commercial', 'Commercial ProcessIQ');
   add(process.env.DEFAULT_RH_EMAIL, process.env.DEFAULT_RH_PASSWORD, 'rh', 'RH ProcessIQ');

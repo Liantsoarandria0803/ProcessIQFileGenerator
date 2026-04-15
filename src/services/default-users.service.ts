@@ -26,7 +26,7 @@ const getDefaultUsers = (): DefaultUser[] => {
     users.push({
       email: process.env.DEFAULT_ADMIN_EMAIL,
       name: 'Super Admin ProcessIQ',
-      role: 'admin',
+      role: 'super_admin',
       password: process.env.DEFAULT_ADMIN_PASSWORD
     });
   }
