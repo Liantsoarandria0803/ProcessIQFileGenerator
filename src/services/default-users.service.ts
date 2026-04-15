@@ -12,7 +12,7 @@ type DefaultUser = {
 
 const hashPassword = (plain: string): string => {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(plain, salt, 64).toString('hex');
+  const hash = crypto.scryptSync(plain, Buffer.from(salt, 'hex'), 64, { N: 16384, r: 8, p: 1 }).toString('hex');
   return `scrypt$${salt}$${hash}`;
 };
 
@@ -20,38 +20,45 @@ const shouldSyncDefaultPasswords = (): boolean =>
   process.env.DEFAULT_USERS_SYNC_PASSWORDS === 'true' || process.env.NODE_ENV !== 'production';
 
 const getDefaultUsers = (): DefaultUser[] => {
-  return [
-    {
-      email: 'admin@rush-school.fr',
-      name: 'Admin Rush School',
+  const users: DefaultUser[] = [];
+  
+  if (process.env.DEFAULT_ADMIN_EMAIL && process.env.DEFAULT_ADMIN_PASSWORD) {
+    users.push({
+      email: process.env.DEFAULT_ADMIN_EMAIL,
+      name: 'Super Admin ProcessIQ',
       role: 'admin',
-      password: process.env.DEFAULT_ADMIN_PASSWORD || 'admin'
-    },
-    {
-      email: 'admission@rush-school.fr',
-      name: 'Admission Rush School',
+      password: process.env.DEFAULT_ADMIN_PASSWORD
+    });
+  }
+
+  if (process.env.DEFAULT_ADMISSION_EMAIL && process.env.DEFAULT_ADMISSION_PASSWORD) {
+    users.push({
+      email: process.env.DEFAULT_ADMISSION_EMAIL,
+      name: 'Admission ProcessIQ',
       role: 'admission',
-      password: process.env.DEFAULT_ADMISSION_PASSWORD || 'admission123'
-    },
-    {
-      email: 'commercial@rush-school.fr',
-      name: 'Commercial Rush School',
+      password: process.env.DEFAULT_ADMISSION_PASSWORD
+    });
+  }
+
+  if (process.env.DEFAULT_COMMERCIAL_EMAIL && process.env.DEFAULT_COMMERCIAL_PASSWORD) {
+    users.push({
+      email: process.env.DEFAULT_COMMERCIAL_EMAIL,
+      name: 'Commercial ProcessIQ',
       role: 'commercial',
-      password: process.env.DEFAULT_COMMERCIAL_PASSWORD || 'commercial123'
-    },
-    {
-      email: 'rh@rush-school.fr',
-      name: 'RH Rush School',
+      password: process.env.DEFAULT_COMMERCIAL_PASSWORD
+    });
+  }
+
+  if (process.env.DEFAULT_RH_EMAIL && process.env.DEFAULT_RH_PASSWORD) {
+    users.push({
+      email: process.env.DEFAULT_RH_EMAIL,
+      name: 'RH ProcessIQ',
       role: 'rh',
-      password: process.env.DEFAULT_RH_PASSWORD || 'rh123'
-    },
-    {
-      email: 'eleve@rush-school.fr',
-      name: 'Eleve Demo Rush School',
-      role: 'student',
-      password: process.env.DEFAULT_ELEVE_PASSWORD || 'eleve123'
-    }
-  ];
+      password: process.env.DEFAULT_RH_PASSWORD
+    });
+  }
+
+  return users;
 };
 
 export const ensureDefaultUsers = async (): Promise<void> => {
@@ -67,7 +74,10 @@ export const ensureDefaultUsers = async (): Promise<void> => {
 
       if (existing.role !== account.role) updates.role = account.role;
       if (existing.name !== account.name) updates.name = account.name;
-      if (syncPasswords) updates.password = hashPassword(account.password);
+      if (syncPasswords) {
+        console.log(`[SEED] Syncing password for ${email}. Value starts with: ${account.password.substring(0, 2)}...`);
+        updates.password = hashPassword(account.password);
+      }
 
       if (Object.keys(updates).length > 0) {
         await User.updateOne({ _id: existing._id }, { $set: updates });

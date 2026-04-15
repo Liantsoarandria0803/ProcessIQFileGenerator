@@ -27,22 +27,25 @@ type FallbackUser = {
 
 const hashPassword = (plain: string): string => {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(plain, salt, 64).toString('hex');
+  const hash = crypto.scryptSync(plain, Buffer.from(salt, 'hex'), 64, { N: 16384, r: 8, p: 1 }).toString('hex');
   return `scrypt$${salt}$${hash}`;
 };
 
 const verifyPassword = (plain: string, stored: string): boolean => {
   const parts = String(stored || '').split('$');
   if (parts.length !== 3 || parts[0] !== 'scrypt') {
-    // Backward compatibility with legacy plain-text values
     return plain === stored;
   }
 
   const [, salt, hashHex] = parts;
   const expected = Buffer.from(hashHex, 'hex');
-  const actual = crypto.scryptSync(plain, salt, 64);
-  if (expected.length !== actual.length) return false;
-  return crypto.timingSafeEqual(expected, actual);
+  const actual = crypto.scryptSync(plain, Buffer.from(salt, 'hex'), 64, { N: 16384, r: 8, p: 1 });
+  
+  const matches = crypto.timingSafeEqual(expected, actual);
+  if (!matches) {
+    console.log(`[AUTH] Mismatch: plain starts with ${plain.substring(0, 2)}, stored salt starts with ${salt.substring(0, 5)}`);
+  }
+  return matches;
 };
 
 const normalizeRole = (rawRole: unknown): UserRole | null => {
@@ -60,57 +63,20 @@ const normalizeRole = (rawRole: unknown): UserRole | null => {
 };
 
 const getFallbackUsers = (): FallbackUser[] => {
-  return [
-    {
-      email: 'admin@rush-school.fr',
-      password: process.env.DEFAULT_ADMIN_PASSWORD || 'admin',
-      name: 'Admin Rush School',
-      role: 'admin'
-    },
-    {
-      email: 'admission@rush-school.fr',
-      password: process.env.DEFAULT_ADMISSION_PASSWORD || 'admission123',
-      name: 'Admission Rush School',
-      role: 'admission'
-    },
-    {
-      email: process.env.DEFAULT_ADMISSION_1_EMAIL || 'admission1@rush-school.fr',
-      password: process.env.DEFAULT_ADMISSION_1_PASSWORD || 'Admission123!',
-      name: process.env.DEFAULT_ADMISSION_1_NAME || 'Admission 1',
-      role: 'admission'
-    },
-    {
-      email: process.env.DEFAULT_ADMISSION_2_EMAIL || 'admission2@rush-school.fr',
-      password: process.env.DEFAULT_ADMISSION_2_PASSWORD || 'Admission456!',
-      name: process.env.DEFAULT_ADMISSION_2_NAME || 'Admission 2',
-      role: 'admission'
-    },
-    {
-      email: process.env.DEFAULT_ADMISSION_MANAGER_EMAIL || 'responsable.admission@rush-school.fr',
-      password: process.env.DEFAULT_ADMISSION_MANAGER_PASSWORD || 'RespAdmission789!',
-      name: process.env.DEFAULT_ADMISSION_MANAGER_NAME || 'Responsable Admission',
-      role: 'admission'
-    },
-    {
-      email: 'commercial@rush-school.fr',
-      password: process.env.DEFAULT_COMMERCIAL_PASSWORD || 'commercial123',
-      name: 'Commercial Rush School',
-      role: 'commercial'
-    },
-    {
-      email: 'rh@rush-school.fr',
-      password: process.env.DEFAULT_RH_PASSWORD || 'rh123',
-      name: 'RH Rush School',
-      role: 'rh'
-    },
-    {
-      email: 'eleve@rush-school.fr',
-      password: process.env.DEFAULT_ELEVE_PASSWORD || 'eleve123',
-      name: 'Eleve Demo Rush School',
-      role: 'student',
-      studentId: null
+  const users: FallbackUser[] = [];
+  
+  const add = (email?: string, password?: string, role?: string, name?: string) => {
+    if (email && password && role) {
+      users.push({ email, password, role: role as UserRole, name: name || email.split('@')[0] });
     }
-  ];
+  };
+
+  add(process.env.DEFAULT_ADMIN_EMAIL, process.env.DEFAULT_ADMIN_PASSWORD, 'admin', 'Super Admin ProcessIQ');
+  add(process.env.DEFAULT_ADMISSION_EMAIL, process.env.DEFAULT_ADMISSION_PASSWORD, 'admission', 'Admission ProcessIQ');
+  add(process.env.DEFAULT_COMMERCIAL_EMAIL, process.env.DEFAULT_COMMERCIAL_PASSWORD, 'commercial', 'Commercial ProcessIQ');
+  add(process.env.DEFAULT_RH_EMAIL, process.env.DEFAULT_RH_PASSWORD, 'rh', 'RH ProcessIQ');
+
+  return users;
 };
 
 const findFallbackUser = (email: string, password: string): FallbackUser | null => {
@@ -178,6 +144,7 @@ router.use((req, res, next) => {
 });
 
 router.post('/login', async (req, res) => {
+  console.log(`[AUTH] Node version: ${process.version}`);
   try {
     const email = String(req.body?.email || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
@@ -186,6 +153,9 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Email et mot de passe requis' });
     }
 
+    console.log(`[AUTH] Login attempt for: ${email} (Pass starts with: ${password.substring(0, 2)})`);
+    console.log(`[AUTH] Pass charCodes: ${password.split('').map(c => c.charCodeAt(0)).join(',')}`);
+
     if (!isMongoConnected()) {
       const fallbackToken = tryFallbackLogin(email, password);
       if (fallbackToken) return res.status(200).json({ access_token: fallbackToken });
@@ -193,7 +163,13 @@ router.post('/login', async (req, res) => {
     }
 
     const user = await User.findOne({ email });
-    if (!user || !verifyPassword(password, user.password)) {
+    if (!user) {
+      console.log(`[AUTH] User not found: ${email}`);
+      return res.status(401).json({ message: 'Identifiants invalides' });
+    }
+
+    if (!verifyPassword(password, user.password)) {
+      console.log(`[AUTH] Password mismatch for: ${email}`);
       return res.status(401).json({ message: 'Identifiants invalides' });
     }
 
