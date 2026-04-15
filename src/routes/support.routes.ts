@@ -70,6 +70,8 @@ const toOutputRecord = (record: any) => ({
   reporterName: String(record.reporterName || ''),
   reporterEmail: String(record.reporterEmail || ''),
   screenshotUrl: String(record.screenshotUrl || ''),
+  assignee: record.assignee ? String(record.assignee) : undefined,
+  deadline: record.deadline ? new Date(record.deadline).toISOString() : undefined,
   createdAt: record.createdAt ? new Date(record.createdAt).toISOString() : new Date().toISOString(),
 });
 
@@ -120,6 +122,8 @@ router.post(
     body('reporterName').optional().isString().trim().isLength({ max: 120 }),
     body('reporterEmail').optional().isString().trim().isLength({ max: 200 }),
     body('screenshotUrl').optional().isString().trim().isLength({ max: 1200 }),
+    body('assignee').optional().isString().trim().isLength({ max: 120 }),
+    body('deadline').optional().isISO8601(),
   ],
   validateRequest,
   async (req: Request, res: Response) => {
@@ -139,6 +143,8 @@ router.post(
         reporterName: String(req.body.reporterName || '').trim(),
         reporterEmail: String(req.body.reporterEmail || '').trim().toLowerCase(),
         screenshotUrl,
+        assignee: req.body.assignee ? String(req.body.assignee).trim() : undefined,
+        deadline: req.body.deadline ? new Date(req.body.deadline) : undefined,
       });
 
       res.status(201).json({
@@ -228,6 +234,58 @@ router.get(
       res.status(500).json({
         success: false,
         error: error?.message || 'Erreur lors de la recuperation des tickets',
+      });
+    }
+  }
+);
+
+router.patch(
+  '/bugs/:id',
+  [
+    param('id').isMongoId().withMessage('ID invalide'),
+    body('title').optional().isString().trim().isLength({ min: 5, max: 160 }),
+    body('description').optional().isString().trim().isLength({ min: 10, max: 3000 }),
+    body('module').optional().isIn(['admission', 'rh', 'commercial', 'other']),
+    body('priority').optional().isIn(['low', 'medium', 'high', 'critical']),
+    body('screenshotUrl').optional().isString().trim().isLength({ max: 1200 }),
+    body('assignee').optional().isString().trim().isLength({ max: 120 }),
+    body('deadline').optional().isISO8601()
+  ],
+  validateRequest,
+  async (req: Request, res: Response) => {
+    try {
+      const requesterRole = getRequesterRole(req);
+      if (!canAccessGlobalSupport(requesterRole)) {
+        res.status(403).json({ success: false, error: 'Acces reserve au superadmin/admin' });
+        return;
+      }
+
+      const updates: any = {};
+      if (req.body.title !== undefined) updates.title = String(req.body.title).trim();
+      if (req.body.description !== undefined) updates.description = String(req.body.description).trim();
+      if (req.body.module !== undefined) updates.module = parseModule(req.body.module);
+      if (req.body.priority !== undefined) updates.priority = parsePriority(req.body.priority);
+      if (req.body.screenshotUrl !== undefined) updates.screenshotUrl = String(req.body.screenshotUrl).trim();
+      if (req.body.assignee !== undefined) updates.assignee = String(req.body.assignee).trim();
+      if (req.body.deadline !== undefined) updates.deadline = req.body.deadline ? new Date(req.body.deadline) : null;
+
+      const updated = await BugReport.findByIdAndUpdate(
+        req.params.id,
+        { $set: updates },
+        { new: true }
+      );
+
+      if (!updated) {
+        res.status(404).json({ success: false, error: 'Ticket introuvable' });
+        return;
+      }
+
+      res.json({ success: true, message: 'Ticket mis a jour', data: toOutputRecord(updated) });
+    } catch (error: any) {
+      logger.error('[Support] update bug failed:', error?.message || error);
+      res.status(500).json({
+        success: false,
+        error: error?.message || 'Erreur lors de la mise a jour du ticket',
       });
     }
   }

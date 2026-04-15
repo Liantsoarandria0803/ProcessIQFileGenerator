@@ -16,6 +16,8 @@ export interface IBugReport extends Document {
   reporterEmail: string;
   pagePath?: string;
   screenshotUrl?: string;
+  assignee?: string;
+  deadline?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +54,8 @@ const BugReportSchema = new Schema<IBugReport>(
     reporterEmail: { type: String, trim: true, lowercase: true, default: '', index: true },
     pagePath: { type: String, trim: true, default: '' },
     screenshotUrl: { type: String, trim: true, default: '' },
+    assignee: { type: String, trim: true, default: '' },
+    deadline: { type: Date },
   },
   {
     timestamps: true,
