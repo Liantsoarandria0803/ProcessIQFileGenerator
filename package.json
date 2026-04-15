@@ -12,6 +12,7 @@
     "lint": "eslint src/**/*.ts",
     "migrate": "ts-node src/scripts/migrate-airtable-to-mongodb.ts",
     "migrate:all": "ts-node src/scripts/migrate-all-to-mongodb.ts",
+    "backfill:support-bugs": "ts-node src/scripts/backfill-support-bugs-deadline-assignation.ts",
     "seed:test-data": "ts-node src/scripts/seed-test-data.ts",
     "seed:signature-docs": "ts-node src/scripts/seed-signature-test-documents.ts",
     "udocsign:batch": "ts-node src/scripts/create-udocsign-signature-requests.ts",

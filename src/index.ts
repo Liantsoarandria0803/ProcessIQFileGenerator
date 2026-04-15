@@ -158,11 +158,12 @@ const startServer = () => {
   });
 };
 
-// Tenter la connexion MongoDB si MONGODB_URI est configuré, sinon démarrer sans
-if (process.env.MONGODB_URI) {
+// Tenter la connexion MongoDB si MONGO_URI (ou MONGODB_URI compat) est configuré, sinon démarrer sans
+const mongoUriConfigured = Boolean(String(process.env.MONGO_URI || process.env.MONGODB_URI || '').trim());
+if (mongoUriConfigured) {
   connectDB().then(async () => {
     logger.info(` MongoDB: ✓ Connecté`);
-    logger.info(`  Base: ${process.env.MONGODB_DATABASE || 'processiq'}`);
+    logger.info(`  Base: ${process.env.DB_NAME || process.env.MONGODB_DATABASE || 'processiq'}`);
     try {
       await ensureDefaultUsers();
     } catch (error: any) {
@@ -175,7 +176,7 @@ if (process.env.MONGODB_URI) {
     startServer();
   });
 } else {
-  logger.info(' MongoDB: non configuré (MONGODB_URI absent), démarrage avec Airtable uniquement');
+  logger.info(' MongoDB: non configuré (MONGO_URI/MONGODB_URI absent), démarrage avec Airtable uniquement');
   startServer();
 }
 

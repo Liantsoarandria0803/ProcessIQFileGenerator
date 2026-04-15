@@ -1237,6 +1237,14 @@ router.post('/candidates', async (req: Request, res: Response) => {
       ...req.body,
       validation: req.body?.validation ?? 'En attente'
     };
+
+    // Fallback: si le nom d'usage est vide, on met le prénom dans la colonne "NOM dusage"
+    // (le mapping Airtable utilise `nom_usage` -> 'NOM dusage')
+    const nomUsage = typeof informations.nom_usage === 'string' ? informations.nom_usage.trim() : '';
+    if (!nomUsage && typeof informations.prenom === 'string' && informations.prenom.trim()) {
+      informations.nom_usage = informations.prenom.trim();
+    }
+
     const result = await admissionService.createCandidateWithInfo(informations);
     
     res.json(result);
@@ -1286,6 +1294,13 @@ router.patch('/candidates/:recordId', async (req: Request, res: Response) => {
   try {
     const { recordId } = req.params;
     const informations: InformationsPersonnelles = req.body;
+
+    // Fallback: si le nom d'usage est vide, on met le prénom dans la colonne "NOM dusage"
+    // (le mapping Airtable utilise `nom_usage` -> 'NOM dusage')
+    const nomUsage = typeof informations.nom_usage === 'string' ? informations.nom_usage.trim() : '';
+    if (!nomUsage && typeof informations.prenom === 'string' && informations.prenom.trim()) {
+      informations.nom_usage = informations.prenom.trim();
+    }
     
     const result = await admissionService.updateCandidateInfo(recordId, informations);
     

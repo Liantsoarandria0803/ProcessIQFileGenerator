@@ -5,10 +5,13 @@ mongoose.set('bufferCommands', false);
 
 export const connectDB = async (): Promise<void> => {
   try {
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/processiq';
+    const mongoURI =
+      process.env.MONGO_URI ||
+      process.env.MONGODB_URI ||
+      'mongodb://localhost:27017/processiq';
 
     await mongoose.connect(mongoURI, {
-      dbName: process.env.MONGODB_DATABASE || 'processiq',
+      dbName: process.env.DB_NAME || process.env.MONGODB_DATABASE || 'processiq',
       // Keep API failures short when Atlas/network is down.
       serverSelectionTimeoutMS: 8000,
       socketTimeoutMS: 20000,
