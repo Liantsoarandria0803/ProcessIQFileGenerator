@@ -613,7 +613,16 @@ export class CerfaGeneratorService {
     }
 
     // FORMATION - GESTION SPECIALE
-    const formationKeys = ['Formation', 'Formation choisie', 'Code diplÃ´me', 'Code RNCP', 'Nombre heure formation'];
+    // TolÃ©rer les variantes d'encodage/accents sur "Code diplÃ´me" / "Code diplôme".
+    const formationKeys = [
+      'Formation',
+      'Formation choisie',
+      'Code diplôme',
+      'Code diplome',
+      'Code diplÃ´me',
+      'Code RNCP',
+      'Nombre heure formation',
+    ];
     if (formationKeys.includes(key)) {
       const formationName = candidatData['Formation'] || '';
       const formationData = this.getFormationData(formationName);
@@ -622,6 +631,10 @@ export class CerfaGeneratorService {
         const intitule = formationData.intitule || '';
         return intitule || candidatData['Formation choisie'] || '';
       }
+      // Code du diplÃ´me (ex: 54 pour BTS)
+      if (key === 'Code diplôme' || key === 'Code diplome') return formationData.code_diplome || '';
+
+      // Code formation (8 chiffres) - conservÃ© pour compatibilitÃ© si utilisÃ© ailleurs
       if (key === 'Code diplÃ´me') return formationData.code_formation || '';
       if (key === 'Code RNCP') return formationData.code_rncp || '';
       if (key === 'Nombre heure formation') {
