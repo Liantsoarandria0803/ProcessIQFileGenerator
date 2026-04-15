@@ -767,11 +767,32 @@ export class CerfaGeneratorService {
   ): boolean {
     const [source, key, expectedValue] = checkboxConfig;
 
+    const normalize = (value: any): string => {
+      let s = String(value ?? '').trim();
+
+      // Fix common mojibake where UTF-8 was read as Latin-1 (ex: "FÃ©minin" -> "Féminin")
+      if (/[ÃÂ]/.test(s)) {
+        try {
+          const fixed = Buffer.from(s, 'latin1').toString('utf8');
+          if (fixed && fixed !== s) s = fixed;
+        } catch {
+          // ignore
+        }
+      }
+
+      return s
+        .toLowerCase()
+        // Make comparisons accent-insensitive: "féminin" -> "feminin"
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    };
+
     // Secteur: determine depuis le type d'employeur
     if (key === 'Secteur') {
       const typeEmployeur = entrepriseData["Type d'employeur"] || entrepriseData['Type demployeur'] || '';
-      if (expectedValue === 'PrivÃ©') return this.isEmployeurPrive(typeEmployeur);
-      if (expectedValue === 'Public') return this.isEmployeurPublic(typeEmployeur);
+      const expected = normalize(expectedValue);
+      if (expected === 'prive') return this.isEmployeurPrive(typeEmployeur);
+      if (expected === 'public') return this.isEmployeurPublic(typeEmployeur);
     }
 
     // Mode contractuel de l'apprentissage: TOUJOURS cocher
@@ -802,46 +823,50 @@ export class CerfaGeneratorService {
 
     // Sexe: matching flexible
     if (key === 'Sexe') {
-      const sexeValue = String(candidatData['Sexe'] || '').toLowerCase().trim();
-      const expectedLower = expectedValue.toLowerCase();
-      if (['masculin', 'm', 'homme', 'male'].includes(expectedLower)) {
+      const sexeValue = normalize(candidatData['Sexe']);
+      const expectedLower = normalize(expectedValue);
+      if (['masculin', 'm', 'homme', 'male', 'h'].includes(expectedLower)) {
         return ['masculin', 'm', 'homme', 'male', 'h'].includes(sexeValue);
       }
-      if (['feminin', 'fÃ©minin', 'f', 'femme', 'female'].includes(expectedLower)) {
-        return ['feminin', 'fÃ©minin', 'f', 'femme', 'female'].includes(sexeValue);
+      if (['feminin', 'f', 'femme', 'female'].includes(expectedLower)) {
+        return ['feminin', 'f', 'femme', 'female'].includes(sexeValue);
       }
       return false;
     }
 
     // Valeurs par defaut pour certains champs
     const defaultValues: Record<string, string> = {
+      // ClÃ©s en double: certaines sources sont mal encodÃ©es (Ã‰/Ã¨), d'autres non.
       'Ã‰quivalence jeunes RQTH': 'Non',
+      'Équivalence jeunes RQTH': 'Non',
+      'Equivalence jeunes RQTH': 'Non',
       'Extension BOE': 'Non',
       'CFA entreprise': 'Non',
       'PiÃ¨ces justificatives': 'Oui',
+      'Pièces justificatives': 'Oui',
     };
 
     let actualValue = '';
     if (source === 'candidat') {
       actualValue = candidatData[key] || '';
       if (!actualValue && defaultValues[key]) actualValue = defaultValues[key];
-      actualValue = String(actualValue).toLowerCase().trim();
+      actualValue = normalize(actualValue);
     } else if (source === 'entreprise') {
       actualValue = entrepriseData[key] || '';
       if (!actualValue && defaultValues[key]) actualValue = defaultValues[key];
-      actualValue = String(actualValue).toLowerCase().trim();
+      actualValue = normalize(actualValue);
     } else if (source === 'formation') {
       const airtableValue = entrepriseData[key] || '';
       if (airtableValue) {
-        actualValue = String(airtableValue).toLowerCase().trim();
+        actualValue = normalize(airtableValue);
       } else if (defaultValues[key]) {
-        actualValue = defaultValues[key].toLowerCase();
+        actualValue = normalize(defaultValues[key]);
       } else if (CFA_RUSH_SCHOOL[key]) {
-        actualValue = CFA_RUSH_SCHOOL[key].toLowerCase();
+        actualValue = normalize(CFA_RUSH_SCHOOL[key]);
       }
     }
 
-    const expectedLower = expectedValue.toLowerCase().trim();
+    const expectedLower = normalize(expectedValue);
     if (actualValue === expectedLower) return true;
     if (actualValue.includes(expectedLower)) return true;
     if (expectedLower === 'oui' && ['oui', 'yes', 'true', '1', 'o'].includes(actualValue)) return true;
