@@ -274,4 +274,36 @@ router.patch(
   }
 );
 
+router.delete(
+  '/bugs/:id',
+  [
+    param('id').isMongoId().withMessage('ID invalide'),
+  ],
+  validateRequest,
+  async (req: Request, res: Response) => {
+    try {
+      const requesterRole = getRequesterRole(req);
+      if (!canAccessGlobalSupport(requesterRole)) {
+        res.status(403).json({ success: false, error: 'Acces reserve au superadmin/admin' });
+        return;
+      }
+
+      const deleted = await BugReport.findByIdAndDelete(req.params.id);
+
+      if (!deleted) {
+        res.status(404).json({ success: false, error: 'Ticket introuvable' });
+        return;
+      }
+
+      res.json({ success: true, message: 'Ticket supprimé avec succès' });
+    } catch (error: any) {
+      logger.error('[Support] delete bug failed:', error?.message || error);
+      res.status(500).json({
+        success: false,
+        error: error?.message || 'Erreur lors de la suppression du ticket',
+      });
+    }
+  }
+);
+
 export default router;
