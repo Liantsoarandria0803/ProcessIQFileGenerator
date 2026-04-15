@@ -92,7 +92,8 @@ app.get('/', (req: Request, res: Response) => {
       rhEtudiantsFiches: '/api/rh/etudiants-fiches',
       rhEtudiantFiche: '/api/rh/etudiants-fiches/:record_id',
       rhStatistiques: '/api/rh/statistiques',
-      supportBugs: '/api/support/bugs'
+      supportBugs: '/api/support/bugs',
+      settings: '/api/settings'
     }
   });
 });

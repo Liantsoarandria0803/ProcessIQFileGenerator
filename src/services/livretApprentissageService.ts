@@ -1,7 +1,7 @@
 /**
  * Service de génération du Livret d'Apprentissage
  * Sélectionne le bon template PDF selon la formation de l'étudiant
- * et l'upload sur Airtable dans la colonne "livret dapprentissage"
+ * et le stockage dans MongoDB/GridFS dans la colonne "livret dapprentissage"
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -11,7 +11,7 @@ import { EntrepriseRepository } from '../repositories/entrepriseRepository';
 import logger from '../utils/logger';
 const { promises: fsPromises } = fs;
 
-// Colonne Airtable pour le livret d'apprentissage
+// Colonne document pour le livret d'apprentissage
 const LIVRET_DOCUMENT_FIELD = 'livret dapprentissage';
 
 // Mapping formation → template PDF
@@ -50,7 +50,7 @@ export class LivretApprentissageService {
     // PAGE 1 – Couverture
     { page: 0, key: 'NOM de naissance', x: 275, y: 257.2, fontSize: 11 },
     { page: 0, key: 'Prénom', x: 275, y: 212.6, fontSize: 11 },
-    // Année scolaire - try Airtable column 'Année scolaire' else use literal
+    // Année scolaire - utilise la colonne 'Année scolaire' si présente, sinon une valeur littérale
     { page: 0, key: 'Année scolaire', x: 275, y: 164.8, fontSize: 11 },
 
     // PAGE 24 – Entreprise
@@ -97,14 +97,14 @@ export class LivretApprentissageService {
   }
 
   /**
-   * Génère le livret d'apprentissage (copie du template) et l'upload sur Airtable
-   * @param idEtudiant - Airtable record ID du candidat
+   * Génère le livret d'apprentissage (copie du template) et le stocke dans MongoDB/GridFS
+   * @param idEtudiant - ID MongoDB du candidat
    */
   async generateAndUpload(idEtudiant: string): Promise<LivretGenerationResult> {
     try {
       logger.info(`[LivretApprentissage] Début génération pour candidat: ${idEtudiant}`);
 
-      // 1. Récupérer le candidat depuis Airtable
+      // 1. Récupérer le candidat depuis MongoDB
       const candidat = await this.candidatRepo.getById(idEtudiant);
       if (!candidat) {
         return {
@@ -173,7 +173,7 @@ export class LivretApprentissageService {
 
           logger.info(`[LivretApprentissage] Données entreprise chargées: ${entreprise ? 'oui' : 'non'}`);
 
-          // Calculer l'année scolaire (fallback si pas dans Airtable)
+          // Calculer l'année scolaire si elle n'est pas renseignée
           const computeAnneeScolaire = (): string => {
             // Essayer depuis la date de début du contrat
             const dateDebut = entrepriseFields['Date de début exécution'] as string | undefined;
@@ -204,7 +204,7 @@ export class LivretApprentissageService {
             let value: any = '';
 
             if (f.key === 'Année scolaire') {
-              // D'abord chercher dans Airtable, sinon calculer
+              // D'abord chercher dans le document, sinon calculer
               value = candidatFields['Année scolaire'] || entrepriseFields['Année scolaire'] || computeAnneeScolaire();
             } else {
               // Chercher d'abord dans candidat, puis dans entreprise
@@ -262,7 +262,7 @@ export class LivretApprentissageService {
 
       let uploadSuccess = false;
       try {
-        // 6. Upload vers Airtable
+        // 6. Stockage MongoDB/GridFS
         logger.info(`[LivretApprentissage] Upload vers le champ document: "${LIVRET_DOCUMENT_FIELD}"`);
         uploadSuccess = await this.candidatRepo.uploadDocument(
           idEtudiant,
@@ -294,7 +294,7 @@ export class LivretApprentissageService {
         logger.error(`[LivretApprentissage] ❌ Upload échoué`);
         return {
           success: false,
-          error: "Échec de l'upload du PDF vers Airtable",
+          error: "Échec du stockage du PDF dans MongoDB/GridFS",
         };
       }
     } catch (error: any) {

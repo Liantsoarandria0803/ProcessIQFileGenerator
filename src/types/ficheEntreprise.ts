@@ -48,7 +48,7 @@ export interface InformationsContrat {
   type_derogation?: string;
   date_debut?: string;
   date_fin?: string;
-  duree_hebdomadaire?: string; // String pour Airtable
+  duree_hebdomadaire?: string; // Valeur texte persistée
   poste_occupe?: string;
   lieu_execution?: string;
   

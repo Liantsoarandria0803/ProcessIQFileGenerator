@@ -3,7 +3,7 @@ name: 🔔 Notify Parent Repo to Deploy
 on:
   push:
     branches:
-      - main  # La branche principale du backend
+      - main-release  # La branche principale du backend
 
 jobs:
   notify-parent:

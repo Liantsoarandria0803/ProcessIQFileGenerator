@@ -35,7 +35,7 @@ export class CandidatRepository {
   }
 
   async search(_formula: string): Promise<Candidat[]> {
-    logger.warn('CandidatRepository.search: filterByFormula Airtable n\'est plus supporte, retour de tous les candidats');
+    logger.warn('CandidatRepository.search: recherche textuelle legacy non supportee, retour de tous les candidats');
     return this.getAll();
   }
 

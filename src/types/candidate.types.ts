@@ -23,7 +23,7 @@ export interface Student {
   createdAt?: string;
   updatedAt?: string;
   
-  // Relations (IDs Airtable)
+  // Relations (IDs MongoDB)
   admissions?: string[];      // IDs des admissions liées
   grades?: string[];          // IDs des notes liées
 }

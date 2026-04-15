@@ -149,7 +149,7 @@ export class PdfGeneratorService {
   // =====================================================
 
   /**
-   * Récupère la valeur d'un champ depuis les données Airtable
+   * Récupère la valeur d'un champ depuis les données MongoDB
    * Réplique exacte de la logique Python
    */
   private getFieldValue(
@@ -368,7 +368,7 @@ export class PdfGeneratorService {
   // =====================================================
 
   /**
-   * Génère le PDF et l'upload vers Airtable dans la colonne "Fiche entreprise"
+   * Génère le PDF et le stocke dans MongoDB/GridFS dans la colonne "Fiche entreprise"
    * Réplique exacte de generate_and_upload() en Python
    */
   async generateAndUpload(
@@ -405,11 +405,11 @@ export class PdfGeneratorService {
       tmpFilePath = path.join(os.tmpdir(), `fiche_renseignement_${nom}_${prenom}_${Date.now()}.pdf`);
       fs.writeFileSync(tmpFilePath, result.pdfBuffer);
 
-      // 3. Upload vers Airtable (colonne "Fiche entreprise")
+      // 3. Stockage MongoDB/GridFS (colonne "Fiche entreprise")
       const uploadSuccess = await uploadFn(candidatId, 'Fiche entreprise', tmpFilePath);
 
       if (uploadSuccess) {
-        logger.info('Fiche de renseignements uploadée vers Airtable pour ' + candidatId);
+        logger.info('Fiche de renseignements stockée dans MongoDB/GridFS pour ' + candidatId);
         return {
           success: true,
           candidateId: candidatId,
@@ -421,7 +421,7 @@ export class PdfGeneratorService {
           success: false,
           candidateId: candidatId,
           candidateName,
-          message: 'PDF généré mais échec de l\'upload vers Airtable',
+          message: 'PDF généré mais échec du stockage dans MongoDB/GridFS',
         };
       }
     } catch (error) {

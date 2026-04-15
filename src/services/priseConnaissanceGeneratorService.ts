@@ -21,8 +21,8 @@ export class PriseConnaissanceGeneratorService {
   }
 
   /**
-   * Génère la "Prise de Connaissance" PDF et l'uploade sur Airtable
-   * @param idEtudiant - Airtable record ID (colonne IdEtudiant)
+   * Génère la "Prise de Connaissance" PDF et la stocke dans MongoDB/GridFS
+   * @param idEtudiant - ID MongoDB du candidat
    */
   async generateAndUpload(idEtudiant: string): Promise<{
     success: boolean;
@@ -93,7 +93,7 @@ export class PriseConnaissanceGeneratorService {
       fs.writeFileSync(tmpPath, pdfBuffer);
       console.log(`[PriseConnaissance] Fichier temporaire: ${tmpPath}`);
 
-      // 6. Upload vers Airtable
+      // 6. Stockage MongoDB/GridFS
       console.log(`[PriseConnaissance] Upload vers le champ document: "${PRISE_CONNAISSANCE_DOCUMENT_FIELD}"`);
       const uploadSuccess = await this.candidatRepo.uploadDocument(
         idEtudiant,
@@ -111,10 +111,10 @@ export class PriseConnaissanceGeneratorService {
         console.log('[PriseConnaissance] Upload réussi');
         return { success: true, pdfBuffer, filename };
       } else {
-        console.error('[PriseConnaissance] Échec de l\'upload Airtable');
+        console.error('[PriseConnaissance] Échec du stockage MongoDB/GridFS');
         return {
           success: false,
-          error: 'Échec de l\'upload du PDF vers Airtable',
+          error: 'Échec du stockage du PDF dans MongoDB/GridFS',
         };
       }
     } catch (error: any) {

@@ -24,6 +24,10 @@ export const config = {
     level: process.env.LOG_LEVEL || 'info'
   },
 
+  integrations: {
+    encryptionSecret: process.env.INTEGRATIONS_ENCRYPTION_SECRET || process.env.JWT_SECRET || 'dev_integrations_secret',
+  },
+
   database: {
     uri: process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/processiq',
     dbName: process.env.DB_NAME || process.env.MONGODB_DATABASE || 'processiq'

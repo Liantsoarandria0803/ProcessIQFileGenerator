@@ -116,7 +116,7 @@ router.get('/etudiants-fiches', async (req: Request, res: Response) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable de l'étudiant
+ *         description: ID MongoDB de l'étudiant
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:

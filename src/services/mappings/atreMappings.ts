@@ -8,12 +8,12 @@
  */
 
 // =====================================================
-// CHAMPS DE TEXTE (annotation → colonne Airtable)
+// CHAMPS DE TEXTE (annotation → colonne document)
 // =====================================================
 
 /**
  * Les 6 champs de texte principaux remplis automatiquement
- * depuis les données candidat Airtable.
+ * depuis les données candidat MongoDB.
  */
 export const ATRE_TEXT_FIELDS: Record<string, string> = {
   'Champ de texte 178': 'NOM de naissance',
@@ -29,7 +29,7 @@ export const ATRE_TEXT_FIELDS: Record<string, string> = {
 // =====================================================
 
 /**
- * Mapping de la valeur du champ Airtable « BAC » vers l'annotation
+ * Mapping de la valeur du champ « BAC » vers l'annotation
  * du template PDF (case à cocher).
  */
 export const BAC_CHECKBOX_MAPPING: Record<string, string> = {

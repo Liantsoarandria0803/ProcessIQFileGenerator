@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'student' | 'staff' | 'commercial' | 'admission' | 'rh';
+export type UserRole = 'admin' | 'super_admin' | 'student' | 'staff' | 'commercial' | 'admission' | 'rh';
 
 export interface AuthPayload {
   username: string;

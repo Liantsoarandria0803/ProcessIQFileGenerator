@@ -1,11 +1,11 @@
-// services/airtable/types.ts
-export interface AirtableRecord<T> {
+// services/storage/types.ts
+export interface StorageRecord<T> {
   id: string;
   createdTime: string;
   fields: T;
 }
 
-export interface AirtableListResponse<T> {
-  records: AirtableRecord<T>[];
+export interface StorageListResponse<T> {
+  records: StorageRecord<T>[];
   offset?: string;
 }

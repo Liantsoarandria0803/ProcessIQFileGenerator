@@ -1,10 +1,7 @@
 /**
  * Repository Entreprise — MongoDB
- * Remplace entrepriseRepository.ts (Airtable) pour les opérations de lecture/écriture.
  *
- * La collection "entreprises" dans MongoDB a la même structure flat
- * que les records Airtable (noms de colonnes Airtable préservés).
- * Chaque document a un champ _airtableId qui correspond à l'ancien ID Airtable.
+ * La collection "entreprises" conserve la structure métier historique des champs.
  */
 
 import mongoose from 'mongoose';
@@ -13,19 +10,19 @@ import { FicheRenseignementEntreprise } from '../../types';
 
 const COLLECTION = 'entreprises';
 
-// Format de sortie compatible avec l'ancien format Airtable { id, fields }
+// Format de sortie standard du backend { id, fields }
 export interface EntrepriseRecord {
   id: string;
   fields: Record<string, any>;
 }
 
 /**
- * Convertit un document MongoDB en format { id, fields } compatible Airtable
+ * Convertit un document MongoDB en format { id, fields }.
  */
 function toRecord(doc: any): EntrepriseRecord {
-  const { _id, _airtableId, _airtableCreatedTime, _migratedAt, __v, ...fields } = doc;
+  const { _id, __v, ...fields } = doc;
   return {
-    id: _airtableId || _id.toString(),
+    id: _id.toString(),
     fields,
   };
 }
@@ -37,21 +34,12 @@ export class EntrepriseMongoRepository {
   }
 
   /**
-   * Corrige l'index _airtableId pour qu'il soit sparse (autorise plusieurs null)
-   * Appelé une seule fois au démarrage
+   * Garantit les index utiles au module entreprise.
    */
   async ensureIndexes(): Promise<void> {
     try {
-      const indexes = await this.collection.indexes();
-      const airtableIdx = indexes.find((i: any) => i.name === '_airtableId_1');
-      if (airtableIdx && !airtableIdx.sparse) {
-        await this.collection.dropIndex('_airtableId_1');
-        await this.collection.createIndex({ _airtableId: 1 }, { unique: true, sparse: true });
-        logger.info('✅ Index _airtableId_1 recréé comme unique+sparse');
-      } else if (!airtableIdx) {
-        await this.collection.createIndex({ _airtableId: 1 }, { unique: true, sparse: true });
-        logger.info('✅ Index _airtableId_1 créé (unique+sparse)');
-      }
+      await this.collection.createIndex({ recordIdetudiant: 1 }, { sparse: true });
+      logger.info('✅ Index recordIdetudiant_1 prêt');
     } catch (err) {
       logger.warn('⚠️ Erreur ensureIndexes entreprises:', err);
     }
@@ -80,17 +68,15 @@ export class EntrepriseMongoRepository {
   }
 
   /**
-   * Récupère une entreprise par _airtableId ou _id MongoDB
+   * Récupère une entreprise par son _id MongoDB.
    */
   async getById(recordId: string): Promise<EntrepriseRecord | null> {
     try {
-      let doc = await this.collection.findOne({ _airtableId: recordId });
-      if (!doc) {
-        try {
-          doc = await this.collection.findOne({ _id: new mongoose.Types.ObjectId(recordId) });
-        } catch {
-          // recordId n'est pas un ObjectId valide
-        }
+      let doc = null;
+      try {
+        doc = await this.collection.findOne({ _id: new mongoose.Types.ObjectId(recordId) });
+      } catch {
+        // recordId n'est pas un ObjectId valide
       }
       if (!doc) {
         logger.warn(`⚠️ Entreprise ${recordId} non trouvée dans MongoDB`);
@@ -104,8 +90,7 @@ export class EntrepriseMongoRepository {
   }
 
   /**
-   * Récupère l'entreprise associée à un candidat via recordIdetudiant
-   * Supporte la recherche par _airtableId du candidat
+   * Récupère l'entreprise associée à un candidat via recordIdetudiant.
    */
   async getByEtudiantId(etudiantId: string): Promise<EntrepriseRecord | null> {
     try {
@@ -199,7 +184,7 @@ export class EntrepriseMongoRepository {
 
   /**
    * Crée une fiche entreprise à partir d'un objet structuré FicheRenseignementEntreprise.
-   * Mapping identique à entrepriseRepository.createFicheEntreprise() (Airtable).
+   * Mapping identique au format métier attendu par l'API.
    * Retourne l'ID du document créé.
    */
   async createFicheEntreprise(fiche: FicheRenseignementEntreprise): Promise<string | null> {
@@ -331,16 +316,12 @@ export class EntrepriseMongoRepository {
   // =====================================================
 
   /**
-   * Construit le filtre MongoDB à partir d'un recordId (_airtableId ou ObjectId)
+   * Construit le filtre MongoDB à partir d'un ObjectId.
    */
   private async buildFilter(recordId: string): Promise<Record<string, any> | null> {
-    const byAirtable = await this.collection.findOne({ _airtableId: recordId });
-    if (byAirtable) return { _airtableId: recordId };
-
     try {
       const oid = new mongoose.Types.ObjectId(recordId);
-      const byId = await this.collection.findOne({ _id: oid });
-      if (byId) return { _id: oid };
+      return { _id: oid };
     } catch {
       // pas un ObjectId valide
     }

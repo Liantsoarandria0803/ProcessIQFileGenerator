@@ -173,14 +173,14 @@ export class RhService {
   // =====================================================
 
   /**
-   * Vérifie qu'un champ Airtable contient un attachment non vide
+   * Vérifie qu'un champ document contient une pièce jointe non vide
    */
   private hasAttachment(field: any): boolean {
     return Array.isArray(field) && field.length > 0;
   }
 
   /**
-   * Extrait les infos d'un fichier PDF attaché dans Airtable
+   * Extrait les infos d'un fichier PDF stocké dans le document
    */
   private extractFicheInfo(pdfField: any): FicheInfo | null {
     if (!this.hasAttachment(pdfField)) return null;

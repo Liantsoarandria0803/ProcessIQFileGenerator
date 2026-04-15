@@ -4,7 +4,7 @@ export interface IUser extends Document {
   email: string;
   password: string;
   name: string;
-  role: 'admin' | 'student' | 'staff' | 'commercial' | 'admission' | 'rh';
+  role: 'admin' | 'super_admin' | 'student' | 'staff' | 'commercial' | 'admission' | 'rh';
   studentId?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -23,7 +23,7 @@ const UserSchema = new Schema<IUser>({
   name: { type: String, required: true, maxlength: 120 },
   role: {
     type: String,
-    enum: ['admin', 'student', 'staff', 'commercial', 'admission', 'rh'],
+    enum: ['admin', 'super_admin', 'student', 'staff', 'commercial', 'admission', 'rh'],
     default: 'student',
     index: true
   },

@@ -101,4 +101,30 @@ export class OpcoController {
       res.status(400).json({ success: false, error: error.message });
     }
   };
+
+  update = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const updated = await this.opcoService.updateSubmission(
+        req.params.id,
+        {
+          opcoName: req.body.opcoName,
+          candidateId: asObjectIdOrUndefined(req.body.candidateId) || null,
+          studentId: asObjectIdOrUndefined(req.body.studentId) || null,
+          companyId: asObjectIdOrUndefined(req.body.companyId) || null,
+          payload: typeof req.body.payload === 'object' ? req.body.payload : undefined,
+          metadata: typeof req.body.metadata === 'object' ? req.body.metadata : undefined,
+          documents: Array.isArray(req.body.documents) ? req.body.documents : undefined
+        },
+        req.auth?.sub || undefined
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Dossier OPCO mis a jour',
+        data: updated
+      });
+    } catch (error: any) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  };
 }

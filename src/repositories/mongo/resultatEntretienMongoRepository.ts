@@ -1,9 +1,5 @@
 /**
  * Repository Résultats Entretien — MongoDB
- * Remplace resultatEntretienRepository.ts (Airtable)
- *
- * La collection "resultats_entretien" dans MongoDB a la même structure flat
- * que les records Airtable.
  */
 
 import mongoose from 'mongoose';
@@ -17,12 +13,12 @@ export interface ResultatEntretienRecord {
 }
 
 /**
- * Convertit un document MongoDB en format { id, fields } compatible Airtable
+ * Convertit un document MongoDB en format { id, fields }.
  */
 function toRecord(doc: any): ResultatEntretienRecord {
-  const { _id, _airtableId, _airtableCreatedTime, _migratedAt, __v, ...fields } = doc;
+  const { _id, __v, ...fields } = doc;
   return {
-    id: _airtableId || _id.toString(),
+    id: _id.toString(),
     fields,
   };
 }

@@ -2,7 +2,7 @@
  * Mapping des champs PDF pour la Fiche de Renseignements
  * Transcription fidèle du fichier Python pdf_generator_service.py
  * 
- * Format: "Nom du champ PDF" -> ["source", "Colonne Airtable"]
+ * Format: "Nom du champ PDF" -> ["source", "Colonne document"]
  * source = "candidat" (table "Liste des candidats") ou "entreprise" (table "Fiche entreprise")
  * 
  * COLONNES VÉRIFIÉES SUR AIRTABLE LE 03/02/2026
@@ -92,7 +92,7 @@ export const PDF_MAPPING: Record<string, [string, string]> = {
 
 /**
  * Champ spécial: "Champ de texte 70" utilise buildAdresseEntreprise()
- * au lieu d'une simple lecture de colonne Airtable.
+ * au lieu d'une simple lecture de colonne document.
  * L'adresse est construite en concaténant:
  *   - "Numéro entreprise"
  *   - "Voie entreprise"

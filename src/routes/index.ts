@@ -13,6 +13,7 @@ import gridfsDocumentRoutes from './gridfsDocuments';
 import authRoutes from './auth.routes';
 import supportRoutes from './support.routes';
 import opcoRoutes from './opco.routes';
+import settingsRoutes from './settings.routes';
 import { authenticateRequest } from '../middlewares/auth.middleware';
 import { isMongoConnected } from '../config/database';
 
@@ -34,6 +35,7 @@ router.use('/admission', admissionRoutes);
 router.use('/rh', rhRoutes);
 router.use('/gridfs', gridfsDocumentRoutes);
 router.use('/support', requireMongoConnection, supportRoutes);
+router.use('/settings', requireMongoConnection, authenticateRequest, settingsRoutes);
 
 router.get('/health', (req, res) => {
   res.json({

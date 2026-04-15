@@ -3,7 +3,7 @@
  */
 
 // =====================================================
-// FICHE INFO (PDF attaché Airtable)
+// FICHE INFO (PDF stocké dans MongoDB/GridFS)
 // =====================================================
 
 export interface FicheInfo {

@@ -1,5 +1,5 @@
 /**
- * Types pour les données Airtable
+ * Types pour les données métier persistées
  */
 
 // =====================================================
@@ -18,7 +18,7 @@ export interface CandidatFields {
   'Commune de naissance'?: string;
   'Département'?: string;
   'Adresse lieu dexécution du contrat'?: string;
-  'Code postal '?: number; // Float dans Airtable
+  'Code postal '?: number; // Valeur numérique persistée
   'ville'?: string;
   'Régime social'?: string;
   'Situation avant le contrat'?: string;
@@ -177,7 +177,7 @@ export interface Attachment {
   uploadedAt?: string | Date;
 }
 
-export interface AirtableRecord<T> {
+export interface StorageRecord<T> {
   id: string;
   fields: T;
   createdTime?: string;

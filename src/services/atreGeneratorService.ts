@@ -4,7 +4,7 @@
  *   - Lecture du template PDF
  *   - Approche annotation-overlay (drawText sur coordonnées des annotations)
  *   - Suppression AcroForm + Annots après écriture
- *   - Upload vers Airtable via tmpfiles.org
+ *   - Stockage des documents via MongoDB/GridFS
  */
 
 import {
@@ -62,14 +62,14 @@ export class AtreGeneratorService {
   // =====================================================
 
   /**
-   * Génère la fiche ATRE pour un étudiant et l'upload sur Airtable
+   * Génère la fiche ATRE pour un étudiant et la stocke dans MongoDB/GridFS
    * dans la colonne « Atre » de l'enregistrement lié à idEtudiant.
    *
-   * @param idEtudiant - Record ID Airtable du candidat (ex: recXXXXXX)
+   * @param idEtudiant - ID MongoDB du candidat
    * @returns Résultat avec le buffer PDF et le nom de fichier
    */
   async generateAndUpload(idEtudiant: string): Promise<AtreGenerationResult> {
-    // 1. Récupérer les données candidat depuis Airtable
+    // 1. Récupérer les données candidat depuis MongoDB
     const candidat = await this.candidatRepo.getById(idEtudiant);
     if (!candidat) {
       return { success: false, error: `Candidat avec l'ID ${idEtudiant} non trouvé` };
@@ -83,8 +83,8 @@ export class AtreGeneratorService {
       return result;
     }
 
-    // 3. Upload vers Airtable dans la colonne "Atre"
-    await this.uploadToAirtable(idEtudiant, result.pdfBuffer, result.filename!);
+    // 3. Stockage MongoDB/GridFS dans la colonne "Atre"
+    await this.uploadToStorage(idEtudiant, result.pdfBuffer, result.filename!);
 
     return result;
   }
@@ -94,7 +94,7 @@ export class AtreGeneratorService {
   // =====================================================
 
   /**
-   * Génère le PDF ATRE à partir des champs candidat Airtable.
+   * Génère le PDF ATRE à partir des champs candidat.
    */
   private async generatePdf(fields: CandidatFields): Promise<AtreGenerationResult> {
     try {
@@ -195,9 +195,9 @@ export class AtreGeneratorService {
       if (!rect) return result;
 
       // --- Champ de texte ---
-      const airtableColumn = ATRE_TEXT_FIELDS[fieldName];
-      if (airtableColumn) {
-        const rawValue = fields[airtableColumn];
+      const documentColumn = ATRE_TEXT_FIELDS[fieldName];
+      if (documentColumn) {
+        const rawValue = fields[documentColumn];
         const value = rawValue != null ? String(rawValue).trim() : '';
 
         if (value) {
@@ -324,14 +324,14 @@ export class AtreGeneratorService {
   }
 
   // =====================================================
-  // UPLOAD AIRTABLE
+  // STOCKAGE DOCUMENT
   // =====================================================
 
   /**
-   * Upload le PDF généré vers Airtable dans la colonne « Atre »
+   * Stocke le PDF généré dans MongoDB/GridFS dans la colonne « Atre »
    * Pattern identique à admission.ts (cerfa / fiche-renseignement)
    */
-  private async uploadToAirtable(
+  private async uploadToStorage(
     idEtudiant: string,
     pdfBuffer: Buffer,
     filename: string
@@ -342,16 +342,16 @@ export class AtreGeneratorService {
       // Écrire le buffer dans un fichier temporaire
       fs.writeFileSync(tmpPath, pdfBuffer);
 
-      // Upload vers Airtable
+      // Stockage MongoDB/GridFS
       const success = await this.candidatRepo.uploadDocument(idEtudiant, 'Atre', tmpPath);
 
       if (success) {
-        logger.info(`✅ Fiche ATRE uploadée vers Airtable pour ${idEtudiant}`);
+        logger.info(`✅ Fiche ATRE stockée dans MongoDB/GridFS pour ${idEtudiant}`);
       } else {
-        logger.warn(`⚠️ Échec upload ATRE vers Airtable pour ${idEtudiant}`);
+        logger.warn(`⚠️ Échec du stockage ATRE dans MongoDB/GridFS pour ${idEtudiant}`);
       }
     } catch (err: any) {
-      logger.warn(`⚠️ Erreur upload ATRE vers Airtable : ${err.message}`);
+      logger.warn(`⚠️ Erreur de stockage ATRE dans MongoDB/GridFS : ${err.message}`);
     } finally {
       // Nettoyer le fichier temporaire
       try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }

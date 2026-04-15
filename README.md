@@ -72,6 +72,7 @@ DB_NAME=processiq
 - La persistance applicative repose désormais sur MongoDB.
 - Les fichiers uploadés sont servis via GridFS à travers `/api/gridfs/:fileId`.
 
+<<<<<<< HEAD
 ## OPCO
 
 Une integration OPCO generique est maintenant disponible dans le backend.
@@ -101,3 +102,6 @@ Endpoints disponibles :
 - `POST /api/opco/dossiers/:id/sync`
 
 Sans configuration `OPCO_*`, les dossiers restent stockes en MongoDB avec le statut `draft`.
+=======
+test deloiement auto
+>>>>>>> a6e0add2da5caa810ed40adda724e354c2f0163a

@@ -51,7 +51,7 @@ const upload = multer({
  *   get:
  *     summary: Liste tous les candidats
  *     tags: [Candidats]
- *     description: Récupère la liste complète des candidats depuis Airtable
+ *     description: Récupère la liste complète des candidats depuis MongoDB
  *     responses:
  *       200:
  *         description: Liste des candidats récupérée avec succès
@@ -138,7 +138,7 @@ router.get('/historique-utilisateurs', async (req: Request, res: Response) => {
  *     summary: Liste tous les candidats avec leurs documents (Résultat PDF + Suivie entretien + Projet pro)
  *     tags: [Candidats]
  *     description: >
- *       Récupère la liste complète des candidats depuis Airtable avec une jointure
+ *       Récupère la liste complète des candidats depuis MongoDB avec une jointure
  *       sur l'email pour inclure les documents des tables "Résultats PDF", "Resultat entretien" et "projet pro".
  *     responses:
  *       200:
@@ -158,7 +158,7 @@ router.get('/historique-utilisateurs', async (req: Request, res: Response) => {
  *                     properties:
  *                       id:
  *                         type: string
- *                         description: ID Airtable du candidat
+ *                         description: ID MongoDB du candidat
  *                       fields:
  *                         type: object
  *                         description: Champs du candidat
@@ -274,7 +274,7 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
  *     summary: Récupère un candidat par ID avec ses documents (Résultat PDF + Suivie entretien)
  *     tags: [Candidats]
  *     description: >
- *       Récupère un candidat spécifique depuis Airtable avec une jointure
+ *       Récupère un candidat spécifique depuis MongoDB avec une jointure
  *       sur l'email pour inclure ses documents des tables "Résultats PDF" et "Resultat entretien".
  *     parameters:
  *       - in: path
@@ -282,7 +282,7 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat
+ *         description: ID MongoDB du candidat
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
@@ -300,7 +300,7 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
  *                   properties:
  *                     id:
  *                       type: string
- *                       description: ID Airtable du candidat
+ *                       description: ID MongoDB du candidat
  *                     fields:
  *                       type: object
  *                       description: Champs du candidat
@@ -379,7 +379,7 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat
+ *         description: ID MongoDB du candidat
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
@@ -437,7 +437,7 @@ router.get('/candidats/:id', async (req: Request, res: Response) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat
+ *         description: ID MongoDB du candidat
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
@@ -488,14 +488,14 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
  *   post:
  *     summary: Génère la fiche de renseignement PDF
  *     tags: [PDF]
- *     description: Génère la fiche de renseignement pour un candidat et l'upload vers Airtable
+ *     description: Génère la fiche de renseignement pour un candidat et le stocke dans MongoDB/GridFS
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat
+ *         description: ID MongoDB du candidat
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
@@ -520,10 +520,10 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
  *                     fileName:
  *                       type: string
  *                       example: "Fiche_Renseignement_Dupont_Jean.pdf"
- *                     uploadedToAirtable:
+ *                     uploadedToStorage:
  *                       type: boolean
  *                       example: true
- *                     airtableUrl:
+ *                     fileUrl:
  *                       type: string
  *                       nullable: true
  *                       example: "https://dl.airtable.com/.attachments/..."
@@ -561,26 +561,26 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
       });
     }
 
-    // Upload vers Airtable dans la colonne "Fiche entreprise"
+    // Stockage MongoDB/GridFS dans la colonne "Fiche entreprise"
     const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
     const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
     const fileName = `Fiche_Renseignement_${nom}_${prenom}.pdf`;
-    let uploadedToAirtable = false;
-    let airtableUrl: string | null = null;
+    let uploadedToStorage = false;
+    let fileUrl: string | null = null;
 
     try {
       const tmpPath = path.join(os.tmpdir(), `fiche_renseignement_${nom}_${prenom}_${Date.now()}.pdf`);
       fs.writeFileSync(tmpPath, result.pdfBuffer);
       
-      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'Fiche entreprise', tmpPath);
+      uploadedToStorage = await candidatRepo.uploadDocument(id, 'Fiche entreprise', tmpPath);
       
-      if (uploadedToAirtable) {
-        logger.info('✅ Fiche de renseignements uploadée vers Airtable pour ' + id);
+      if (uploadedToStorage) {
+        logger.info('✅ Fiche de renseignements stockée dans MongoDB/GridFS pour ' + id);
         // Récupérer l'URL du fichier uploadé
         try {
           const updatedRecord = await candidatRepo.getById(id);
           const ficheData = updatedRecord?.fields?.['Fiche entreprise'] as any[] | undefined;
-          airtableUrl = ficheData?.[0]?.url || null;
+          fileUrl = ficheData?.[0]?.url || null;
         } catch (e) {
           // Pas grave si on n'arrive pas à récupérer l'URL
         }
@@ -589,7 +589,7 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
       // Nettoyer le fichier temporaire
       try { fs.unlinkSync(tmpPath); } catch {}
     } catch (uploadError) {
-      logger.warn('Upload fiche renseignement vers Airtable échoué:', uploadError);
+      logger.warn('Stockage de la fiche renseignement dans MongoDB/GridFS échoué:', uploadError);
     }
     
     // Retourne un JSON de succès
@@ -599,8 +599,8 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
       data: {
         candidatId: id,
         fileName,
-        uploadedToAirtable,
-        airtableUrl
+        uploadedToStorage,
+        fileUrl
       }
     });
     
@@ -620,7 +620,7 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
  *     summary: Génère le CERFA FA13
  *     tags: [PDF]
  *     description: |
- *       Génère le formulaire CERFA FA13 pour un candidat et l'upload vers Airtable.
+ *       Génère le formulaire CERFA FA13 pour un candidat et le stocke dans MongoDB/GridFS.
  *       Si aucune fiche entreprise n'est associée au candidat, le PDF est quand même généré
  *       avec les champs entreprise laissés vides.
  *     parameters:
@@ -629,7 +629,7 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat
+ *         description: ID MongoDB du candidat
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
@@ -654,10 +654,10 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
  *                     fileName:
  *                       type: string
  *                       example: "CERFA_FA13_Dupont_Jean.pdf"
- *                     uploadedToAirtable:
+ *                     uploadedToStorage:
  *                       type: boolean
  *                       example: true
- *                     airtableUrl:
+ *                     fileUrl:
  *                       type: string
  *                       nullable: true
  *                       example: "https://dl.airtable.com/.attachments/..."
@@ -698,11 +698,11 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
       });
     }
     
-    // Upload vers Airtable dans la colonne "cerfa"
+    // Stockage MongoDB/GridFS dans la colonne "cerfa"
     const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
     const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
     const fileName = `CERFA_FA13_${nom}_${prenom}.pdf`;
-    let uploadedToAirtable = false;
+    let uploadedToStorage = false;
     let cerfaUrl: string | null = null;
 
     try {
@@ -710,11 +710,11 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
       const tmpFilePath = path.join(os.tmpdir(), `cerfa_${id}_${Date.now()}.pdf`);
       fs.writeFileSync(tmpFilePath, result.pdfBuffer);
       
-      // Upload vers Airtable
-      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'cerfa', tmpFilePath);
+      // Stockage MongoDB/GridFS
+      uploadedToStorage = await candidatRepo.uploadDocument(id, 'cerfa', tmpFilePath);
       
-      if (uploadedToAirtable) {
-        logger.info(`✅ CERFA uploadé vers Airtable pour ${id}`);
+      if (uploadedToStorage) {
+        logger.info(`✅ CERFA stocké dans MongoDB/GridFS pour ${id}`);
         // Récupérer l'URL du fichier uploadé
         try {
           const updatedRecord = await candidatRepo.getById(id);
@@ -724,13 +724,13 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
           // Pas grave si on n'arrive pas à récupérer l'URL
         }
       } else {
-        logger.warn(`⚠️ Échec upload CERFA vers Airtable pour ${id}`);
+        logger.warn(`⚠️ Échec du stockage du CERFA dans MongoDB/GridFS pour ${id}`);
       }
       
       // Nettoyer le fichier temporaire
       try { fs.unlinkSync(tmpFilePath); } catch (e) { /* ignore */ }
     } catch (uploadError: any) {
-      logger.warn(`⚠️ Erreur upload CERFA vers Airtable: ${uploadError.message}`);
+      logger.warn(`⚠️ Erreur de stockage du CERFA dans MongoDB/GridFS: ${uploadError.message}`);
     }
     
     // Retourne un JSON de succès
@@ -740,8 +740,8 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
       data: {
         candidatId: id,
         fileName,
-        uploadedToAirtable,
-        airtableUrl: cerfaUrl
+        uploadedToStorage,
+        fileUrl: cerfaUrl
       }
     });
     
@@ -763,14 +763,14 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
  *     description: |
  *       Genere la convention de formation apprentissage a partir des donnees
  *       candidat + entreprise (meme source que le CERFA), puis upload le PDF
- *       dans Airtable (colonne `convention`).
+ *       dans MongoDB/GridFS (colonne `convention`).
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat
+ *         description: ID MongoDB du candidat
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
@@ -813,25 +813,25 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
     const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
     const fileName = result.filename || `Convention_Apprentissage_${nom}_${prenom}.pdf`;
 
-    let uploadedToAirtable = false;
+    let uploadedToStorage = false;
     let conventionUrl: string | null = null;
 
     const tmpFilePath = path.join(os.tmpdir(), `convention_apprentissage_${id}_${Date.now()}.pdf`);
     try {
       fs.writeFileSync(tmpFilePath, result.pdfBuffer);
 
-      // Essayer les variantes de nom de colonne Airtable connues
+      // Essayer les variantes de nom de colonne connues
       const conventionColumns = ['Convention', 'convention', 'Convention apprentissage'] as const;
       for (const columnName of conventionColumns) {
-        uploadedToAirtable = await candidatRepo.uploadDocument(id, columnName, tmpFilePath);
-        if (uploadedToAirtable) break;
+        uploadedToStorage = await candidatRepo.uploadDocument(id, columnName, tmpFilePath);
+        if (uploadedToStorage) break;
       }
 
-      if (!uploadedToAirtable) {
-        logger.warn(`⚠️ Echec upload Convention apprentissage vers Airtable pour ${id}`);
+      if (!uploadedToStorage) {
+        logger.warn(`⚠️ Echec du stockage de la convention d'apprentissage dans MongoDB/GridFS pour ${id}`);
         return res.status(500).json({
           success: false,
-          error: "Convention generee mais non stockee dans Airtable",
+          error: "Convention generee mais non stockee dans MongoDB/GridFS",
         });
       }
 
@@ -843,19 +843,19 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
       conventionUrl = conventionData?.[0]?.url || null;
 
       if (!conventionUrl) {
-        logger.warn(`⚠️ Convention apprentissage introuvable dans Airtable apres upload pour ${id}`);
+        logger.warn(`⚠️ Convention apprentissage introuvable dans MongoDB/GridFS apres stockage pour ${id}`);
         return res.status(500).json({
           success: false,
-          error: "Convention generee mais non visible dans Airtable",
+          error: "Convention generee mais non visible dans MongoDB/GridFS",
         });
       }
 
-      logger.info(`✅ Convention apprentissage uploadée vers Airtable pour ${id}`);
+      logger.info(`✅ Convention apprentissage stockee dans MongoDB/GridFS pour ${id}`);
     } catch (uploadError: any) {
-      logger.warn(`⚠️ Erreur upload Convention apprentissage vers Airtable: ${uploadError.message}`);
+      logger.warn(`⚠️ Erreur de stockage de la convention d'apprentissage dans MongoDB/GridFS: ${uploadError.message}`);
       return res.status(500).json({
         success: false,
-        error: "Erreur lors du stockage Airtable de la convention d'apprentissage",
+        error: "Erreur lors du stockage MongoDB/GridFS de la convention d'apprentissage",
       });
     } finally {
       try {
@@ -871,8 +871,8 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
       data: {
         candidatId: id,
         fileName,
-        uploadedToAirtable,
-        airtableUrl: conventionUrl,
+        uploadedToStorage,
+        fileUrl: conventionUrl,
         usedTemplate: result.usedTemplate || false,
       },
     });
@@ -891,7 +891,7 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
  *   get:
  *     summary: Liste toutes les fiches entreprises
  *     tags: [Entreprises]
- *     description: Récupère la liste de toutes les fiches entreprises depuis Airtable
+ *     description: Récupère la liste de toutes les fiches entreprises depuis MongoDB
  *     responses:
  *       200:
  *         description: Liste des fiches entreprises
@@ -935,23 +935,23 @@ router.get('/entreprises', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/entreprises:
  *   post:
- *     summary: Crée une nouvelle fiche entreprise (champs bruts Airtable)
+ *     summary: Crée une nouvelle fiche entreprise (champs bruts MongoDB)
  *     tags: [Entreprises]
  *     description: |
- *       Crée une nouvelle fiche entreprise en envoyant directement les champs Airtable bruts.
+ *       Crée une nouvelle fiche entreprise en envoyant directement les champs document bruts.
  *       Contrairement à POST /api/admission/entreprise qui attend un objet structuré (FicheRenseignementEntreprise),
- *       cette route accepte un objet plat avec les noms de colonnes Airtable.
+ *       cette route accepte un objet plat avec les noms de champs persistés.
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             description: Champs Airtable bruts de la fiche entreprise
+ *             description: Champs bruts de la fiche entreprise
  *             properties:
  *               recordIdetudiant:
  *                 type: string
- *                 description: ID Airtable du candidat lié
+ *                 description: ID MongoDB du candidat lié
  *                 example: rec1BBjsjxhdqEKuq
  *               Raison sociale:
  *                 type: string
@@ -1052,14 +1052,14 @@ router.post('/entreprises', async (req: Request, res: Response) => {
  *   patch:
  *     summary: Met à jour partiellement une fiche entreprise existante
  *     tags: [Entreprises]
- *     description: Met à jour partiellement une fiche de renseignement entreprise dans Airtable (seuls les champs fournis sont modifiés)
+ *     description: Met à jour partiellement une fiche de renseignement entreprise dans MongoDB (seuls les champs fournis sont modifiés)
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable de la fiche entreprise
+ *         description: ID MongoDB de la fiche entreprise
  *         example: recABCDEFGHIJKL
  *     requestBody:
  *       required: true
@@ -1135,14 +1135,14 @@ router.patch('/entreprises/:id', async (req: Request, res: Response) => {
  *   delete:
  *     summary: Supprime une fiche entreprise
  *     tags: [Entreprises]
- *     description: Supprime une fiche de renseignement entreprise dans Airtable
+ *     description: Supprime une fiche de renseignement entreprise dans MongoDB
  *     parameters:
  *       - in: path
  *         name: recordId
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable de la fiche entreprise
+ *         description: ID MongoDB de la fiche entreprise
  *         example: recABCDEFGHIJKL
  *     responses:
  *       200:
@@ -1263,7 +1263,7 @@ router.post('/candidates', async (req: Request, res: Response) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: ID du candidat dans Airtable
+ *         description: ID MongoDB du candidat
  *     requestBody:
  *       required: true
  *       content:
@@ -1321,7 +1321,7 @@ router.patch('/candidates/:recordId', async (req: Request, res: Response) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: ID du candidat dans Airtable
+ *         description: ID MongoDB du candidat
  *     responses:
  *       200:
  *         description: Profil du candidat récupéré avec succès
@@ -1363,14 +1363,14 @@ router.get('/candidates/:recordId', async (req: Request, res: Response) => {
  *   delete:
  *     summary: Supprime complètement une candidature
  *     tags: [Candidats]
- *     description: Supprime complètement une candidature (Airtable + fichiers locaux)
+ *     description: Supprime complètement une candidature (MongoDB + fichiers locaux)
  *     parameters:
  *       - in: path
  *         name: recordId
  *         required: true
  *         schema:
  *           type: string
- *         description: ID du candidat dans Airtable
+ *         description: ID MongoDB du candidat
  *     responses:
  *       200:
  *         description: Candidature supprimée avec succès
@@ -1408,10 +1408,10 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
  *     summary: Crée une fiche de renseignement entreprise structurée
  *     tags: [Entreprises]
  *     description: |
- *       Crée une nouvelle fiche de renseignement entreprise complète dans Airtable.
+ *       Crée une nouvelle fiche de renseignement entreprise complète dans MongoDB.
  *       Le body est un objet structuré en sections (identification, adresse, maître d'apprentissage,
  *       OPCO, contrat avec rémunération/périodes, formation et missions, CFA).
- *       Les champs sont automatiquement mappés vers les colonnes Airtable correspondantes.
+ *       Les champs sont automatiquement mappés vers les champs persistés correspondants.
  *       Un mécanisme de retry (3 tentatives) est inclus pour les erreurs réseau.
  *     requestBody:
  *       required: true
@@ -1484,7 +1484,7 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
  *                   example: Fiche entreprise créée avec succès
  *                 record_id:
  *                   type: string
- *                   description: ID Airtable de la fiche créée
+ *                   description: ID MongoDB de la fiche créée
  *                   example: recXXXXXXXXXXXXXX
  *       400:
  *         description: Données invalides ou manquantes
@@ -1500,7 +1500,7 @@ router.delete('/candidates/:recordId', async (req: Request, res: Response) => {
  *                   type: string
  *                   example: Données invalides
  *       500:
- *         description: Erreur serveur (incluant les erreurs Airtable après 3 tentatives)
+ *         description: Erreur serveur (incluant les erreurs de persistance après 3 tentatives)
  *         content:
  *           application/json:
  *             schema:
@@ -1671,7 +1671,7 @@ router.delete('/candidates/:record_id/documents/:documentType', async (req: Requ
  *         required: true
  *         schema:
  *           type: string
- *         description: ID du record Airtable du candidat
+ *         description: ID MongoDB du candidat
  *     requestBody:
  *       required: true
  *       content:
@@ -1940,7 +1940,7 @@ router.post('/candidates/:record_id/documents/dernier-diplome', upload.single('f
  *     summary: Génère la fiche de détection ATRE
  *     tags: [PDF]
  *     description: |
- *       Génère la fiche de détection pour l'ATRE à partir des données Airtable
+ *       Génère la fiche de détection pour l'ATRE à partir des données MongoDB
  *       du candidat identifié par son record ID, puis uploade le PDF
  *       dans la colonne « Atre » de l'enregistrement.
  *     parameters:
@@ -1949,7 +1949,7 @@ router.post('/candidates/:record_id/documents/dernier-diplome', upload.single('f
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat (idEtudiant)
+ *         description: ID MongoDB du candidat (idEtudiant)
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
@@ -2006,7 +2006,7 @@ router.post('/candidats/:id/atre', async (req: Request, res: Response) => {
  *     summary: Génère le Compte Rendu de Visite Entretien
  *     tags: [PDF]
  *     description: |
- *       Génère le compte rendu de visite entretien à partir des données Airtable
+ *       Génère le compte rendu de visite entretien à partir des données MongoDB
  *       du candidat identifié par son record ID, puis uploade le PDF
  *       dans la colonne « Compte rendu de visite » de l'enregistrement.
  *     parameters:
@@ -2015,7 +2015,7 @@ router.post('/candidats/:id/atre', async (req: Request, res: Response) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat (idEtudiant)
+ *         description: ID MongoDB du candidat (idEtudiant)
  *         example: rec1BBjsjxhdqEKuq
  *     responses:
  *       200:
@@ -2073,7 +2073,7 @@ router.post('/candidats/:id/compte-rendu', async (req: Request, res: Response) =
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat
+ *         description: ID MongoDB du candidat
  *     responses:
  *       200:
  *         description: PDF généré avec succès
@@ -2135,14 +2135,14 @@ router.post('/candidats/:id/reglement-interieur', async (req: Request, res: Resp
  *       - Formation contient **NDRC** → Livret d'apprentissage NDRC
  *       - Formation contient **TP NTC** → Livret d'Apprentissage TP NTC
  *       
- *       Le PDF est ensuite uploadé sur Airtable dans la colonne "livret dapprentissage".
+ *       Le PDF est ensuite stocké dans MongoDB/GridFS dans la colonne "livret dapprentissage".
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable de l'étudiant (ex recXXXXXXXXXXXXXX)
+ *         description: ID MongoDB de l'étudiant
  *     responses:
  *       200:
  *         description: Livret d'apprentissage généré et uploadé avec succès
@@ -2217,7 +2217,7 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
  *     tags: [Candidats]
  *     description: >
  *       Reçoit un fichier PDF et un email, upload le PDF et crée un enregistrement
- *       dans la table Airtable "Resultat entretien" avec les colonnes "E-mail" et "Suivie entretien".
+ *       dans la collection MongoDB "resultats_entretien" avec les champs "E-mail" et "Suivie entretien".
  *     requestBody:
  *       required: true
  *       content:
@@ -2239,7 +2239,7 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
  *                 description: Fichier PDF du suivi d'entretien
  *     responses:
  *       201:
- *         description: Suivi d'entretien enregistré avec succès dans Airtable
+ *         description: Suivi d'entretien enregistré avec succès dans MongoDB
  *         content:
  *           application/json:
  *             schema:
@@ -2326,7 +2326,7 @@ router.post('/suivie-entretien', upload.single('file'), async (req: Request, res
  *     tags: [Candidats]
  *     description: >
  *       Reçoit un fichier PDF et un email, upload le PDF et crée un enregistrement
- *       dans la table Airtable "Résultats PDF" avec les colonnes "E-mail" et "PDF Résultat".
+ *       dans la collection MongoDB "resultats_pdf" avec les champs "E-mail" et "PDF Résultat".
  *     requestBody:
  *       required: true
  *       content:
@@ -2348,7 +2348,7 @@ router.post('/suivie-entretien', upload.single('file'), async (req: Request, res
  *                 description: Fichier PDF du résultat
  *     responses:
  *       201:
- *         description: Résultat PDF créé avec succès dans Airtable
+ *         description: Résultat PDF créé avec succès dans MongoDB
  *         content:
  *           application/json:
  *             schema:
@@ -2436,7 +2436,7 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
  *     tags: [Candidats]
  *     description: >
  *       Reçoit un fichier PDF et un email, upload le PDF et crée un enregistrement
- *       dans la table Airtable "projet pro" avec les colonnes "E-mail" et "projet".
+ *       dans la collection MongoDB "projet_pro" avec les champs "E-mail" et "projet".
  *     requestBody:
  *       required: true
  *       content:
@@ -2458,7 +2458,7 @@ router.post('/resultats-pdf', upload.single('file'), async (req: Request, res: R
  *                 description: Fichier PDF du projet pro
  *     responses:
  *       201:
- *         description: Projet pro créé avec succès dans Airtable
+ *         description: Projet pro créé avec succès dans MongoDB
  *         content:
  *           application/json:
  *             schema:
@@ -2547,21 +2547,21 @@ router.post('/projet-pro', upload.single('file'), async (req: Request, res: Resp
  *     description: |
  *       Génère le document "Prise de Connaissance" à partir du template PDF,
  *       remplit automatiquement :
- *       - Nom et Prénom depuis Airtable "Listes des candidats"
+ *       - Nom et Prénom depuis les données candidat MongoDB
  *       - Coche toutes les cases (règlement pédagogique, intérieur, livret apprentissage,
  *         livret accueil, autorisation image, référents)
  *       - Coche OUI
  *       - Lieu fixe : Nanterre
  *       - Date du jour
  *       
- *       Le PDF généré est uploadé dans la colonne "Prise de connaissance" d'Airtable.
+ *       Le PDF généré est stocké dans la colonne "Prise de connaissance" du document MongoDB.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat (IdEtudiant)
+ *         description: ID MongoDB du candidat (IdEtudiant)
  *     responses:
  *       200:
  *         description: PDF généré et uploadé avec succès
@@ -2617,20 +2617,20 @@ router.post('/candidats/:id/prise-connaissance', async (req: Request, res: Respo
  *     description: |
  *       Génère le certificat de scolarité **en alternance** pour un candidat à partir
  *       du template PDF image. Le service :
- *       1. Récupère les données du candidat depuis Airtable (Prénom, NOM de naissance,
+ *       1. Récupère les données du candidat depuis MongoDB (Prénom, NOM de naissance,
  *          Date de naissance, Commune de naissance)
  *       2. Remplit le PDF en superposant le **NOM Prénom** (en gras) suivi de
  *          **né(e) le : JJ/MM/AAAA à Lieu** sur une seule ligne
- *       3. Upload le PDF généré vers Airtable dans la table "Liste des candidats",
+ *       3. Stocke le PDF généré dans MongoDB/GridFS sur le document candidat,
  *          colonne **"certificat de scolarité"**
- *       4. Retourne le résultat avec l'URL Airtable du fichier uploadé
+ *       4. Retourne le résultat avec l'URL du fichier stocké
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat (table "Liste des candidats")
+ *         description: ID MongoDB du candidat
  *         example: recC8DfinY52bGCtR
  *     responses:
  *       200:
@@ -2645,8 +2645,8 @@ router.post('/candidats/:id/prise-connaissance', async (req: Request, res: Respo
  *               data:
  *                 candidatId: "recC8DfinY52bGCtR"
  *                 fileName: "Certificat_Scolarite_CHERIF_Bilal.pdf"
- *                 uploadedToAirtable: true
- *                 airtableUrl: "https://dl.airtable.com/.attachments/..."
+ *                 uploadedToStorage: true
+ *                 fileUrl: "/api/gridfs/..."
  *       404:
  *         description: Candidat non trouvé
  *         content:
@@ -2670,7 +2670,7 @@ router.post('/candidats/:id/certificat-scolarite', async (req: Request, res: Res
   try {
     const { id } = req.params;
 
-    // 1. Récupérer les données du candidat depuis Airtable
+    // 1. Récupérer les données du candidat depuis MongoDB
     const candidat = await candidatRepo.getById(id);
     if (!candidat) {
       return res.status(404).json({
@@ -2689,9 +2689,9 @@ router.post('/candidats/:id/certificat-scolarite', async (req: Request, res: Res
       });
     }
 
-    // 3. Upload vers Airtable dans la colonne "certificat de scolarité"
+    // 3. Stockage MongoDB/GridFS dans la colonne "certificat de scolarité"
     const fileName = result.fileName || `Certificat_Scolarite_${id}.pdf`;
-    let uploadedToAirtable = false;
+    let uploadedToStorage = false;
     let certificatUrl: string | null = null;
 
     try {
@@ -2699,11 +2699,11 @@ router.post('/candidats/:id/certificat-scolarite', async (req: Request, res: Res
       const tmpFilePath = path.join(os.tmpdir(), `certificat_scolarite_${id}_${Date.now()}.pdf`);
       fs.writeFileSync(tmpFilePath, result.pdfBuffer);
 
-      // Upload vers Airtable
-      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'certificat de scolarité', tmpFilePath);
+      // Stockage MongoDB/GridFS
+      uploadedToStorage = await candidatRepo.uploadDocument(id, 'certificat de scolarité', tmpFilePath);
 
-      if (uploadedToAirtable) {
-        logger.info(`✅ Certificat de scolarité uploadé vers Airtable pour ${id}`);
+      if (uploadedToStorage) {
+        logger.info(`✅ Certificat de scolarité stocké dans MongoDB/GridFS pour ${id}`);
         // Récupérer l'URL du fichier uploadé
         try {
           const updatedRecord = await candidatRepo.getById(id);
@@ -2713,13 +2713,13 @@ router.post('/candidats/:id/certificat-scolarite', async (req: Request, res: Res
           // Pas grave si on n'arrive pas à récupérer l'URL
         }
       } else {
-        logger.warn(`⚠️ Échec upload certificat de scolarité vers Airtable pour ${id}`);
+        logger.warn(`⚠️ Échec du stockage du certificat de scolarité dans MongoDB/GridFS pour ${id}`);
       }
 
       // Nettoyer le fichier temporaire
       try { fs.unlinkSync(tmpFilePath); } catch (e) { /* ignore */ }
     } catch (uploadError: any) {
-      logger.warn(`⚠️ Erreur upload certificat de scolarité vers Airtable: ${uploadError.message}`);
+      logger.warn(`⚠️ Erreur de stockage du certificat de scolarité dans MongoDB/GridFS: ${uploadError.message}`);
     }
 
     // 4. Retourner le résultat
@@ -2729,8 +2729,8 @@ router.post('/candidats/:id/certificat-scolarite', async (req: Request, res: Res
       data: {
         candidatId: id,
         fileName,
-        uploadedToAirtable,
-        airtableUrl: certificatUrl,
+        uploadedToStorage,
+        fileUrl: certificatUrl,
       },
     });
   } catch (error) {

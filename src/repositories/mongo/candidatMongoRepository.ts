@@ -1,13 +1,8 @@
 /**
  * Repository Candidat — MongoDB
- * Remplace candidatRepository.ts (Airtable)
- * 
- * La collection "Candidats" dans MongoDB a la même structure flat
- * que les records Airtable (noms de colonnes Airtable préservés).
- * Chaque document a un champ _airtableId qui correspond à l'ancien ID Airtable.
  *
- * Les uploads de documents utilisent GridFS (bucket "documents") au lieu
- * de tmpfiles.org + Airtable attachments.
+ * La collection "Candidats" conserve la structure métier historique des champs.
+ * Les uploads de documents utilisent GridFS (bucket "documents").
  */
 
 import mongoose from 'mongoose';
@@ -23,26 +18,25 @@ import {
 
 const COLLECTION = 'Candidats';
 
-// Type générique pour un document candidat (structure flat Airtable)
+// Type générique pour un document candidat.
 export interface CandidatDocument {
   _id: any;
-  _airtableId?: string;
   [key: string]: any;
 }
 
-// Format de sortie compatible avec l'ancien format Airtable { id, fields }
+// Format de sortie standard du backend { id, fields }
 export interface CandidatRecord {
   id: string;
   fields: Record<string, any>;
 }
 
 /**
- * Convertit un document MongoDB en format { id, fields } compatible Airtable
+ * Convertit un document MongoDB en format { id, fields }.
  */
 function toRecord(doc: any): CandidatRecord {
-  const { _id, _airtableId, _airtableCreatedTime, _migratedAt, __v, ...fields } = doc;
+  const { _id, __v, ...fields } = doc;
   return {
-    id: _airtableId || _id.toString(),
+    id: _id.toString(),
     fields,
   };
 }
@@ -68,18 +62,15 @@ export class CandidatMongoRepository {
   }
 
   /**
-   * Récupère un candidat par son _airtableId ou _id MongoDB
+   * Récupère un candidat par son _id MongoDB.
    */
   async getById(recordId: string): Promise<CandidatRecord | null> {
     try {
-      // Chercher d'abord par _airtableId, puis par _id MongoDB
-      let doc = await this.collection.findOne({ _airtableId: recordId });
-      if (!doc) {
-        try {
-          doc = await this.collection.findOne({ _id: new mongoose.Types.ObjectId(recordId) });
-        } catch {
-          // recordId n'est pas un ObjectId valide
-        }
+      let doc = null;
+      try {
+        doc = await this.collection.findOne({ _id: new mongoose.Types.ObjectId(recordId) });
+      } catch {
+        // recordId n'est pas un ObjectId valide
       }
       if (!doc) {
         logger.warn(`⚠️ Candidat ${recordId} non trouvé dans MongoDB`);
@@ -111,7 +102,6 @@ export class CandidatMongoRepository {
    * Met à jour un candidat
    */
   async update(recordId: string, data: Record<string, any>): Promise<CandidatRecord | null> {
-    // Chercher par _airtableId ou _id
     const filter = await this.buildFilter(recordId);
     if (!filter) return null;
 
@@ -145,8 +135,7 @@ export class CandidatMongoRepository {
   }
 
   /**
-   * Recherche par formule (compatible Airtable filterByFormula)
-   * En MongoDB, on utilise un filtre simple par champ
+   * Recherche simple par filtre MongoDB.
    */
   async search(filter: Record<string, any>): Promise<CandidatRecord[]> {
     const docs = await this.collection.find(filter).toArray();
@@ -164,8 +153,8 @@ export class CandidatMongoRepository {
   /**
    * Upload un document via GridFS et stocke la référence dans le champ correspondant.
    *
-   * @param recordId    ID du candidat (_airtableId ou ObjectId)
-   * @param columnName  Nom du champ Airtable (ex: 'CV', 'CIN', …)
+   * @param recordId    ID MongoDB du candidat
+   * @param columnName  Nom du champ document (ex: 'CV', 'CIN', …)
    * @param filePath    Chemin du fichier temporaire sur disque
    * @returns           true si succès
    */
@@ -191,7 +180,7 @@ export class CandidatMongoRepository {
         originalFilename: fileName,
       });
 
-      // Stocker la référence dans le document candidat (format compatible Airtable)
+      // Stocker la référence dans le document candidat.
       const result = await this.collection.updateOne(
         filter,
         {
@@ -226,7 +215,7 @@ export class CandidatMongoRepository {
    * Upload un document depuis un Buffer (multer memoryStorage) via GridFS.
    *
    * @param recordId      ID du candidat
-   * @param columnName    Nom du champ Airtable
+   * @param columnName    Nom du champ document
    * @param buffer        Contenu du fichier
    * @param originalName  Nom original du fichier
    * @param contentType   MIME type
@@ -299,18 +288,12 @@ export class CandidatMongoRepository {
   }
 
   /**
-   * Construit le filtre MongoDB à partir d'un recordId (airtableId ou ObjectId)
+   * Construit le filtre MongoDB à partir d'un ObjectId.
    */
   private async buildFilter(recordId: string): Promise<Record<string, any> | null> {
-    // D'abord essayer _airtableId
-    const byAirtable = await this.collection.findOne({ _airtableId: recordId });
-    if (byAirtable) return { _airtableId: recordId };
-
-    // Sinon essayer _id MongoDB
     try {
       const oid = new mongoose.Types.ObjectId(recordId);
-      const byId = await this.collection.findOne({ _id: oid });
-      if (byId) return { _id: oid };
+      return { _id: oid };
     } catch {
       // pas un ObjectId valide
     }

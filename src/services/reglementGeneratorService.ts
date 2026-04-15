@@ -23,8 +23,8 @@ export class ReglementGeneratorService {
   }
 
   /**
-   * Generate Règlement Intérieur PDF and upload to Airtable
-   * @param idEtudiant - Airtable record ID
+   * Generate Règlement Intérieur PDF and store it in MongoDB/GridFS
+   * @param idEtudiant - MongoDB record ID
    * @returns Object with success status, PDF buffer, and filename
    */
   async generateAndUpload(idEtudiant: string): Promise<{
@@ -36,7 +36,7 @@ export class ReglementGeneratorService {
     try {
       console.log(`[ReglementGenerator] Starting generation for candidat: ${idEtudiant}`);
 
-      // Fetch candidat data from Airtable
+      // Fetch candidat data from MongoDB
       const candidat = await this.candidatRepo.getById(idEtudiant);
       if (!candidat) {
         return {
@@ -77,7 +77,7 @@ export class ReglementGeneratorService {
       // Build full name
       const nomComplet = `${prenom} ${nomNaissance}`.trim();
 
-      // Format date if needed (assuming ISO format from Airtable, convert to DD/MM/YYYY)
+      // Format date if needed (convert ISO format to DD/MM/YYYY)
       let formattedDate = dateEnvoi;
       if (dateEnvoi && dateEnvoi.includes('-')) {
         const parts = dateEnvoi.split('-');
@@ -145,7 +145,7 @@ export class ReglementGeneratorService {
 
       console.log(`[ReglementGenerator] PDF saved to: ${tmpPath}`);
 
-      // Upload to Airtable
+      // Store in MongoDB/GridFS
       console.log(`[ReglementGenerator] Uploading document field: ${REGLEMENT_DOCUMENT_FIELD}`);
       const uploadSuccess = await this.candidatRepo.uploadDocument(
         idEtudiant,
@@ -170,7 +170,7 @@ export class ReglementGeneratorService {
         console.error('[ReglementGenerator] Upload failed');
         return {
           success: false,
-          error: 'Failed to upload PDF to Airtable',
+          error: 'Failed to store PDF in MongoDB/GridFS',
         };
       }
     } catch (error: any) {

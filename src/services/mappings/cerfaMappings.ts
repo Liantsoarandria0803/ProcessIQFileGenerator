@@ -10,7 +10,7 @@
 
 // Codes situation avant le contrat - CERFA
 export const CODES_SITUATION_AVANT_CONTRAT: Record<string, string> = {
-  // Valeurs Airtable avec numéros -> Codes CERFA
+  // Valeurs legacy avec numéros -> Codes CERFA
   "1 Scolaire": "1",
   "2 Prépa apprentissage": "2",
   "3 Etudiant": "3",
@@ -24,7 +24,7 @@ export const CODES_SITUATION_AVANT_CONTRAT: Record<string, string> = {
   "10 Salarié": "10",
   "11 Personne à la recherche dun emploi (inscrite ou non à Pôle Emploi)": "11",
   "12 Inactif": "12",
-  // // Valeurs Airtable legacy sans numéros
+  // // Valeurs legacy sans numéros
   // "Scolaire : (Bac / brevet...)": "1",
   // "Scolaire": "1",
   // "Prépa apprentissage": "2",

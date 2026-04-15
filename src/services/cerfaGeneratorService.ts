@@ -437,7 +437,7 @@ export class CerfaGeneratorService {
       normalize(value).replace(/[^a-z0-9]+/g, ' ').trim();
     const normalizeCode = (value: string): string => {
       const upper = value.toUpperCase();
-      // Airtable/front may store foreign as 099, CERFA expects 99.
+      // Le front peut stocker "foreign" comme 099, CERFA attend 99.
       return upper === '099' ? '99' : upper;
     };
 
@@ -587,7 +587,7 @@ export class CerfaGeneratorService {
         return CFA_RUSH_SCHOOL[key];
       }
     }
-    // Tolerate different Airtable column names for birth department (legacy/encoding variants).
+    // Tolere differents noms de colonnes legacy pour le departement de naissance.
     if (
       source === 'candidat' &&
       key.toLowerCase().includes('partement') &&
@@ -611,7 +611,7 @@ export class CerfaGeneratorService {
       }
     }
 
-    // VALEURS FORCEES - retourner TOUJOURS ces valeurs, meme si Airtable est vide
+    // VALEURS FORCEES - retourner TOUJOURS ces valeurs, meme si le document est vide
     if (normalizedKey === 'modecontractueldelapprentissage') return '1';
     if (normalizedKey === 'heuresformationadistance') return '0';
 
@@ -632,7 +632,7 @@ export class CerfaGeneratorService {
       if (!percentValue) return '';
     }
 
-    // Special-case: certains champs "intitulÃ©" partagent la mÃªme colonne Airtable
+    // Cas special: certains champs "intitulÃ©" partagent la meme colonne document
     // (ex: "DiplÃ´me MaÃ®tre apprentissage intitulÃ©" doit lire la valeur
     // prÃ©sente dans la colonne "DiplÃ´me MaÃ®tre apprentissage" en texte brut).
     // Faire ces vÃ©rifications AVANT le return pour ne pas quitter prÃ©maturÃ©ment.
@@ -661,7 +661,7 @@ export class CerfaGeneratorService {
       return stripped ? stripped[1] : valueStr;
     }
     if (normalizedKey === 'derniereclasseanneesuivie') return this.getCodeClasse(valueStr);
-    // Champ intitulÃ© : mÃªme colonne Airtable, mais on retourne le texte brut (sans conversion en code)
+    // Champ intitulÃ© : meme colonne document, mais on retourne le texte brut (sans conversion en code)
     if (normalizedKey === 'diplomemaitreapprentissageintitule') {
       const raw = entrepriseData['DiplÃ´me MaÃ®tre apprentissage'];
       return raw ? String(raw) : 'Essaie';

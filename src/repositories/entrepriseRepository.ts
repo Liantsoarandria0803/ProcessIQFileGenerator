@@ -26,7 +26,7 @@ export class EntrepriseRepository {
   }
 
   async search(_formula: string): Promise<Entreprise[]> {
-    logger.warn('EntrepriseRepository.search: filterByFormula Airtable n\'est plus supporte, retour de toutes les fiches');
+    logger.warn('EntrepriseRepository.search: recherche textuelle legacy non supportee, retour de toutes les fiches');
     return this.getAll();
   }
 

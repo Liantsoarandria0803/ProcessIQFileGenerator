@@ -115,7 +115,7 @@ export interface UploadResponse {
   message: string;
   file_name?: string;
   file_size?: number;
-  airtable_record_id?: string;
+  record_id?: string;
 }
 
 // =====================================================

@@ -72,4 +72,21 @@ router.post(
   opcoController.syncStatus
 );
 
+router.patch(
+  '/dossiers/:id',
+  requireRole('admin', 'admission', 'commercial', 'rh'),
+  [
+    param('id').isMongoId().withMessage('ID invalide'),
+    body('opcoName').optional().isString(),
+    body('candidateId').optional().isMongoId(),
+    body('studentId').optional().isMongoId(),
+    body('companyId').optional().isMongoId(),
+    body('payload').optional().isObject(),
+    body('metadata').optional().isObject(),
+    body('documents').optional().isArray(),
+  ],
+  validateRequest,
+  opcoController.update
+);
+
 export default router;

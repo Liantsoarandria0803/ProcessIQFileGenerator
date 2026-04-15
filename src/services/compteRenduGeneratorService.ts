@@ -4,9 +4,9 @@
  *   - Lecture du template PDF
  *   - Approche annotation-overlay (drawText sur coordonnées des annotations)
  *   - Suppression AcroForm + Annots après écriture
- *   - Upload vers Airtable via tmpfiles.org
+ *   - Stockage des documents via MongoDB/GridFS
  *
- * Colonnes Airtable utilisées :
+ * Colonnes document utilisées :
  *   NOM de naissance, Prénom, E-mail, Téléphone, Date de visite, Formation
  *
  * Colonne d'upload : « Compte rendu de visite »
@@ -70,12 +70,12 @@ export class CompteRenduGeneratorService {
 
   /**
    * Génère le compte rendu de visite entretien pour un étudiant
-   * et l'upload sur Airtable dans la colonne « Compte rendu de visite ».
+   * et le stocke dans MongoDB/GridFS dans la colonne « Compte rendu de visite ».
    *
-   * @param idEtudiant - Record ID Airtable du candidat (ex: recXXXXXX)
+   * @param idEtudiant - ID MongoDB du candidat
    */
   async generateAndUpload(idEtudiant: string): Promise<CompteRenduGenerationResult> {
-    // 1. Récupérer les données candidat depuis Airtable
+    // 1. Récupérer les données candidat depuis MongoDB
     const candidat = await this.candidatRepo.getById(idEtudiant);
     if (!candidat) {
       return { success: false, error: `Candidat avec l'ID ${idEtudiant} non trouvé` };
@@ -87,8 +87,8 @@ export class CompteRenduGeneratorService {
       return result;
     }
 
-    // 3. Upload vers Airtable
-    await this.uploadToAirtable(idEtudiant, result.pdfBuffer, result.filename!);
+    // 3. Stockage MongoDB/GridFS
+    await this.uploadToStorage(idEtudiant, result.pdfBuffer, result.filename!);
 
     return result;
   }
@@ -175,22 +175,22 @@ export class CompteRenduGeneratorService {
       if (!fieldName) return 0;
 
       // Vérifier si c'est un champ qu'on doit remplir
-      const airtableColumn = COMPTE_RENDU_TEXT_FIELDS[fieldName];
-      if (!airtableColumn) return 0;
+      const documentColumn = COMPTE_RENDU_TEXT_FIELDS[fieldName];
+      if (!documentColumn) return 0;
 
       // Lire les coordonnées
       const rect = this.readRect(annot);
       if (!rect) return 0;
 
-      // Récupérer la valeur Airtable
-      const rawValue = fields[airtableColumn];
+      // Récupérer la valeur du document
+      const rawValue = fields[documentColumn];
       if (rawValue == null) return 0;
 
       let value = String(rawValue).trim();
       if (!value) return 0;
 
       // Formater les dates ISO (2026-02-05 → 05/02/2026)
-      if (airtableColumn.toLowerCase().includes('date')) {
+      if (documentColumn.toLowerCase().includes('date')) {
         value = this.formatDate(value);
       }
 
@@ -300,10 +300,10 @@ export class CompteRenduGeneratorService {
   }
 
   // =====================================================
-  // UPLOAD AIRTABLE
+  // STOCKAGE DOCUMENT
   // =====================================================
 
-  private async uploadToAirtable(
+  private async uploadToStorage(
     idEtudiant: string,
     pdfBuffer: Buffer,
     filename: string
@@ -319,12 +319,12 @@ export class CompteRenduGeneratorService {
       );
 
       if (success) {
-        logger.info(`✅ Compte Rendu uploadé vers Airtable pour ${idEtudiant}`);
+        logger.info(`✅ Compte Rendu stocké dans MongoDB/GridFS pour ${idEtudiant}`);
       } else {
-        logger.warn(`⚠️ Échec upload Compte Rendu vers Airtable pour ${idEtudiant}`);
+        logger.warn(`⚠️ Échec du stockage du Compte Rendu dans MongoDB/GridFS pour ${idEtudiant}`);
       }
     } catch (err: any) {
-      logger.warn(`⚠️ Erreur upload Compte Rendu vers Airtable : ${err.message}`);
+      logger.warn(`⚠️ Erreur de stockage du Compte Rendu dans MongoDB/GridFS : ${err.message}`);
     } finally {
       try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
     }

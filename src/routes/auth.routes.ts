@@ -8,7 +8,7 @@ import { isMongoConnected } from '../config/database';
 
 const router = Router();
 
-const SUPPORTED_ROLES: UserRole[] = ['admin', 'student', 'staff', 'commercial', 'admission', 'rh'];
+const SUPPORTED_ROLES: UserRole[] = ['admin', 'super_admin', 'student', 'staff', 'commercial', 'admission', 'rh'];
 
 type LoginPrincipal = {
   id: string;

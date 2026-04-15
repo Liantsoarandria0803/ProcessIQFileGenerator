@@ -17,8 +17,8 @@ export class ProjetProRepository {
   async getAll(): Promise<{ id: string; fields: ProjetProFields }[]> {
     const docs = await this.collection.find({}).toArray();
     return docs.map((doc: any) => {
-      const { _id, _airtableId, _airtableCreatedTime, _migratedAt, __v, ...fields } = doc;
-      return { id: _airtableId || _id.toString(), fields };
+      const { _id, __v, ...fields } = doc;
+      return { id: _id.toString(), fields };
     });
   }
 

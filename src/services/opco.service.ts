@@ -219,6 +219,37 @@ export class OpcoService {
     }
   }
 
+  async updateSubmission(
+    id: string,
+    updates: {
+      opcoName?: string;
+      candidateId?: string | null;
+      studentId?: string | null;
+      companyId?: string | null;
+      payload?: GenericObject;
+      metadata?: GenericObject;
+      documents?: Array<{ type: string; documentId?: string; url?: string; filename?: string }>;
+    },
+    updatedBy?: string
+  ): Promise<IOpcoSubmission> {
+    const submission = await OpcoSubmissionModel.findById(id);
+    if (!submission) {
+      throw new Error('Dossier OPCO introuvable');
+    }
+
+    if (typeof updates.opcoName === 'string') submission.opcoName = updates.opcoName;
+    if (typeof updates.candidateId !== 'undefined') submission.candidateId = updates.candidateId || null;
+    if (typeof updates.studentId !== 'undefined') submission.studentId = updates.studentId || null;
+    if (typeof updates.companyId !== 'undefined') submission.companyId = updates.companyId || null;
+    if (typeof updates.payload !== 'undefined') submission.payload = updates.payload || {};
+    if (typeof updates.metadata !== 'undefined') submission.metadata = updates.metadata || {};
+    if (typeof updates.documents !== 'undefined') submission.documents = updates.documents || [];
+
+    submission.updatedBy = updatedBy || submission.updatedBy;
+    await submission.save();
+    return submission;
+  }
+
   private async sendCreateRequest(payload: GenericObject): Promise<RemoteSubmitResult> {
     const response = await this.request(
       this.joinUrl(config.opco.baseUrl, config.opco.createDossierPath),
