@@ -512,7 +512,6 @@ export const CERFA_TEXT_FIELDS: Record<string, [string, string]> = {
   "Zone de texte 8_5": ["entreprise", "Effectif salarié de l'entreprise"],
   "Zone de texte 8_11": ["entreprise", "Téléphone entreprise"],
   "Zone de texte 8_12": ["entreprise", "Email entreprise"],
-  "Zone de texte 8_6": ["entreprise", "Convention collective"],
 
   // =====================================================
   // L'APPRENTI(E)

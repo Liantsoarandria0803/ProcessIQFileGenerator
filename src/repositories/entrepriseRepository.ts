@@ -314,6 +314,7 @@ export class EntrepriseRepository {
         const dateFin1p1a = pickString(
           contrat,
           'date_fin_1periode_1ere_annee',
+          'date_fin_1periode_1ere_année',
           'date_fin_1periode_1er_annee',
           'date_fin_1periode_1er_année'
         );
