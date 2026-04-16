@@ -566,18 +566,74 @@ export class CerfaGeneratorService {
 
   private isEmployeurPrive(typeEmployeur: string | undefined): boolean {
     if (!typeEmployeur) return true;
-    const t = String(typeEmployeur).trim();
+
+    const raw = String(typeEmployeur).trim();
+
+    // Prefer determining from the official 2-digit CERFA code (11-16 = privé, 21-30 = public)
+    const code = this.getCodeTypeEmployeur(raw);
+    if (/^\d{2}$/.test(code)) {
+      const n = Number(code);
+      if (n >= 11 && n <= 16) return true;
+      if (n >= 21 && n <= 30) return false;
+    }
+
+    const normalize = (value: string): string => {
+      let s = value.trim();
+      if (/[ÃÂ]/.test(s)) {
+        try {
+          const fixed = Buffer.from(s, 'latin1').toString('utf8');
+          if (fixed && fixed !== s) s = fixed;
+        } catch {
+          // ignore
+        }
+      }
+      return s
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    };
+
+    const t = normalize(raw);
     for (const tp of TYPES_EMPLOYEUR_PRIVE) {
-      if (tp.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(tp.toLowerCase())) return true;
+      const candidate = normalize(tp);
+      if (candidate.includes(t) || t.includes(candidate)) return true;
     }
     return false;
   }
 
   private isEmployeurPublic(typeEmployeur: string | undefined): boolean {
     if (!typeEmployeur) return false;
-    const t = String(typeEmployeur).trim();
+
+    const raw = String(typeEmployeur).trim();
+
+    // Prefer determining from the official 2-digit CERFA code (21-30 = public, 11-16 = privé)
+    const code = this.getCodeTypeEmployeur(raw);
+    if (/^\d{2}$/.test(code)) {
+      const n = Number(code);
+      if (n >= 21 && n <= 30) return true;
+      if (n >= 11 && n <= 16) return false;
+    }
+
+    const normalize = (value: string): string => {
+      let s = value.trim();
+      if (/[ÃÂ]/.test(s)) {
+        try {
+          const fixed = Buffer.from(s, 'latin1').toString('utf8');
+          if (fixed && fixed !== s) s = fixed;
+        } catch {
+          // ignore
+        }
+      }
+      return s
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    };
+
+    const t = normalize(raw);
     for (const tp of TYPES_EMPLOYEUR_PUBLIC) {
-      if (tp.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(tp.toLowerCase())) return true;
+      const candidate = normalize(tp);
+      if (candidate.includes(t) || t.includes(candidate)) return true;
     }
     return false;
   }
@@ -802,7 +858,11 @@ export class CerfaGeneratorService {
 
     // Secteur: determine depuis le type d'employeur
     if (key === 'Secteur') {
-      const typeEmployeur = entrepriseData["Type d'employeur"] || entrepriseData['Type demployeur'] || '';
+      const typeEmployeur =
+        entrepriseData["Type d'employeur"] ||
+        entrepriseData['Type d’employeur'] ||
+        entrepriseData['Type demployeur'] ||
+        '';
       const expected = normalize(expectedValue);
       if (expected === 'prive') return this.isEmployeurPrive(typeEmployeur);
       if (expected === 'public') return this.isEmployeurPublic(typeEmployeur);
