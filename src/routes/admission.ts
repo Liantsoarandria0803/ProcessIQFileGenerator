@@ -1,4 +1,4 @@
-﻿import { Router, Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
@@ -416,10 +416,69 @@ router.get('/candidats/:id', async (req: Request, res: Response) => {
       data: candidat
     });
   } catch (error) {
-    logger.error('Erreur récupération candidat:', error);
+    logger.error(`Erreur récupération candidat ${req.params.id}:`, error);
     res.status(500).json({
       success: false,
       error: 'Erreur lors de la récupération du candidat'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admission/candidats/{id}:
+ *   patch:
+ *     summary: Met à jour partiellement les informations personnelles d'un candidat
+ *     tags: [Candidats]
+ *     description: Met à jour partiellement les informations personnelles d'un candidat existant (seuls les champs fournis sont modifiés). Route alias de /api/admission/candidates/{recordId}.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID MongoDB du candidat
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/InformationsPersonnelles'
+ *     responses:
+ *       200:
+ *         description: Informations mises à jour avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/InformationsPersonnellesResponse'
+ *       404:
+ *         description: Candidat non trouvé
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.patch('/candidats/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const informations: InformationsPersonnelles = req.body;
+    
+    logger.info(`[Route] PATCH /candidats/${id}`);
+    const result = await admissionService.updateCandidateInfo(id, informations);
+    
+    res.json(result);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+    
+    if (errorMessage.includes('non trouvé')) {
+      return res.status(404).json({
+        success: false,
+        error: errorMessage
+      });
+    }
+    
+    logger.error('❌ ERREUR mise à jour candidat (alias):', error);
+    res.status(500).json({
+      success: false,
+      error: errorMessage
     });
   }
 });
