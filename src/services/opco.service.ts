@@ -520,12 +520,15 @@ export class OpcoService {
     }
 
     if (typeof updates.opcoName === 'string') submission.opcoName = updates.opcoName;
-    if (typeof updates.candidateId !== 'undefined') submission.candidateId = updates.candidateId || null;
-    if (typeof updates.studentId !== 'undefined') submission.studentId = updates.studentId || null;
-    if (typeof updates.companyId !== 'undefined') submission.companyId = updates.companyId || null;
-    if (typeof updates.payload !== 'undefined') submission.payload = updates.payload || {};
+    if (typeof updates.candidateId !== 'undefined') submission.candidateId = (updates.candidateId || null) as any;
+    if (typeof updates.studentId !== 'undefined') submission.studentId = (updates.studentId || null) as any;
+    if (typeof updates.companyId !== 'undefined') submission.companyId = (updates.companyId || null) as any;
+    if (typeof updates.payload !== 'undefined') {
+      submission.payload = updates.payload || {};
+      submission.codeNaf = extractCodeNaf(submission.payload);
+    }
     if (typeof updates.metadata !== 'undefined') submission.metadata = updates.metadata || {};
-    if (typeof updates.documents !== 'undefined') submission.documents = updates.documents || [];
+    if (typeof updates.documents !== 'undefined') submission.documents = normalizeDocuments(updates.documents || []) as any;
 
     submission.updatedBy = updatedBy || submission.updatedBy;
     await submission.save();
