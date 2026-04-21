@@ -20,7 +20,7 @@ const formatRole = (role: string): string => (role === 'student' ? 'eleve' : rol
 const formatIntegrationType = (type: IntegrationType): string =>
   type === 'api_insee_siren' ? 'API INSEE SIREN' : 'Email (Gmail/SMTP)';
 
-const validateRequest = (req: any, res: any): boolean => {
+const validateRequest = (req: Request, res: Response): boolean => {
   const errors = validationResult(req);
   if (errors.isEmpty()) return true;
   res.status(400).json({

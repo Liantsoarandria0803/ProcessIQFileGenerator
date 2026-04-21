@@ -21,7 +21,7 @@ const replacePathParam = (pathTemplate: string, externalId: string): string =>
  */
 const normalizeStatus = (status?: string | null, responseBody?: GenericObject): OpcoSubmissionStatus => {
   const value = String(status || '').trim().toLowerCase();
-  
+
   // Logique robuste de détermination du statut
   if (!value) {
     // Si pas de statut string, vérifier la réponse pour des indicateurs
@@ -161,9 +161,9 @@ export class OpcoService {
     const opcoName = params.opcoName || financement.opco_nom || config.opco.name;
     const dateDebut = new Date(
       payload?.contrat?.date_debut_execution ||
-        payload?.contrat?.date_debut ||
-        payload?.date_debut_contrat ||
-        Date.now()
+      payload?.contrat?.date_debut ||
+      payload?.date_debut_contrat ||
+      Date.now()
     );
     const dateLimiteEnvoi = addBusinessDays(dateDebut, 5);
     const apprentiNom = String(payload?.apprenti?.nom_complet || payload?.apprentiNom || payload?.candidateName || '').trim() || null;
@@ -238,7 +238,7 @@ export class OpcoService {
       try {
         pdfInfo = await opcoDocumentGeneratorService.generateOpcoSummaryPDF(submission);
         console.log(`✅ PDF OPCO généré: ${pdfInfo.filename}`);
-        
+
         // Ajouter le PDF aux documents du dossier
         submission.documents.push({
           type: 'Dossier OPCO Synthèse',
@@ -246,7 +246,7 @@ export class OpcoService {
           filename: pdfInfo.filename,
           documentId: pdfInfo.fileId,
         });
-        
+
         await submission.save();
       } catch (pdfError: any) {
         console.warn(`⚠️  Erreur génération PDF: ${pdfError?.message || 'Erreur inconnue'}`);

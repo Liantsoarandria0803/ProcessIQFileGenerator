@@ -29,7 +29,7 @@
   "exclude": [
     "node_modules",
     "dist",
-    "src/services/opco.service.new.ts",
-    "src/services/opco.service.improved.ts"
+    "src/services/opco.service.improved.ts",
+    "src/services/opco.service.new.ts"
   ]
 }

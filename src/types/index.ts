@@ -2,6 +2,8 @@
  * Types pour les données métier persistées
  */
 
+export type GenericObject = Record<string, any>;
+
 // =====================================================
 // CANDIDAT (Table: Liste des candidats)
 // =====================================================
@@ -80,7 +82,7 @@ export interface EntrepriseFields {
   'Convention collective'?: string;
   'Caisse de retraite'?: string;
   'Nom OPCO'?: string;
-  
+
   // Maître d'apprentissage
   'Nom Maître apprentissage'?: string;
   'Prénom Maître apprentissage'?: string;
@@ -90,7 +92,7 @@ export interface EntrepriseFields {
   'Année experience pro Maître apprentissage'?: number;
   'Téléphone Maître apprentissage'?: string;
   'Email Maître apprentissage'?: string;
-  
+
   // Contrat
   'Type de contrat'?: string;
   'Type de dérogation'?: string;
@@ -103,7 +105,7 @@ export interface EntrepriseFields {
   'Formation de lalternant(e) (pour les missions)'?: string;
   'Date de conclusion'?: string;
   'Travail sur machines dangereuses ou exposition à des risques particuliers'?: string;
-  
+
   // Rémunération
   'Pourcentage du SMIC 1'?: number;
   'Pourcentage smic 1 2'?: number;
@@ -121,7 +123,7 @@ export interface EntrepriseFields {
   'Pourcentage smic 4 2'?: number;
   'smic 4'?: number;
   'Salaire brut mensuel 4'?: number;
-  
+
   // Dates périodes
   'date_fin_1periode_1ere_annee'?: string;
   'date_debut_2periode_1er_annee'?: string;
@@ -154,7 +156,7 @@ export interface EntrepriseFields {
   'Voie Adresse CFA'?: string;
   'Code postal CFA'?: number;
   'Commune CFA'?: string;
-  
+
   [key: string]: any;
 }
 

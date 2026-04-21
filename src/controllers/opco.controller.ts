@@ -27,7 +27,7 @@ export class OpcoController {
     try {
       const item = await this.opcoService.getFinancementPreview(String(req.query.codeNaf || ''), String(req.query.diplomeRncp || ''));
       if (!item) {
-        res.status(404).json({ success: false, error: 'Aucun OPCO trouvé pour ce code NAF' });
+        res.status(404).json({ success: false, error: 'Aucun OPCO trouve pour ce code NAF' });
         return;
       }
       res.status(200).json({ success: true, data: item });
@@ -82,7 +82,7 @@ export class OpcoController {
         success: true,
         message:
           created.status === 'BROUILLON'
-            ? 'Dossier OPCO enregistre localement. Ajoute la configuration OPCO dans le .env pour activer l’envoi.'
+            ? 'Dossier OPCO enregistre localement. Ajoute la configuration OPCO dans le .env pour activer l envoi.'
             : 'Dossier OPCO cree avec succes',
         data: created
       });
@@ -96,7 +96,7 @@ export class OpcoController {
       const updated = await this.opcoService.submitExisting(req.params.id, req.auth?.sub || undefined);
       res.status(200).json({
         success: true,
-        message: updated.lastError ? `Tentative d'envoi OPCO terminee avec erreur` : `Dossier OPCO envoye`,
+        message: updated.lastError ? "Tentative d'envoi OPCO terminee avec erreur" : 'Dossier OPCO envoye',
         data: updated
       });
     } catch (error: any) {

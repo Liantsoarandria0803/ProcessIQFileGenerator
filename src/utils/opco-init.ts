@@ -15,17 +15,17 @@ import { franceCompetencesService } from '../services/franceCompetences.service'
 export async function initializeOpcoTables() {
   try {
     console.log('\n🔄 Initialisation des tables France Compétences...');
-    
+
     // Initialiser NAF → OPCO mapping
     await nafOpcoMappingService.initializeMapping();
     console.log('✅ Table NAF→OPCO initialisée (~700 entrées)');
-    
+
     // Initialiser les barèmes France Compétences
     await franceCompetencesService.initializeRates();
     console.log('✅ Table barèmes France Compétences initialisée (~30 formations)');
-    
+
     console.log('✅ OPCO Module prêt!\n');
-    
+
   } catch (error: any) {
     console.error('❌ Erreur initialisation OPCO:', error?.message);
     // Ne pas bloquer le démarrage si les tables existent déjà
