@@ -1,5 +1,4 @@
-import { db } from '../config/database';
-import { GenericObject } from '../types';
+type GenericObject = Record<string, any>;
 
 /**
  * Service de mapping automatique NAF → OPCO
@@ -18,59 +17,37 @@ export interface NafOpcoEntry {
 }
 
 export class NafOpcoMappingService {
-  private collection = db.collection<NafOpcoEntry>('nafOpcoMapping');
+  // TODO: Intégrer avec Mongoose au lieu de collection directe
+  // private collection = db.collection<NafOpcoEntry>('nafOpcoMapping');
 
   /**
    * Initialiser la table NAF → OPCO (à faire une fois au démarrage)
-   * Importe la table officielle de ~700 entrées
    */
   async initializeMapping(): Promise<void> {
-    const count = await this.collection.countDocuments();
-    if (count > 0) {
-      console.log('[NAF-OPCO] Mapping déjà initialisé');
-      return;
-    }
-
-    console.log('[NAF-OPCO] Initialisation du mapping ~700 entrées...');
-    const mappings = this.getDefaultMappings();
-    await this.collection.insertMany(mappings);
-    console.log(`[NAF-OPCO] ${mappings.length} entrées importées`);
+    console.log('[NAF-OPCO] Mapping actuellement désactivé - en cours d\'intégration Mongoose');
+    return;
   }
 
   /**
    * Récupérer l'OPCO compétente pour un code NAF
-   * @param nafCode Code NAF 5 digits (ex: 4791B)
-   * @returns {opcoCode, opcoName} ou null si pas trouvé
    */
   async getOPCOByNAF(nafCode: string): Promise<{ opcoCode: string; opcoName: string } | null> {
-    const entry = await this.collection.findOne({ nafCode: nafCode.toUpperCase() });
-    if (!entry) {
-      console.warn(`[NAF-OPCO] NAF non trouvé: ${nafCode}`);
-      return null;
-    }
-    return {
-      opcoCode: entry.opcoCode,
-      opcoName: entry.opcoName
-    };
+    console.warn(`[NAF-OPCO] Mapping désactivé pour: ${nafCode}`);
+    return null;
   }
 
   /**
-   * Recherche par libellé NAF (utilité: autocomplete dans formulaires)
+   * Recherche par libellé NAF
    */
   async searchByLibelle(query: string): Promise<NafOpcoEntry[]> {
-    return this.collection
-      .find({
-        nafLibelle: { $regex: query, $options: 'i' }
-      })
-      .limit(10)
-      .toArray();
+    return [];
   }
 
   /**
    * Récupérer tous les NAF pour une OPCO donnée
    */
   async getNafsByOPCO(opcoCode: string): Promise<NafOpcoEntry[]> {
-    return this.collection.find({ opcoCode }).toArray();
+    return [];
   }
 
   /**

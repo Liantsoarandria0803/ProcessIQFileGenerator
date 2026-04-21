@@ -25,6 +25,7 @@ export interface IOpcoSubmission extends Document {
   opcoCode?: string | null;
   opcoName: string;
   opcoPortal?: string | null;
+  codeNaf?: string | null;
   candidateId?: Types.ObjectId | null;
   studentId?: Types.ObjectId | null;
   companyId?: Types.ObjectId | null;
@@ -95,6 +96,7 @@ const OpcoSubmissionSchema = new Schema<IOpcoSubmission>(
     opcoCode: { type: String, default: null, maxlength: 20, index: true },
     opcoName: { type: String, required: true, trim: true, maxlength: 120, index: true },
     opcoPortal: { type: String, default: null, maxlength: 500 },
+    codeNaf: { type: String, default: null, maxlength: 10, index: true },
     candidateId: { type: Schema.Types.ObjectId, ref: 'Candidate', default: null, index: true },
     studentId: { type: Schema.Types.ObjectId, ref: 'Student', default: null, index: true },
     companyId: { type: Schema.Types.ObjectId, ref: 'CompanyEtudiant', default: null, index: true },

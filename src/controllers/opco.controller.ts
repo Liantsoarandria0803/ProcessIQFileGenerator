@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import { OpcoService } from '../services/opco.service';
+import { addBusinessDays } from '../services/opcoRules.service';
 
 const asObjectIdOrNull = (value: any): string | null => {
   const str = String(value || '').trim();
@@ -69,6 +70,7 @@ export class OpcoController {
         candidateId: asObjectIdOrUndefined(req.body.candidateId),
         studentId: asObjectIdOrUndefined(req.body.studentId),
         companyId: asObjectIdOrUndefined(req.body.companyId),
+        codeNaf: typeof req.body.codeNaf === 'string' ? req.body.codeNaf : undefined,
         payload: req.body.payload || {},
         metadata: req.body.metadata || {},
         documents: Array.isArray(req.body.documents) ? req.body.documents : [],
@@ -94,7 +96,7 @@ export class OpcoController {
       const updated = await this.opcoService.submitExisting(req.params.id, req.auth?.sub || undefined);
       res.status(200).json({
         success: true,
-        message: updated.status === 'error' ? 'Tentative d’envoi OPCO terminee avec erreur' : 'Dossier OPCO envoye',
+        message: updated.lastError ? `Tentative d'envoi OPCO terminee avec erreur` : `Dossier OPCO envoye`,
         data: updated
       });
     } catch (error: any) {
@@ -137,7 +139,7 @@ export class OpcoController {
         data: {
           dossierId: dossier._id,
           dateDebut: dateDebut.toISOString(),
-          dateLimite: new Date(dateDebut.getTime() + (5 * 7 * 24 * 60 * 60 * 1000)).toISOString(),
+          dateLimite: addBusinessDays(dateDebut, 5).toISOString(),
           ...deadline
         }
       });

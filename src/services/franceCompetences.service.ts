@@ -1,5 +1,4 @@
-import { db } from '../config/database';
-import { GenericObject } from '../types';
+type GenericObject = Record<string, any>;
 
 /**
  * Service France Compétences - Barèmes de financement
@@ -26,68 +25,38 @@ export interface FranceCompetencesRate {
 }
 
 export class FranceCompetencesService {
-  private collection = db.collection<FranceCompetencesRate>('franceCompetencesRates');
+  // TODO: Intégrer avec Mongoose au lieu de collection directe
+  // private collection = db.collection<FranceCompetencesRate>('franceCompetencesRates');
 
   /**
    * Initialiser les barèmes France Compétences 2025-2026
    */
   async initializeRates(): Promise<void> {
-    const count = await this.collection.countDocuments();
-    if (count > 0) {
-      console.log('[FRANCE-COMPETENCES] Barèmes déjà initialisés');
-      return;
-    }
-
-    console.log('[FRANCE-COMPETENCES] Initialisation des barèmes 2025-2026...');
-    const rates = this.getDefaultRates();
-    await this.collection.insertMany(rates);
-    console.log(`[FRANCE-COMPETENCES] ${rates.length} barèmes importés`);
+    console.log('[FRANCE-COMPETENCES] Barèmes actuellement désactivés - en cours d\'intégration Mongoose');
+    return;
   }
 
   /**
    * Récupérer le montant de prise en charge pour une formation
-   * @param opcoCode Code OPCO (ex: OPCO_COMMERCE)
-   * @param formationName Nom formation (ex: BTS MCO)
-   * @param annee Année (ex: 2025)
-   * @returns Montant annuel ou null si non trouvé
    */
   async getFinancingForFormation(
     opcoCode: string,
     formationName: string,
     annee: number = 2025
   ): Promise<{ montantAnnuel: number; montantHoraire?: number; notes?: string } | null> {
-    const rate = await this.collection.findOne({
-      opcoCode,
-      formationName: { $regex: formationName, $options: 'i' },
-      annee
-    });
-
-    if (!rate) {
-      console.warn(`[FRANCE-COMPETENCES] Barème non trouvé: ${opcoCode}/${formationName}/${annee}`);
-      return null;
-    }
-
-    return {
-      montantAnnuel: rate.montantAnnuel,
-      montantHoraire: rate.montantHoraire,
-      notes: rate.notes
-    };
+    console.log(`[FRANCE-COMPETENCES] Barèmes désactivés - getFinancingForFormation non implémenté`);
+    return null;
   }
 
   /**
    * Récupérer tous les barèmes pour une OPCO donnée
    */
   async getRatesByOPCO(opcoCode: string, annee: number = 2025): Promise<FranceCompetencesRate[]> {
-    return this.collection.find({ opcoCode, annee }).toArray();
+    return [];
   }
 
   /**
-   * Calculer le montant total pour une alternance (années + heures)
-   * @param opcoCode
-   * @param formationName
-   * @param durationMonths Durée en mois
-   * @param hoursPerWeek Heures par semaine
-   * @param annee
+   * Calculer le montant total pour une alternance
    */
   async calculateTotalFinancing(
     opcoCode: string,
@@ -96,20 +65,7 @@ export class FranceCompetencesService {
     hoursPerWeek?: number,
     annee: number = 2025
   ): Promise<{ montantAnnuel: number; montantTotal: number; ventilation: GenericObject } | null> {
-    const rate = await this.getFinancingForFormation(opcoCode, formationName, annee);
-    if (!rate) return null;
-
-    const montantTotal = (rate.montantAnnuel * durationMonths) / 12;
-    return {
-      montantAnnuel: rate.montantAnnuel,
-      montantTotal,
-      ventilation: {
-        durationMonths,
-        montantAnnuel: rate.montantAnnuel,
-        montantParMois: rate.montantAnnuel / 12,
-        hoursPerWeek: hoursPerWeek || 35
-      }
-    };
+    return null;
   }
 
   /**

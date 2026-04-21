@@ -1,6 +1,5 @@
-import { PDFDocument, PDFPage, rgb } from 'pdf-lib';
-import { GridFSBucket } from 'mongodb';
-import { getMongoDb } from '../config/mongoDb';
+import { PDFDocument, PDFPage, rgb, StandardFonts } from 'pdf-lib';
+import { uploadBuffer } from './gridfsService';
 import { Readable } from 'stream';
 
 type GenericObject = Record<string, any>;
@@ -43,7 +42,6 @@ export class OpcoDocumentGeneratorService {
       y: yPosition,
       size: 24,
       color: primaryColor,
-      fontName: 'Helvetica-Bold',
     });
     yPosition -= 10;
 
@@ -52,7 +50,6 @@ export class OpcoDocumentGeneratorService {
       y: yPosition,
       size: 12,
       color: secondaryColor,
-      fontName: 'Helvetica',
     });
     yPosition -= 25;
 
@@ -172,42 +169,26 @@ export class OpcoDocumentGeneratorService {
       y: 20,
       size: 9,
       color: rgb(0.6, 0.6, 0.6),
-      fontName: 'Helvetica',
     });
 
     // Générer le PDF en bytes
     const pdfBytes = await pdfDoc.save();
 
     // Sauvegarder dans GridFS
-    const db = getMongoDb();
-    const bucket = new GridFSBucket(db);
-
     const filename = `OPCO_${submission.opcoName}_${submission.apprentiNom || 'dossier'}_${Date.now()}.pdf`;
-    const uploadStream = bucket.openUploadStream(filename, {
-      metadata: {
-        type: 'opco_summary',
-        submissionId: submission._id?.toString() || null,
-        createdAt: new Date(),
-      },
+    const result = await uploadBuffer(Buffer.from(pdfBytes), filename, 'application/pdf', {
+      type: 'opco_summary',
+      submissionId: submission._id?.toString() || null,
+      createdAt: new Date(),
     });
 
-    // Convertir Buffer en Stream
-    const bufferStream = Readable.from([pdfBytes]);
-    bufferStream.pipe(uploadStream);
-
-    return new Promise((resolve, reject) => {
-      uploadStream.on('finish', (file: any) => {
-        const url = `/api/gridfs/${file._id.toString()}`;
-        resolve({
-          fileId: file._id.toString(),
-          filename: file.filename || filename,
-          url,
-          mimeType: 'application/pdf',
-          size: pdfBytes.length,
-        });
-      });
-      uploadStream.on('error', reject);
-    });
+    return {
+      fileId: result.fileId,
+      filename: result.filename,
+      url: result.url,
+      mimeType: result.contentType,
+      size: result.size,
+    };
   }
 
   /**
@@ -236,7 +217,6 @@ export class OpcoDocumentGeneratorService {
       y: y - 20,
       size: 12,
       color,
-      fontName: 'Helvetica-Bold',
     });
 
     return y - 35;
@@ -273,7 +253,6 @@ export class OpcoDocumentGeneratorService {
         y: currentY - 15,
         size: 10,
         color: rgb(0.4, 0.4, 0.4),
-        fontName: 'Helvetica-Bold',
       });
 
       // Valeur
@@ -282,7 +261,6 @@ export class OpcoDocumentGeneratorService {
         y: currentY - 15,
         size: 10,
         color: rgb(0.2, 0.2, 0.2),
-        fontName: 'Helvetica',
       });
 
       currentY -= 20;

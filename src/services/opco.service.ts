@@ -5,6 +5,7 @@ import { addBusinessDays, getFinancementInfo, validateOPCOCreation } from './opc
 import { opcoDocumentGeneratorService } from './opcoDocumentGeneratorService';
 
 type GenericObject = Record<string, any>;
+type OpcoConnection = typeof config.opco.connections[number];
 
 type RemoteSubmitResult = {
   remoteId?: string | null;
@@ -91,12 +92,126 @@ const extractRemoteStatus = (payload: GenericObject | null): string | null => {
   return String(payload.status || payload.remoteStatus || payload.state || payload.dossierStatus || '').trim() || null;
 };
 
+const extractRemoteNumeroDossier = (payload: GenericObject | null): string | null => {
+  if (!payload || typeof payload !== 'object') return null;
+  return String(
+    payload.numeroDossierOpco ||
+      payload.numero_dossier_opco ||
+      payload.numeroDossier ||
+      payload.numero_dossier ||
+      payload.reference ||
+      ''
+  ).trim() || null;
+};
+
+const extractGrantedAmount = (payload: GenericObject | null): number | null => {
+  if (!payload || typeof payload !== 'object') return null;
+  const parsed = Number(
+    payload.montantAccorde ??
+      payload.montant_accorde ??
+      payload.amountGranted ??
+      payload.approvedAmount ??
+      null
+  );
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+};
+
+const extractRefusalReason = (payload: GenericObject | null): string | null => {
+  if (!payload || typeof payload !== 'object') return null;
+  return String(
+    payload.motifRefus ||
+      payload.motif_refus ||
+      payload.refusalReason ||
+      payload.reason ||
+      ''
+  ).trim() || null;
+};
+
+const extractCodeNaf = (payload: GenericObject): string | null =>
+  String(
+    payload?.codeNaf ||
+      payload?.code_naf ||
+      payload?.identification?.code_ape_naf ||
+      payload?.identification?.code_naf ||
+      payload?.employeur?.code_naf ||
+      payload?.employeur?.codeNaf ||
+      ''
+  )
+    .trim()
+    .toUpperCase()
+    .replace(/\./g, '') || null;
+
+const normalizeDocuments = (
+  documents: Array<{ type: string; documentId?: string; url?: string; filename?: string }> = []
+) => {
+  const seen = new Set<string>();
+  return documents.filter((document) => {
+    const type = String(document?.type || '').trim();
+    const url = String(document?.url || '').trim();
+    const filename = String(document?.filename || '').trim();
+    const documentId = String(document?.documentId || '').trim();
+    if (!type || (!url && !filename && !documentId)) return false;
+    const key = [type.toLowerCase(), url, filename.toLowerCase(), documentId].join('|');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const normalizeConnectionKey = (value: string | null | undefined): string =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const isConnectionConfigured = (connection: Pick<OpcoConnection, 'enabled' | 'baseUrl'> | null | undefined): boolean =>
+  Boolean(connection?.enabled && String(connection?.baseUrl || '').trim());
+
 export class OpcoService {
+  private getConfiguredConnections(): OpcoConnection[] {
+    return (config.opco.connections || []).filter((connection) => isConnectionConfigured(connection));
+  }
+
+  private findConnection(opcoCode?: string | null, opcoName?: string | null): OpcoConnection {
+    const connections = config.opco.connections || [];
+    const wantedKeys = [normalizeConnectionKey(opcoCode), normalizeConnectionKey(opcoName)].filter(Boolean);
+
+    for (const wantedKey of wantedKeys) {
+      const matched = connections.find((connection) => normalizeConnectionKey(connection.key) === wantedKey);
+      if (matched) return matched;
+    }
+
+    return connections[0];
+  }
+
+  private getConfigurationIssues(): string[] {
+    const issues: string[] = [];
+    const defaultConnection = (config.opco.connections || [])[0];
+    const configuredConnections = this.getConfiguredConnections();
+
+    if (config.opco.enabled && !String(config.opco.baseUrl || '').trim()) {
+      issues.push('OPCO_ENABLED=true mais OPCO_API_BASE_URL est vide');
+    }
+    if (config.opco.enabled && !String(config.opco.apiKey || '').trim() && !String(config.opco.clientId || '').trim()) {
+      issues.push('Aucun secret OPCO fourni: renseigne OPCO_API_KEY ou des credentials client');
+    }
+    if (!configuredConnections.length) {
+      issues.push('Aucune connexion OPCO active et exploitable n’est configurée');
+    }
+    if (defaultConnection && defaultConnection.enabled && !String(defaultConnection.statusPath || '').includes('{externalId}')) {
+      issues.push('OPCO_STATUS_PATH devrait contenir {externalId} pour la synchronisation');
+    }
+
+    return issues;
+  }
+
   isConfigured(): boolean {
-    return Boolean(config.opco.enabled && config.opco.baseUrl);
+    return this.getConfiguredConnections().length > 0;
   }
 
   getPublicConfig() {
+    const configuredConnections = this.getConfiguredConnections();
     return {
       enabled: config.opco.enabled,
       configured: this.isConfigured(),
@@ -106,6 +221,13 @@ export class OpcoService {
       statusPath: config.opco.statusPath,
       hasApiKey: Boolean(config.opco.apiKey),
       hasClientCredentials: Boolean(config.opco.clientId && config.opco.clientSecret),
+      availableConnections: configuredConnections.map((connection) => ({
+        key: connection.key,
+        name: connection.name,
+        baseUrl: connection.baseUrl || null,
+        configured: isConnectionConfigured(connection),
+      })),
+      configurationIssues: this.getConfigurationIssues(),
     };
   }
 
@@ -136,6 +258,7 @@ export class OpcoService {
     candidateId?: string;
     studentId?: string;
     companyId?: string;
+    codeNaf?: string;
     payload: GenericObject;
     metadata?: GenericObject;
     documents?: Array<{ type: string; documentId?: string; url?: string; filename?: string }>;
@@ -154,6 +277,8 @@ export class OpcoService {
 
     const financement = validation.financement!;
     const opcoName = params.opcoName || financement.opco_nom || config.opco.name;
+    const connection = this.findConnection(financement.opco_code, opcoName);
+    const codeNaf = params.codeNaf || extractCodeNaf(payload);
     const dateDebut = new Date(
       payload?.contrat?.date_debut_execution ||
         payload?.contrat?.date_debut ||
@@ -170,6 +295,7 @@ export class OpcoService {
       opcoCode: financement.opco_code,
       opcoName,
       opcoPortal: financement.opco_portail || null,
+      codeNaf,
       candidateId: params.candidateId || null,
       studentId: params.studentId || null,
       companyId: params.companyId || null,
@@ -182,13 +308,13 @@ export class OpcoService {
       montantMensuel: financement.montant_mensuel,
       payload,
       metadata: params.metadata || {},
-      documents: params.documents || [],
+      documents: normalizeDocuments(params.documents || []),
       createdBy: params.createdBy || null,
       updatedBy: params.createdBy || null,
-      endpointUrl: config.opco.baseUrl || null,
-      status: this.isConfigured() && params.autoSubmit !== false ? 'EN_PREPARATION' : 'BROUILLON',
+      endpointUrl: connection.baseUrl || null,
+      status: isConnectionConfigured(connection) && params.autoSubmit !== false ? 'EN_PREPARATION' : 'BROUILLON',
       dateLimiteEnvoi,
-      lastError: this.isConfigured() || params.autoSubmit === false
+      lastError: isConnectionConfigured(connection) || params.autoSubmit === false
         ? null
         : 'Configuration OPCO absente. Ajoute les variables OPCO_* dans le .env pour activer l’envoi distant.',
     });
@@ -199,11 +325,11 @@ export class OpcoService {
       oldStatus: null,
       newStatus: submission.status,
       userId: params.createdBy || null,
-      comment: `OPCO ${submission.opcoName} identifie. Date limite d'envoi: ${dateLimiteEnvoi.toISOString()}`,
+      comment: `OPCO ${submission.opcoName} identifie. Connexion: ${connection.name}. Date limite d'envoi: ${dateLimiteEnvoi.toISOString()}`,
       documentIds: [],
     });
 
-    if (this.isConfigured() && params.autoSubmit !== false) {
+    if (isConnectionConfigured(connection) && params.autoSubmit !== false) {
       return this.submitExisting(submission._id.toString(), params.createdBy);
     }
 
@@ -216,7 +342,8 @@ export class OpcoService {
       throw new Error('Dossier OPCO introuvable');
     }
 
-    if (!this.isConfigured()) {
+    const connection = this.findConnection(submission.opcoCode, submission.opcoName);
+    if (!isConnectionConfigured(connection)) {
       submission.status = 'BROUILLON';
       submission.lastError = 'Configuration OPCO absente. Ajoute les variables OPCO_* dans le .env pour activer l’envoi distant.';
       submission.updatedBy = updatedBy || submission.updatedBy;
@@ -225,18 +352,33 @@ export class OpcoService {
     }
 
     try {
-      const remote = await this.sendCreateRequest(submission.payload);
+      const summaryDocument = await this.ensureSummaryDocument(submission);
+      const payloadWithDocuments = {
+        ...submission.payload,
+        documents: normalizeDocuments(
+          (submission.documents || []).map((document) => ({
+            type: document.type,
+            url: document.url || undefined,
+            filename: document.filename || undefined,
+            documentId: document.documentId ? String(document.documentId) : undefined,
+          }))
+        ),
+      };
+      const remote = await this.sendCreateRequest(payloadWithDocuments, connection);
       const previousStatus = submission.status;
       submission.remoteId = remote.remoteId || submission.remoteId || null;
       submission.remoteStatus = remote.remoteStatus || submission.remoteStatus || 'submitted';
-      submission.status = normalizeStatus(remote.remoteStatus);
-      submission.lastRequestBody = submission.payload;
+      submission.status = normalizeStatus(remote.remoteStatus, remote.responseBody || undefined);
+      submission.numeroDossierOpco = extractRemoteNumeroDossier(remote.responseBody) || submission.numeroDossierOpco || submission.remoteId || null;
+      submission.montantAccorde = extractGrantedAmount(remote.responseBody) ?? submission.montantAccorde ?? null;
+      submission.motifRefus = extractRefusalReason(remote.responseBody) || submission.motifRefus || null;
+      submission.lastRequestBody = payloadWithDocuments;
       submission.lastResponseBody = remote.responseBody;
       submission.lastError = null;
       submission.lastSubmittedAt = new Date();
       submission.dateEnvoiOpco = new Date();
       submission.lastSyncedAt = new Date();
-      submission.endpointUrl = config.opco.baseUrl || submission.endpointUrl;
+      submission.endpointUrl = connection.baseUrl || submission.endpointUrl;
       submission.updatedBy = updatedBy || submission.updatedBy;
       submission.syncAttempts.push({
         attemptedAt: new Date(),
@@ -252,8 +394,8 @@ export class OpcoService {
         oldStatus: previousStatus,
         newStatus: submission.status,
         userId: updatedBy || null,
-        comment: 'Dossier transmis au portail OPCO',
-        documentIds: [],
+        comment: summaryDocument ? 'Dossier transmis au portail OPCO avec synthese PDF' : 'Dossier transmis au portail OPCO',
+        documentIds: summaryDocument?.fileId ? [summaryDocument.fileId] : [],
       });
       return submission;
     } catch (error: any) {
@@ -288,8 +430,9 @@ export class OpcoService {
       throw new Error('Dossier OPCO introuvable');
     }
 
-    if (!this.isConfigured()) {
-      submission.lastError = 'Configuration OPCO absente. Impossible de synchroniser le statut.';
+    const connection = this.findConnection(submission.opcoCode, submission.opcoName);
+    if (!isConnectionConfigured(connection)) {
+      submission.lastError = `Configuration OPCO absente ou incomplete pour ${submission.opcoName || 'ce dossier'}. Impossible de synchroniser le statut.`;
       submission.updatedBy = updatedBy || submission.updatedBy;
       await submission.save();
       return submission;
@@ -300,11 +443,14 @@ export class OpcoService {
     }
 
     try {
-      const remote = await this.fetchRemoteStatus(submission.remoteId);
+      const remote = await this.fetchRemoteStatus(submission.remoteId, connection);
       const previousStatus = submission.status;
       submission.remoteStatus = remote.remoteStatus || submission.remoteStatus || null;
-      submission.status = normalizeStatus(remote.remoteStatus || submission.remoteStatus);
-      if (submission.status === 'ACCEPTE' || submission.status === 'REFUSE') {
+      submission.status = normalizeStatus(remote.remoteStatus || submission.remoteStatus, remote.responseBody || undefined);
+      submission.numeroDossierOpco = extractRemoteNumeroDossier(remote.responseBody) || submission.numeroDossierOpco || submission.remoteId || null;
+      submission.montantAccorde = extractGrantedAmount(remote.responseBody) ?? submission.montantAccorde ?? null;
+      submission.motifRefus = extractRefusalReason(remote.responseBody) || submission.motifRefus || null;
+      if (submission.status === 'ACCEPTE' || submission.status === 'REFUSE' || submission.status === 'REFUSE_DEFINITIF') {
         submission.dateReponseOpco = new Date();
       }
       submission.lastResponseBody = remote.responseBody;
@@ -363,12 +509,15 @@ export class OpcoService {
     }
 
     if (typeof updates.opcoName === 'string') submission.opcoName = updates.opcoName;
-    if (typeof updates.candidateId !== 'undefined') submission.candidateId = updates.candidateId || null;
-    if (typeof updates.studentId !== 'undefined') submission.studentId = updates.studentId || null;
-    if (typeof updates.companyId !== 'undefined') submission.companyId = updates.companyId || null;
-    if (typeof updates.payload !== 'undefined') submission.payload = updates.payload || {};
+    if (typeof updates.candidateId !== 'undefined') submission.candidateId = (updates.candidateId || null) as any;
+    if (typeof updates.studentId !== 'undefined') submission.studentId = (updates.studentId || null) as any;
+    if (typeof updates.companyId !== 'undefined') submission.companyId = (updates.companyId || null) as any;
+    if (typeof updates.payload !== 'undefined') {
+      submission.payload = updates.payload || {};
+      submission.codeNaf = extractCodeNaf(submission.payload);
+    }
     if (typeof updates.metadata !== 'undefined') submission.metadata = updates.metadata || {};
-    if (typeof updates.documents !== 'undefined') submission.documents = updates.documents || [];
+    if (typeof updates.documents !== 'undefined') submission.documents = normalizeDocuments(updates.documents || []) as any;
 
     submission.updatedBy = updatedBy || submission.updatedBy;
     await submission.save();
@@ -384,10 +533,37 @@ export class OpcoService {
     return submission;
   }
 
-  private async sendCreateRequest(payload: GenericObject): Promise<RemoteSubmitResult> {
-    const response = await this.request(this.joinUrl(config.opco.baseUrl, config.opco.createDossierPath), {
+  private async ensureSummaryDocument(
+    submission: IOpcoSubmission
+  ): Promise<{ fileId: string; filename: string; url: string } | null> {
+    const existingSummary = (submission.documents || []).some((document) => {
+      const type = String(document?.type || '').toLowerCase();
+      return type.includes('opco_summary') || type.includes('synthese');
+    });
+
+    if (existingSummary) {
+      return null;
+    }
+
+    try {
+      const generated = await opcoDocumentGeneratorService.generateOpcoSummaryPDF(submission);
+      submission.documents.push({
+        type: 'opco_summary',
+        url: generated.url,
+        filename: generated.filename,
+        documentId: generated.fileId as any,
+      });
+      await submission.save();
+      return generated;
+    } catch {
+      return null;
+    }
+  }
+
+  private async sendCreateRequest(payload: GenericObject, connection: OpcoConnection): Promise<RemoteSubmitResult> {
+    const response = await this.request(this.joinUrl(connection.baseUrl, connection.createDossierPath), connection, {
       method: 'POST',
-      headers: this.buildHeaders(),
+      headers: this.buildHeaders(connection),
       body: JSON.stringify(payload),
     });
 
@@ -398,12 +574,13 @@ export class OpcoService {
     };
   }
 
-  private async fetchRemoteStatus(externalId: string): Promise<RemoteSubmitResult> {
+  private async fetchRemoteStatus(externalId: string, connection: OpcoConnection): Promise<RemoteSubmitResult> {
     const response = await this.request(
-      this.joinUrl(config.opco.baseUrl, replacePathParam(config.opco.statusPath, externalId)),
+      this.joinUrl(connection.baseUrl, replacePathParam(connection.statusPath, externalId)),
+      connection,
       {
         method: 'GET',
-        headers: this.buildHeaders(),
+        headers: this.buildHeaders(connection),
       }
     );
 
@@ -414,20 +591,20 @@ export class OpcoService {
     };
   }
 
-  private buildHeaders(): Record<string, string> {
+  private buildHeaders(connection: OpcoConnection): Record<string, string> {
     const headers: Record<string, string> = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
     };
 
-    if (config.opco.apiKey) {
-      headers[config.opco.apiKeyHeader] = config.opco.apiKey;
+    if (connection.apiKey) {
+      headers[connection.apiKeyHeader] = connection.apiKey;
     }
-    if (config.opco.clientId) {
-      headers['x-client-id'] = config.opco.clientId;
+    if (connection.clientId) {
+      headers['x-client-id'] = connection.clientId;
     }
-    if (config.opco.clientSecret) {
-      headers['x-client-secret'] = config.opco.clientSecret;
+    if (connection.clientSecret) {
+      headers['x-client-secret'] = connection.clientSecret;
     }
 
     return headers;
@@ -437,9 +614,9 @@ export class OpcoService {
     return `${String(baseUrl || '').replace(/\/+$/, '')}/${String(pathname || '').replace(/^\/+/, '')}`;
   }
 
-  private async request(url: string, init: RequestInit): Promise<GenericObject | null> {
+  private async request(url: string, connection: OpcoConnection, init: RequestInit): Promise<GenericObject | null> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), config.opco.timeoutMs);
+    const timeout = setTimeout(() => controller.abort(), connection.timeoutMs);
     try {
       const response = await fetch(url, {
         ...init,

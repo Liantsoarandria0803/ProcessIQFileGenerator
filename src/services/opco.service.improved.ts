@@ -376,7 +376,7 @@ export class OpcoService {
         ...submission.payload,
         documents: submission.documents.map(doc => ({
           type: doc.type,
-          url: doc.url || `${config.api?.baseUrl || ''}/api/gridfs/${doc.documentId}`,
+          url: doc.url || `${config.opco.baseUrl || config.publicBaseUrl || ''}/api/gridfs/${doc.documentId}`,
           filename: doc.filename,
         })),
       };
@@ -462,7 +462,7 @@ export class OpcoService {
       submission.updatedBy = updatedBy || submission.updatedBy;
       submission.syncAttempts.push({
         attemptedAt: new Date(),
-        action: 'sync',
+        action: 'sync_status',
         success: true,
         remoteStatus: submission.remoteStatus || undefined,
         message: `Synchronisation avec l'OPCO: ${submission.status}`,

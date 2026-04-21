@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import { requireRole } from '../middlewares/auth.middleware';
 import { User } from '../models/user.model';
@@ -77,7 +77,7 @@ router.post(
     body('apiKey').optional({ values: 'falsy' }).isString(),
     body('apiSecret').optional({ values: 'falsy' }).isString(),
   ],
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     if (!validateRequest(req, res)) return;
 
     const normalizedType = CREATE_TYPE_MAP[String(req.body?.type || '').trim().toLowerCase()];
@@ -139,7 +139,7 @@ router.post(
 router.delete(
   '/integrations/:id',
   [param('id').isString().trim().notEmpty().withMessage("L'identifiant est requis")],
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     if (!validateRequest(req, res)) return;
 
     const deleted = await Integration.findByIdAndDelete(req.params.id);
@@ -160,7 +160,7 @@ router.get(
       .matches(/^\d{14}$/)
       .withMessage('Le SIRET doit contenir 14 chiffres'),
   ],
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     if (!validateRequest(req, res)) return;
 
     try {

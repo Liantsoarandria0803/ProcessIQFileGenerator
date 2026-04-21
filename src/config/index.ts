@@ -15,6 +15,84 @@ const resolveDocuSignPrivateKey = (): string => {
   return normalizePrivateKey(process.env.DOCUSIGN_PRIVATE_KEY || '');
 };
 
+type OpcoConnectionConfig = {
+  key: string;
+  name: string;
+  enabled: boolean;
+  baseUrl: string;
+  apiKey: string;
+  apiKeyHeader: string;
+  clientId: string;
+  clientSecret: string;
+  createDossierPath: string;
+  statusPath: string;
+  timeoutMs: number;
+};
+
+const parseBoolean = (value: string | undefined, fallback = false): boolean => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return fallback;
+  return ['true', '1', 'yes', 'on'].includes(normalized);
+};
+
+const parseInteger = (value: string | undefined, fallback: number): number => {
+  const parsed = parseInt(String(value || ''), 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const buildOpcoConnectionFromEnv = (prefix: string, fallbackKey: string, fallbackName: string): OpcoConnectionConfig => ({
+  key: (process.env[`${prefix}KEY`] || fallbackKey).trim().toLowerCase(),
+  name: process.env[`${prefix}NAME`] || fallbackName,
+  enabled: parseBoolean(process.env[`${prefix}ENABLED`], false),
+  baseUrl: process.env[`${prefix}API_BASE_URL`] || '',
+  apiKey: process.env[`${prefix}API_KEY`] || '',
+  apiKeyHeader: process.env[`${prefix}API_KEY_HEADER`] || 'x-api-key',
+  clientId: process.env[`${prefix}CLIENT_ID`] || '',
+  clientSecret: process.env[`${prefix}CLIENT_SECRET`] || '',
+  createDossierPath: process.env[`${prefix}CREATE_DOSSIER_PATH`] || '/dossiers',
+  statusPath: process.env[`${prefix}STATUS_PATH`] || '/dossiers/{externalId}',
+  timeoutMs: parseInteger(process.env[`${prefix}TIMEOUT_MS`], 15000),
+});
+
+const parseOpcoConnections = (): OpcoConnectionConfig[] => {
+  const defaultConnection = buildOpcoConnectionFromEnv('OPCO_', 'default', process.env.OPCO_NAME || 'generic-opco');
+  const extrasRaw = String(process.env.OPCO_CONNECTIONS_JSON || '').trim();
+
+  if (!extrasRaw) {
+    return [defaultConnection];
+  }
+
+  try {
+    const parsed = JSON.parse(extrasRaw);
+    if (!Array.isArray(parsed)) {
+      return [defaultConnection];
+    }
+
+    const extras = parsed
+      .filter((item) => item && typeof item === 'object')
+      .map((item, index): OpcoConnectionConfig => ({
+        key: String(item.key || item.code || item.name || `opco_${index + 1}`).trim().toLowerCase(),
+        name: String(item.name || item.code || `OPCO ${index + 1}`).trim(),
+        enabled: typeof item.enabled === 'boolean' ? item.enabled : true,
+        baseUrl: String(item.baseUrl || '').trim(),
+        apiKey: String(item.apiKey || '').trim(),
+        apiKeyHeader: String(item.apiKeyHeader || 'x-api-key').trim(),
+        clientId: String(item.clientId || '').trim(),
+        clientSecret: String(item.clientSecret || '').trim(),
+        createDossierPath: String(item.createDossierPath || '/dossiers').trim(),
+        statusPath: String(item.statusPath || '/dossiers/{externalId}').trim(),
+        timeoutMs: parseInteger(item.timeoutMs != null ? String(item.timeoutMs) : undefined, 15000),
+      }));
+
+    return [defaultConnection, ...extras];
+  } catch {
+    return [defaultConnection];
+  }
+};
+
+const opcoConnections = parseOpcoConnections();
+const defaultOpcoConnection = opcoConnections[0];
+
 export const config = {
   port: parseInt(process.env.PORT || '8001', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -74,16 +152,17 @@ export const config = {
   },
 
   opco: {
-    enabled: String(process.env.OPCO_ENABLED || '').toLowerCase() === 'true',
-    name: process.env.OPCO_NAME || 'generic-opco',
-    baseUrl: process.env.OPCO_API_BASE_URL || '',
-    apiKey: process.env.OPCO_API_KEY || '',
-    apiKeyHeader: process.env.OPCO_API_KEY_HEADER || 'x-api-key',
-    clientId: process.env.OPCO_CLIENT_ID || '',
-    clientSecret: process.env.OPCO_CLIENT_SECRET || '',
-    createDossierPath: process.env.OPCO_CREATE_DOSSIER_PATH || '/dossiers',
-    statusPath: process.env.OPCO_STATUS_PATH || '/dossiers/{externalId}',
-    timeoutMs: parseInt(process.env.OPCO_TIMEOUT_MS || '15000', 10)
+    enabled: defaultOpcoConnection.enabled,
+    name: defaultOpcoConnection.name,
+    baseUrl: defaultOpcoConnection.baseUrl,
+    apiKey: defaultOpcoConnection.apiKey,
+    apiKeyHeader: defaultOpcoConnection.apiKeyHeader,
+    clientId: defaultOpcoConnection.clientId,
+    clientSecret: defaultOpcoConnection.clientSecret,
+    createDossierPath: defaultOpcoConnection.createDossierPath,
+    statusPath: defaultOpcoConnection.statusPath,
+    timeoutMs: defaultOpcoConnection.timeoutMs,
+    connections: opcoConnections
   }
 };
 

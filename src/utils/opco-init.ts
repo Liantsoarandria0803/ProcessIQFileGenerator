@@ -9,8 +9,8 @@
  * 2. Appeler initializeOpcoTables() dans app.listen()
  */
 
-import { nafOpcoMappingService } from './services/nafOpcoMapping.service';
-import { franceCompetencesService } from './services/franceCompetences.service';
+import { nafOpcoMappingService } from '../services/nafOpcoMapping.service';
+import { franceCompetencesService } from '../services/franceCompetences.service';
 
 export async function initializeOpcoTables() {
   try {
