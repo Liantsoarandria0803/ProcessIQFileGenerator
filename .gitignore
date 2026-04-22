@@ -1,0 +1,99 @@
+# =====================================================
+# NODE.JS & NPM
+# =====================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+.npm
+.yarn-integrity
+
+# =====================================================
+# TYPESCRIPT BUILD OUTPUT
+# =====================================================
+dist/
+build/
+*.tsbuildinfo
+*.js.map
+
+# =====================================================
+# ENVIRONMENT & SECRETS
+# =====================================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+
+# NE JAMAIS COMMITTER LES CREDENTIALS
+config/production.json
+config/production.js
+
+# =====================================================
+# LOGS
+# =====================================================
+logs
+*.log
+
+# =====================================================
+# TESTING & COVERAGE
+# =====================================================
+coverage/
+.nyc_output/
+*.spec.js
+*.test.js
+
+# =====================================================
+# SYSTEM FILES
+# =====================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# =====================================================
+# IDE & EDITORS
+# =====================================================
+.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*.sublime-workspace
+.project
+.classpath
+
+# =====================================================
+# TEMPORARY FILES
+# =====================================================
+tmp/
+temp/
+*.tmp
+*.cache
+
+# =====================================================
+# OPTIONAL: PDF Templates
+# =====================================================
+# Décommenter si les templates PDF sont trop volumineux pour Git
+# assets/templates_pdf/*.pdf
+
+# =====================================================
+# AUTRES
+# =====================================================
+.eslintcache
+.stylelintcache
