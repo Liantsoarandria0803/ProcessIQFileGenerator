@@ -1,0 +1,699 @@
+{
+	"info": {
+		"_postman_id": "process-iq-api-collection",
+		"name": "Process IQ Rush School API",
+		"description": "Collection Postman pour l'API Process IQ Rush School - Gestion des candidatures et génération de documents",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8001",
+			"type": "string"
+		},
+		{
+			"key": "apiPath",
+			"value": "/api",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health & Info",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["health"]
+						},
+						"description": "Vérifie l'état de l'API"
+					}
+				},
+				{
+					"name": "API Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"]
+						},
+						"description": "Informations générales sur l'API"
+					}
+				}
+			]
+		},
+		{
+			"name": "Candidats (Admission)",
+			"item": [
+				{
+					"name": "Lister tous les candidats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidats",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidats"]
+						},
+						"description": "Récupère la liste complète des candidats depuis MongoDB"
+					}
+				},
+				{
+					"name": "Récupérer un candidat par ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidats/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidats", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Récupère un candidat spécifique par son ID MongoDB"
+					}
+				},
+				{
+					"name": "Récupérer candidat avec documents",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidats/:id/with-documents",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidats", ":id", "with-documents"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Récupère un candidat avec tous ses documents associés"
+					}
+				},
+				{
+					"name": "Récupérer entreprise d'un candidat",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidats/:id/entreprise",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidats", ":id", "entreprise"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Récupère les données entreprise d'un candidat"
+					}
+				},
+				{
+					"name": "Historique des utilisateurs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/historique-utilisateurs",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "historique-utilisateurs"]
+						},
+						"description": "Historique des utilisateurs (candidats + entreprises)"
+					}
+				}
+			]
+		},
+		{
+			"name": "Génération PDF",
+			"item": [
+				{
+					"name": "Générer CERFA FA13",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidats/:id/cerfa",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidats", ":id", "cerfa"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Génère le formulaire CERFA FA13 pour un candidat et le stocke dans MongoDB/GridFS"
+					}
+				},
+				{
+					"name": "Générer Fiche de Renseignement",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidats/:id/fiche-renseignement",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidats", ":id", "fiche-renseignement"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Génère la fiche de renseignements PDF"
+					}
+				},
+				{
+					"name": "Générer ATRE",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidats/:id/atre",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidats", ":id", "atre"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Génère l'ATRE PDF"
+					}
+				},
+				{
+					"name": "Générer Compte Rendu",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidats/:id/compte-rendu",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidats", ":id", "compte-rendu"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Génère le compte rendu de visite PDF"
+					}
+				},
+				{
+					"name": "Générer Règlement Intérieur",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidats/:id/reglement-interieur",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidats", ":id", "reglement-interieur"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Génère le règlement intérieur PDF"
+					}
+				},
+				{
+					"name": "Générer Convention Apprentissage",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidats/:id/convention-apprentissage",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidats", ":id", "convention-apprentissage"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Génère la convention de formation apprentissage PDF"
+					}
+				},
+				{
+					"name": "Générer Livret Apprentissage",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidats/:id/livret-apprentissage",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidats", ":id", "livret-apprentissage"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Génère le livret d'apprentissage PDF"
+					}
+				},
+				{
+					"name": "Générer Prise de Connaissance",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidats/:id/prise-connaissance",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidats", ":id", "prise-connaissance"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Génère le document de prise de connaissance PDF"
+					}
+				},
+				{
+					"name": "Générer Certificat de Scolarité",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidats/:id/certificat-scolarite",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidats", ":id", "certificat-scolarite"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Génère le certificat de scolarité PDF"
+					}
+				}
+			]
+		},
+		{
+			"name": "Entreprises",
+			"item": [
+				{
+					"name": "Lister toutes les entreprises",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/entreprises",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "entreprises"]
+						},
+						"description": "Récupère la liste complète des fiches entreprises"
+					}
+				},
+				{
+					"name": "Créer une entreprise",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fields\": {\n    \"Raison sociale\": \"Entreprise Exemple\",\n    \"Numéro SIRET\": \"12345678900012\",\n    \"Type demployeur\": \"12 Entreprise inscrite uniquement au registre du commerce et des sociétés\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/entreprises",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "entreprises"]
+						},
+						"description": "Crée une nouvelle fiche entreprise"
+					}
+				},
+				{
+					"name": "Supprimer une entreprise",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/entreprises/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "entreprises", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "recXXXXXXXXXXXX"
+								}
+							]
+						},
+						"description": "Supprime une fiche entreprise par ID"
+					}
+				},
+				{
+					"name": "Créer entreprise (via candidat)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fields\": {\n    \"Raison sociale\": \"Entreprise Exemple\",\n    \"Étudiant\": [\"rec1BBjsjxhdqEKuq\"]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/entreprise",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "entreprise"]
+						},
+						"description": "Crée une fiche entreprise liée à un étudiant"
+					}
+				}
+			]
+		},
+		{
+			"name": "Documents (Upload)",
+			"item": [
+				{
+					"name": "Uploader CV",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/path/to/cv.pdf"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidates/:record_id/documents/cv",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidates", ":record_id", "documents", "cv"],
+							"variable": [
+								{
+									"key": "record_id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Upload un CV pour un candidat"
+					}
+				},
+				{
+					"name": "Uploader CIN",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/path/to/cin.pdf"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidates/:record_id/documents/cin",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidates", ":record_id", "documents", "cin"],
+							"variable": [
+								{
+									"key": "record_id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Upload une CIN pour un candidat"
+					}
+				},
+				{
+					"name": "Uploader Lettre de motivation",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/path/to/lettre.pdf"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidates/:record_id/documents/lettre-motivation",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidates", ":record_id", "documents", "lettre-motivation"],
+							"variable": [
+								{
+									"key": "record_id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Upload une lettre de motivation pour un candidat"
+					}
+				},
+				{
+					"name": "Uploader Carte Vitale",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/path/to/carte-vitale.pdf"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidates/:record_id/documents/carte-vitale",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidates", ":record_id", "documents", "carte-vitale"],
+							"variable": [
+								{
+									"key": "record_id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Upload une copie de carte vitale pour un candidat"
+					}
+				},
+				{
+					"name": "Uploader Dernier Diplôme",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/path/to/diplome.pdf"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidates/:record_id/documents/dernier-diplome",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidates", ":record_id", "documents", "dernier-diplome"],
+							"variable": [
+								{
+									"key": "record_id",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Upload le dernier diplôme pour un candidat"
+					}
+				},
+				{
+					"name": "Supprimer un document",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/admission/candidates/:record_id/documents/:documentType?filename=nom_fichier.pdf",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "admission", "candidates", ":record_id", "documents", ":documentType"],
+							"query": [
+								{
+									"key": "filename",
+									"value": "nom_fichier.pdf"
+								}
+							],
+							"variable": [
+								{
+									"key": "record_id",
+									"value": "rec1BBjsjxhdqEKuq"
+								},
+								{
+									"key": "documentType",
+									"value": "cv"
+								}
+							]
+						},
+						"description": "Supprime un document attaché d'un candidat par type et nom de fichier"
+					}
+				}
+			]
+		},
+		{
+			"name": "GridFS (Téléchargement)",
+			"item": [
+				{
+					"name": "Lister fichiers d'un candidat",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/gridfs/candidat/:candidatId",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "gridfs", "candidat", ":candidatId"],
+							"variable": [
+								{
+									"key": "candidatId",
+									"value": "rec1BBjsjxhdqEKuq"
+								}
+							]
+						},
+						"description": "Liste tous les fichiers GridFS associés à un candidat"
+					}
+				},
+				{
+					"name": "Télécharger un fichier par ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/gridfs/:fileId",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "gridfs", ":fileId"],
+							"variable": [
+								{
+									"key": "fileId",
+									"value": "67a1b2c3d4e5f6a7b8c9d0e1"
+								}
+							]
+						},
+						"description": "Télécharge un fichier depuis GridFS par son ID"
+					}
+				}
+			]
+		},
+		{
+			"name": "Authentification",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "auth", "login"]
+						},
+						"description": "Connexion utilisateur"
+					}
+				},
+				{
+					"name": "Register",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"John Doe\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "auth", "register"]
+						},
+						"description": "Inscription utilisateur"
+					}
+				}
+			]
+		},
+		{
+			"name": "RH",
+			"item": [
+				{
+					"name": "Statistiques RH",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/rh/statistiques",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "rh", "statistiques"]
+						},
+						"description": "Statistiques RH"
+					}
+				},
+				{
+					"name": "Fiches étudiants RH",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}{{apiPath}}/rh/etudiants-fiches",
+							"host": ["{{baseUrl}}"],
+							"path": ["{{apiPath}}", "rh", "etudiants-fiches"]
+						},
+						"description": "Liste les fiches étudiants RH"
+					}
+				}
+			]
+		}
+	]
+}
