@@ -135,32 +135,19 @@ export class ReglementGeneratorService {
       // Generate filename
       const filename = `Reglement_interieur_${nomNaissance}_${prenom}.pdf`.replace(/\s+/g, '_');
 
-      // Save temporary file
-      const tmpDir = path.join(__dirname, '../tmp');
-      if (!fs.existsSync(tmpDir)) {
-        fs.mkdirSync(tmpDir, { recursive: true });
-      }
-      const tmpPath = path.join(tmpDir, filename);
-      fs.writeFileSync(tmpPath, pdfBuffer);
-
-      console.log(`[ReglementGenerator] PDF saved to: ${tmpPath}`);
-
-      // Upload to Airtable
-      console.log(`[ReglementGenerator] Uploading to Airtable column: ${REGLEMENT_AIRTABLE_COLUMN}`);
-      const uploadSuccess = await this.candidatRepo.uploadDocument(
+      // Upload to MongoDB GridFS
+      console.log(`[ReglementGenerator] Uploading to MongoDB GridFS column: ${REGLEMENT_AIRTABLE_COLUMN}`);
+      const uploadResult = await this.candidatRepo.uploadDocumentBuffer(
         idEtudiant,
         REGLEMENT_AIRTABLE_COLUMN,
-        tmpPath
+        pdfBuffer,
+        filename,
+        'application/pdf'
       );
-
-      // Clean up temporary file
-      if (fs.existsSync(tmpPath)) {
-        fs.unlinkSync(tmpPath);
-        console.log(`[ReglementGenerator] Temporary file deleted: ${tmpPath}`);
-      }
+      const uploadSuccess = Boolean(uploadResult);
 
       if (uploadSuccess) {
-        console.log('[ReglementGenerator] Upload successful');
+        console.log(`[ReglementGenerator] Upload successful (fileId=${uploadResult!.fileId})`);
         return {
           success: true,
           pdfBuffer,
@@ -170,7 +157,7 @@ export class ReglementGeneratorService {
         console.error('[ReglementGenerator] Upload failed');
         return {
           success: false,
-          error: 'Failed to upload PDF to Airtable',
+          error: 'Failed to upload PDF to MongoDB GridFS',
         };
       }
     } catch (error: any) {

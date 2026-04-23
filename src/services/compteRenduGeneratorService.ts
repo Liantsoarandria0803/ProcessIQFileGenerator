@@ -27,7 +27,6 @@ import {
 } from 'pdf-lib';
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
 import logger from '../utils/logger';
 import { CandidatRepository } from '../repositories/candidatRepository';
 import { CandidatFields } from '../types';
@@ -87,8 +86,11 @@ export class CompteRenduGeneratorService {
       return result;
     }
 
-    // 3. Upload vers Airtable
-    await this.uploadToAirtable(idEtudiant, result.pdfBuffer, result.filename!);
+    // 3. Archivage dans MongoDB GridFS
+    const uploadSuccess = await this.uploadToAirtable(idEtudiant, result.pdfBuffer, result.filename!);
+    if (!uploadSuccess) {
+      return { success: false, error: `Échec archivage GridFS Compte Rendu pour ${idEtudiant}` };
+    }
 
     return result;
   }
@@ -307,26 +309,26 @@ export class CompteRenduGeneratorService {
     idEtudiant: string,
     pdfBuffer: Buffer,
     filename: string
-  ): Promise<void> {
-    const tmpPath = path.join(os.tmpdir(), `compte_rendu_${idEtudiant}_${Date.now()}.pdf`);
-
+  ): Promise<boolean> {
     try {
-      fs.writeFileSync(tmpPath, pdfBuffer);
-      const success = await this.candidatRepo.uploadDocument(
+      const uploadResult = await this.candidatRepo.uploadDocumentBuffer(
         idEtudiant,
         COMPTE_RENDU_AIRTABLE_COLUMN,
-        tmpPath
+        pdfBuffer,
+        filename,
+        'application/pdf'
       );
 
-      if (success) {
-        logger.info(`✅ Compte Rendu uploadé vers Airtable pour ${idEtudiant}`);
+      if (uploadResult) {
+        logger.info(`✅ Compte Rendu archivé dans MongoDB GridFS pour ${idEtudiant} (fileId=${uploadResult.fileId})`);
+        return true;
       } else {
-        logger.warn(`⚠️ Échec upload Compte Rendu vers Airtable pour ${idEtudiant}`);
+        logger.warn(`⚠️ Échec archivage Compte Rendu vers MongoDB GridFS pour ${idEtudiant}`);
+        return false;
       }
     } catch (err: any) {
-      logger.warn(`⚠️ Erreur upload Compte Rendu vers Airtable : ${err.message}`);
-    } finally {
-      try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
+      logger.warn(`⚠️ Erreur archivage Compte Rendu vers MongoDB GridFS : ${err.message}`);
+      return false;
     }
   }
 }

@@ -22,7 +22,6 @@ import {
 } from 'pdf-lib';
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
 import logger from '../utils/logger';
 import { CandidatRepository } from '../repositories/candidatRepository';
 import { CandidatFields } from '../types';
@@ -83,8 +82,11 @@ export class AtreGeneratorService {
       return result;
     }
 
-    // 3. Upload vers Airtable dans la colonne "Atre"
-    await this.uploadToAirtable(idEtudiant, result.pdfBuffer, result.filename!);
+    // 3. Archivage dans MongoDB GridFS dans la colonne "Atre"
+    const uploadSuccess = await this.uploadToAirtable(idEtudiant, result.pdfBuffer, result.filename!);
+    if (!uploadSuccess) {
+      return { success: false, error: `Échec archivage GridFS ATRE pour ${idEtudiant}` };
+    }
 
     return result;
   }
@@ -335,26 +337,26 @@ export class AtreGeneratorService {
     idEtudiant: string,
     pdfBuffer: Buffer,
     filename: string
-  ): Promise<void> {
-    const tmpPath = path.join(os.tmpdir(), `atre_${idEtudiant}_${Date.now()}.pdf`);
-
+  ): Promise<boolean> {
     try {
-      // Écrire le buffer dans un fichier temporaire
-      fs.writeFileSync(tmpPath, pdfBuffer);
+      const uploadResult = await this.candidatRepo.uploadDocumentBuffer(
+        idEtudiant,
+        'Atre',
+        pdfBuffer,
+        filename,
+        'application/pdf'
+      );
 
-      // Upload vers Airtable
-      const success = await this.candidatRepo.uploadDocument(idEtudiant, 'Atre', tmpPath);
-
-      if (success) {
-        logger.info(`✅ Fiche ATRE uploadée vers Airtable pour ${idEtudiant}`);
+      if (uploadResult) {
+        logger.info(`✅ Fiche ATRE archivée dans MongoDB GridFS pour ${idEtudiant} (fileId=${uploadResult.fileId})`);
+        return true;
       } else {
-        logger.warn(`⚠️ Échec upload ATRE vers Airtable pour ${idEtudiant}`);
+        logger.warn(`⚠️ Échec archivage ATRE vers MongoDB GridFS pour ${idEtudiant}`);
+        return false;
       }
     } catch (err: any) {
-      logger.warn(`⚠️ Erreur upload ATRE vers Airtable : ${err.message}`);
-    } finally {
-      // Nettoyer le fichier temporaire
-      try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
+      logger.warn(`⚠️ Erreur archivage ATRE vers MongoDB GridFS : ${err.message}`);
+      return false;
     }
   }
 }

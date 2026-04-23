@@ -20,6 +20,7 @@ import { HistoryService } from '../services/historyService';
 import logger from '../utils/logger';
 import { InformationsPersonnelles } from '../types/admission';
 import config from '../config';
+import { Attachment } from '../types';
 
 const router = Router();
 const candidatRepo = new CandidatRepository();
@@ -44,6 +45,46 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: config.upload.maxFileSize },
 });
+
+type StoredCandidateAttachment = Attachment & {
+  fileId?: string;
+  contentType?: string;
+  uploadedAt?: Date | string;
+};
+
+function getStoredAttachmentFromFields(
+  fields: Record<string, any>,
+  columnNames: string | string[]
+): { columnName: string | null; attachment: StoredCandidateAttachment | null } {
+  const candidates = Array.isArray(columnNames) ? columnNames : [columnNames];
+
+  for (const columnName of candidates) {
+    const value = fields[columnName];
+    if (Array.isArray(value) && value.length > 0) {
+      return {
+        columnName,
+        attachment: value[0] as StoredCandidateAttachment,
+      };
+    }
+  }
+
+  return {
+    columnName: null,
+    attachment: null,
+  };
+}
+
+async function getStoredCandidateAttachment(
+  candidatId: string,
+  columnNames: string | string[]
+): Promise<{ columnName: string | null; attachment: StoredCandidateAttachment | null }> {
+  const updatedRecord = await candidatRepo.getById(candidatId);
+  if (!updatedRecord) {
+    return { columnName: null, attachment: null };
+  }
+
+  return getStoredAttachmentFromFields(updatedRecord.fields as Record<string, any>, columnNames);
+}
 
 /**
  * @swagger
@@ -488,18 +529,18 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
  *   post:
  *     summary: Génère la fiche de renseignement PDF
  *     tags: [PDF]
- *     description: Génère la fiche de renseignement pour un candidat et l'upload vers Airtable
+ *     description: Génère la fiche de renseignement pour un candidat et l'archive dans MongoDB Atlas via GridFS.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat
- *         example: rec1BBjsjxhdqEKuq
+ *         description: ID MongoDB du candidat
+ *         example: 6808f5f546428645581f8c84
  *     responses:
  *       200:
- *         description: PDF généré et uploadé avec succès
+ *         description: PDF généré et archivé avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -516,17 +557,25 @@ router.get('/candidats/:id/entreprise', async (req: Request, res: Response) => {
  *                   properties:
  *                     candidatId:
  *                       type: string
- *                       example: "rec1BBjsjxhdqEKuq"
+ *                       example: "6808f5f546428645581f8c84"
  *                     fileName:
  *                       type: string
  *                       example: "Fiche_Renseignement_Dupont_Jean.pdf"
- *                     uploadedToAirtable:
+ *                     archivedToMongoDb:
  *                       type: boolean
  *                       example: true
- *                     airtableUrl:
+ *                     storageProvider:
  *                       type: string
  *                       nullable: true
- *                       example: "https://dl.airtable.com/.attachments/..."
+ *                       example: "gridfs"
+ *                     gridfsFileId:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "6808f60046428645581f8c9a"
+ *                     gridfsUrl:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "/api/gridfs/6808f60046428645581f8c9a"
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       500:
@@ -561,35 +610,33 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
       });
     }
 
-    // Upload vers Airtable dans la colonne "Fiche entreprise"
+    // Archivage dans MongoDB GridFS dans le champ "Fiche entreprise"
     const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
     const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
     const fileName = `Fiche_Renseignement_${nom}_${prenom}.pdf`;
-    let uploadedToAirtable = false;
-    let airtableUrl: string | null = null;
+    let archivedToMongoDb = false;
+    let gridfsFileId: string | null = null;
+    let gridfsUrl: string | null = null;
 
     try {
-      const tmpPath = path.join(os.tmpdir(), `fiche_renseignement_${nom}_${prenom}_${Date.now()}.pdf`);
-      fs.writeFileSync(tmpPath, result.pdfBuffer);
-      
-      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'Fiche entreprise', tmpPath);
-      
-      if (uploadedToAirtable) {
-        logger.info('✅ Fiche de renseignements uploadée vers Airtable pour ' + id);
-        // Récupérer l'URL du fichier uploadé
-        try {
-          const updatedRecord = await candidatRepo.getById(id);
-          const ficheData = updatedRecord?.fields?.['Fiche entreprise'] as any[] | undefined;
-          airtableUrl = ficheData?.[0]?.url || null;
-        } catch (e) {
-          // Pas grave si on n'arrive pas à récupérer l'URL
-        }
+      const uploadResult = await candidatRepo.uploadDocumentBuffer(
+        id,
+        'Fiche entreprise',
+        result.pdfBuffer,
+        fileName,
+        'application/pdf'
+      );
+
+      if (uploadResult) {
+        archivedToMongoDb = true;
+        gridfsFileId = uploadResult.fileId;
+        gridfsUrl = uploadResult.url;
+        logger.info(`✅ Fiche de renseignements archivée dans MongoDB GridFS pour ${id} (fileId=${gridfsFileId})`);
+      } else {
+        logger.warn(`⚠️ Échec archivage fiche de renseignements dans MongoDB GridFS pour ${id}`);
       }
-      
-      // Nettoyer le fichier temporaire
-      try { fs.unlinkSync(tmpPath); } catch {}
-    } catch (uploadError) {
-      logger.warn('Upload fiche renseignement vers Airtable échoué:', uploadError);
+    } catch (archiveError) {
+      logger.warn('Archivage fiche renseignement vers MongoDB GridFS échoué:', archiveError);
     }
     
     // Retourne un JSON de succès
@@ -599,8 +646,10 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
       data: {
         candidatId: id,
         fileName,
-        uploadedToAirtable,
-        airtableUrl
+        archivedToMongoDb,
+        storageProvider: archivedToMongoDb ? 'gridfs' : null,
+        gridfsFileId,
+        gridfsUrl
       }
     });
     
@@ -620,7 +669,7 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
  *     summary: Génère le CERFA FA13
  *     tags: [PDF]
  *     description: |
- *       Génère le formulaire CERFA FA13 pour un candidat et l'upload vers Airtable.
+ *       Génère le formulaire CERFA FA13 pour un candidat et l'archive dans MongoDB Atlas via GridFS.
  *       Si aucune fiche entreprise n'est associée au candidat, le PDF est quand même généré
  *       avec les champs entreprise laissés vides.
  *     parameters:
@@ -629,11 +678,11 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat
- *         example: rec1BBjsjxhdqEKuq
+ *         description: ID MongoDB du candidat
+ *         example: 6808f5f546428645581f8c84
  *     responses:
  *       200:
- *         description: CERFA généré et uploadé avec succès
+ *         description: CERFA généré et archivé avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -650,17 +699,25 @@ router.post('/candidats/:id/fiche-renseignement', async (req: Request, res: Resp
  *                   properties:
  *                     candidatId:
  *                       type: string
- *                       example: "rec1BBjsjxhdqEKuq"
+ *                       example: "6808f5f546428645581f8c84"
  *                     fileName:
  *                       type: string
  *                       example: "CERFA_FA13_Dupont_Jean.pdf"
- *                     uploadedToAirtable:
+ *                     archivedToMongoDb:
  *                       type: boolean
  *                       example: true
- *                     airtableUrl:
+ *                     storageProvider:
  *                       type: string
  *                       nullable: true
- *                       example: "https://dl.airtable.com/.attachments/..."
+ *                       example: "gridfs"
+ *                     gridfsFileId:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "6808f60046428645581f8c9a"
+ *                     gridfsUrl:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "/api/gridfs/6808f60046428645581f8c9a"
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       500:
@@ -698,39 +755,33 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
       });
     }
     
-    // Upload vers Airtable dans la colonne "cerfa"
+    // Archivage dans MongoDB GridFS dans le champ "cerfa"
     const nom = (candidat.fields['NOM de naissance'] || 'candidat').replace(/[^\w\d-]/g, '_');
     const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
     const fileName = `CERFA_FA13_${nom}_${prenom}.pdf`;
-    let uploadedToAirtable = false;
-    let cerfaUrl: string | null = null;
+    let archivedToMongoDb = false;
+    let gridfsFileId: string | null = null;
+    let gridfsUrl: string | null = null;
 
     try {
-      // Sauvegarder le buffer dans un fichier temporaire pour l'upload
-      const tmpFilePath = path.join(os.tmpdir(), `cerfa_${id}_${Date.now()}.pdf`);
-      fs.writeFileSync(tmpFilePath, result.pdfBuffer);
-      
-      // Upload vers Airtable
-      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'cerfa', tmpFilePath);
-      
-      if (uploadedToAirtable) {
-        logger.info(`✅ CERFA uploadé vers Airtable pour ${id}`);
-        // Récupérer l'URL du fichier uploadé
-        try {
-          const updatedRecord = await candidatRepo.getById(id);
-          const cerfaData = updatedRecord?.fields?.['cerfa'] as any[] | undefined;
-          cerfaUrl = cerfaData?.[0]?.url || null;
-        } catch (e) {
-          // Pas grave si on n'arrive pas à récupérer l'URL
-        }
+      const uploadResult = await candidatRepo.uploadDocumentBuffer(
+        id,
+        'cerfa',
+        result.pdfBuffer,
+        fileName,
+        'application/pdf'
+      );
+
+      if (uploadResult) {
+        archivedToMongoDb = true;
+        gridfsFileId = uploadResult.fileId;
+        gridfsUrl = uploadResult.url;
+        logger.info(`✅ CERFA archivé dans MongoDB GridFS pour ${id} (fileId=${gridfsFileId})`);
       } else {
-        logger.warn(`⚠️ Échec upload CERFA vers Airtable pour ${id}`);
+        logger.warn(`⚠️ Échec archivage CERFA dans MongoDB GridFS pour ${id}`);
       }
-      
-      // Nettoyer le fichier temporaire
-      try { fs.unlinkSync(tmpFilePath); } catch (e) { /* ignore */ }
-    } catch (uploadError: any) {
-      logger.warn(`⚠️ Erreur upload CERFA vers Airtable: ${uploadError.message}`);
+    } catch (archiveError: any) {
+      logger.warn(`⚠️ Erreur archivage CERFA dans MongoDB GridFS: ${archiveError.message}`);
     }
     
     // Retourne un JSON de succès
@@ -740,8 +791,10 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
       data: {
         candidatId: id,
         fileName,
-        uploadedToAirtable,
-        airtableUrl: cerfaUrl
+        archivedToMongoDb,
+        storageProvider: archivedToMongoDb ? 'gridfs' : null,
+        gridfsFileId,
+        gridfsUrl
       }
     });
     
@@ -762,19 +815,60 @@ router.post('/candidats/:id/cerfa', async (req: Request, res: Response) => {
  *     tags: [PDF]
  *     description: |
  *       Genere la convention de formation apprentissage a partir des donnees
- *       candidat + entreprise (meme source que le CERFA), puis upload le PDF
- *       dans Airtable (colonne `convention`).
+ *       candidat + entreprise (meme source que le CERFA), puis archive le PDF
+ *       dans MongoDB Atlas via GridFS.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat
- *         example: rec1BBjsjxhdqEKuq
+ *         description: ID MongoDB du candidat
+ *         example: 6808f5f546428645581f8c84
  *     responses:
  *       200:
- *         description: Convention generee et uploadee avec succes
+ *         description: Convention generee et archivee avec succes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Convention d'apprentissage générée avec succès"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     candidatId:
+ *                       type: string
+ *                       example: "6808f5f546428645581f8c84"
+ *                     fileName:
+ *                       type: string
+ *                       example: "Convention_Apprentissage_Dupont_Jean.pdf"
+ *                     archivedToMongoDb:
+ *                       type: boolean
+ *                       example: true
+ *                     storageProvider:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "gridfs"
+ *                     gridfsFileId:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "6808f60046428645581f8c9a"
+ *                     gridfsUrl:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "/api/gridfs/6808f60046428645581f8c9a"
+ *                     usedColumn:
+ *                       type: string
+ *                       example: "Convention apprentissage"
+ *                     usedTemplate:
+ *                       type: boolean
+ *                       example: true
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       500:
@@ -813,56 +907,34 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
     const prenom = (candidat.fields['Prénom'] || '').replace(/[^\w\d-]/g, '_');
     const fileName = result.filename || `Convention_Apprentissage_${nom}_${prenom}.pdf`;
 
-    let uploadedToAirtable = false;
-    let conventionUrl: string | null = null;
+    let archivedToMongoDb = false;
+    let gridfsFileId: string | null = null;
+    let gridfsUrl: string | null = null;
+    const conventionColumns = ['Convention apprentissage', 'Convention', 'convention'] as const;
+    const existingConventionColumn = conventionColumns.find((columnName) =>
+      Object.prototype.hasOwnProperty.call(candidat.fields, columnName)
+    );
+    const targetConventionColumn = existingConventionColumn || 'Convention apprentissage';
 
-    const tmpFilePath = path.join(os.tmpdir(), `convention_apprentissage_${id}_${Date.now()}.pdf`);
     try {
-      fs.writeFileSync(tmpFilePath, result.pdfBuffer);
+      const uploadResult = await candidatRepo.uploadDocumentBuffer(
+        id,
+        targetConventionColumn,
+        result.pdfBuffer,
+        fileName,
+        'application/pdf'
+      );
 
-      // Essayer les variantes de nom de colonne Airtable connues
-      const conventionColumns = ['Convention', 'convention', 'Convention apprentissage'] as const;
-      for (const columnName of conventionColumns) {
-        uploadedToAirtable = await candidatRepo.uploadDocument(id, columnName, tmpFilePath);
-        if (uploadedToAirtable) break;
+      if (uploadResult) {
+        archivedToMongoDb = true;
+        gridfsFileId = uploadResult.fileId;
+        gridfsUrl = uploadResult.url;
+        logger.info(`✅ Convention apprentissage archivée dans MongoDB GridFS pour ${id} (fileId=${gridfsFileId})`);
+      } else {
+        logger.warn(`⚠️ Echec archivage Convention apprentissage dans MongoDB GridFS pour ${id}`);
       }
-
-      if (!uploadedToAirtable) {
-        logger.warn(`⚠️ Echec upload Convention apprentissage vers Airtable pour ${id}`);
-        return res.status(500).json({
-          success: false,
-          error: "Convention generee mais non stockee dans Airtable",
-        });
-      }
-
-      const updatedRecord = await candidatRepo.getById(id);
-      const conventionData =
-        (updatedRecord?.fields?.['Convention'] as any[] | undefined) ||
-        (updatedRecord?.fields?.['convention'] as any[] | undefined) ||
-        (updatedRecord?.fields?.['Convention apprentissage'] as any[] | undefined);
-      conventionUrl = conventionData?.[0]?.url || null;
-
-      if (!conventionUrl) {
-        logger.warn(`⚠️ Convention apprentissage introuvable dans Airtable apres upload pour ${id}`);
-        return res.status(500).json({
-          success: false,
-          error: "Convention generee mais non visible dans Airtable",
-        });
-      }
-
-      logger.info(`✅ Convention apprentissage uploadée vers Airtable pour ${id}`);
-    } catch (uploadError: any) {
-      logger.warn(`⚠️ Erreur upload Convention apprentissage vers Airtable: ${uploadError.message}`);
-      return res.status(500).json({
-        success: false,
-        error: "Erreur lors du stockage Airtable de la convention d'apprentissage",
-      });
-    } finally {
-      try {
-        fs.unlinkSync(tmpFilePath);
-      } catch (e) {
-        // ignore
-      }
+    } catch (archiveError: any) {
+      logger.warn(`⚠️ Erreur archivage Convention apprentissage vers MongoDB GridFS: ${archiveError.message}`);
     }
 
     res.json({
@@ -871,8 +943,11 @@ router.post('/candidats/:id/convention-apprentissage', async (req: Request, res:
       data: {
         candidatId: id,
         fileName,
-        uploadedToAirtable,
-        airtableUrl: conventionUrl,
+        archivedToMongoDb,
+        storageProvider: archivedToMongoDb ? 'gridfs' : null,
+        gridfsFileId,
+        gridfsUrl,
+        usedColumn: targetConventionColumn,
         usedTemplate: result.usedTemplate || false,
       },
     });
@@ -1969,25 +2044,55 @@ router.post('/candidates/:record_id/documents/dernier-diplome', upload.single('f
  *     summary: Génère la fiche de détection ATRE
  *     tags: [PDF]
  *     description: |
- *       Génère la fiche de détection pour l'ATRE à partir des données Airtable
- *       du candidat identifié par son record ID, puis uploade le PDF
- *       dans la colonne « Atre » de l'enregistrement.
+ *       Génère la fiche de détection pour l'ATRE à partir des données MongoDB
+ *       du candidat identifié par son ID, puis archive le PDF dans GridFS
+ *       dans le champ `Atre`.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat (idEtudiant)
- *         example: rec1BBjsjxhdqEKuq
+ *         description: ID MongoDB du candidat
+ *         example: 6808f5f546428645581f8c84
  *     responses:
  *       200:
- *         description: Fiche ATRE générée et uploadée avec succès
+ *         description: Fiche ATRE générée et archivée avec succès
  *         content:
- *           application/pdf:
+ *           application/json:
  *             schema:
- *               type: string
- *               format: binary
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Fiche ATRE générée avec succès"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     candidatId:
+ *                       type: string
+ *                       example: "6808f5f546428645581f8c84"
+ *                     fileName:
+ *                       type: string
+ *                       example: "Fiche_ATRE_Dupont_Jean.pdf"
+ *                     archivedToMongoDb:
+ *                       type: boolean
+ *                       example: true
+ *                     storageProvider:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "gridfs"
+ *                     gridfsFileId:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "6808f60046428645581f8c9a"
+ *                     gridfsUrl:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "/api/gridfs/6808f60046428645581f8c9a"
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       500:
@@ -2008,13 +2113,21 @@ router.post('/candidats/:id/atre', async (req: Request, res: Response) => {
       });
     }
 
-    // Envoie le PDF en réponse
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${encodeURIComponent(result.filename!)}"`
-    );
-    res.send(result.pdfBuffer);
+    const storedDocument = await getStoredCandidateAttachment(id, 'Atre');
+    const archivedToMongoDb = Boolean(storedDocument.attachment?.fileId);
+
+    res.json({
+      success: true,
+      message: 'Fiche ATRE générée avec succès',
+      data: {
+        candidatId: id,
+        fileName: result.filename || null,
+        archivedToMongoDb,
+        storageProvider: archivedToMongoDb ? 'gridfs' : null,
+        gridfsFileId: storedDocument.attachment?.fileId || null,
+        gridfsUrl: storedDocument.attachment?.url || null,
+      },
+    });
   } catch (error) {
     logger.error('Erreur génération fiche ATRE:', error);
     res.status(500).json({
@@ -2035,25 +2148,55 @@ router.post('/candidats/:id/atre', async (req: Request, res: Response) => {
  *     summary: Génère le Compte Rendu de Visite Entretien
  *     tags: [PDF]
  *     description: |
- *       Génère le compte rendu de visite entretien à partir des données Airtable
- *       du candidat identifié par son record ID, puis uploade le PDF
- *       dans la colonne « Compte rendu de visite » de l'enregistrement.
+ *       Génère le compte rendu de visite entretien à partir des données MongoDB
+ *       du candidat identifié par son ID, puis archive le PDF dans GridFS
+ *       dans le champ `compte rendu de visite`.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat (idEtudiant)
- *         example: rec1BBjsjxhdqEKuq
+ *         description: ID MongoDB du candidat
+ *         example: 6808f5f546428645581f8c84
  *     responses:
  *       200:
- *         description: Compte rendu généré et uploadé avec succès
+ *         description: Compte rendu généré et archivé avec succès
  *         content:
- *           application/pdf:
+ *           application/json:
  *             schema:
- *               type: string
- *               format: binary
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Compte rendu de visite généré avec succès"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     candidatId:
+ *                       type: string
+ *                       example: "6808f5f546428645581f8c84"
+ *                     fileName:
+ *                       type: string
+ *                       example: "Compte_Rendu_Dupont_Jean.pdf"
+ *                     archivedToMongoDb:
+ *                       type: boolean
+ *                       example: true
+ *                     storageProvider:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "gridfs"
+ *                     gridfsFileId:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "6808f60046428645581f8c9a"
+ *                     gridfsUrl:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "/api/gridfs/6808f60046428645581f8c9a"
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       500:
@@ -2074,13 +2217,21 @@ router.post('/candidats/:id/compte-rendu', async (req: Request, res: Response) =
       });
     }
 
-    // Envoie le PDF en réponse
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${encodeURIComponent(result.filename!)}"`
-    );
-    res.send(result.pdfBuffer);
+    const storedDocument = await getStoredCandidateAttachment(id, 'compte rendu de visite');
+    const archivedToMongoDb = Boolean(storedDocument.attachment?.fileId);
+
+    res.json({
+      success: true,
+      message: 'Compte rendu de visite généré avec succès',
+      data: {
+        candidatId: id,
+        fileName: result.filename || null,
+        archivedToMongoDb,
+        storageProvider: archivedToMongoDb ? 'gridfs' : null,
+        gridfsFileId: storedDocument.attachment?.fileId || null,
+        gridfsUrl: storedDocument.attachment?.url || null,
+      },
+    });
   } catch (error) {
     logger.error('Erreur génération Compte Rendu:', error);
     res.status(500).json({
@@ -2096,21 +2247,53 @@ router.post('/candidats/:id/compte-rendu', async (req: Request, res: Response) =
  *   post:
  *     summary: Génère le Règlement Intérieur pour un candidat
  *     tags: [Admission]
+ *     description: Génère le règlement intérieur pour un candidat et l'archive dans MongoDB Atlas via GridFS.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat
+ *         description: ID MongoDB du candidat
+ *         example: 6808f5f546428645581f8c84
  *     responses:
  *       200:
- *         description: PDF généré avec succès
+ *         description: Règlement intérieur généré et archivé avec succès
  *         content:
- *           application/pdf:
+ *           application/json:
  *             schema:
- *               type: string
- *               format: binary
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Règlement intérieur généré avec succès"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     candidatId:
+ *                       type: string
+ *                       example: "6808f5f546428645581f8c84"
+ *                     fileName:
+ *                       type: string
+ *                       example: "Reglement_interieur_Dupont_Jean.pdf"
+ *                     archivedToMongoDb:
+ *                       type: boolean
+ *                       example: true
+ *                     storageProvider:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "gridfs"
+ *                     gridfsFileId:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "6808f60046428645581f8c9a"
+ *                     gridfsUrl:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "/api/gridfs/6808f60046428645581f8c9a"
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       500:
@@ -2131,13 +2314,21 @@ router.post('/candidats/:id/reglement-interieur', async (req: Request, res: Resp
       });
     }
 
-    // Envoie le PDF en réponse
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${encodeURIComponent(result.filename!)}"`
-    );
-    res.send(result.pdfBuffer);
+    const storedDocument = await getStoredCandidateAttachment(id, 'Reglement interieur');
+    const archivedToMongoDb = Boolean(storedDocument.attachment?.fileId);
+
+    res.json({
+      success: true,
+      message: 'Règlement intérieur généré avec succès',
+      data: {
+        candidatId: id,
+        fileName: result.filename || null,
+        archivedToMongoDb,
+        storageProvider: archivedToMongoDb ? 'gridfs' : null,
+        gridfsFileId: storedDocument.attachment?.fileId || null,
+        gridfsUrl: storedDocument.attachment?.url || null,
+      },
+    });
   } catch (error) {
     logger.error('Erreur génération Règlement Intérieur:', error);
     res.status(500).json({
@@ -2164,17 +2355,19 @@ router.post('/candidats/:id/reglement-interieur', async (req: Request, res: Resp
  *       - Formation contient **NDRC** → Livret d'apprentissage NDRC
  *       - Formation contient **TP NTC** → Livret d'Apprentissage TP NTC
  *       
- *       Le PDF est ensuite uploadé sur Airtable dans la colonne "livret dapprentissage".
+ *       Le PDF est ensuite archivé dans MongoDB Atlas via GridFS dans le champ
+ *       `livret dapprentissage`.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable de l'étudiant (ex recXXXXXXXXXXXXXX)
+ *         description: ID MongoDB de l'étudiant
+ *         example: 6808f5f546428645581f8c84
  *     responses:
  *       200:
- *         description: Livret d'apprentissage généré et uploadé avec succès
+ *         description: Livret d'apprentissage généré et archivé avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -2185,7 +2378,7 @@ router.post('/candidats/:id/reglement-interieur', async (req: Request, res: Resp
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Livret d'apprentissage généré et uploadé avec succès"
+ *                   example: "Livret d'apprentissage généré avec succès"
  *                 data:
  *                   type: object
  *                   properties:
@@ -2198,6 +2391,21 @@ router.post('/candidats/:id/reglement-interieur', async (req: Request, res: Resp
  *                     filename:
  *                       type: string
  *                       example: "Livret_Apprentissage_MCO_DUPONT_Jean.pdf"
+ *                     archivedToMongoDb:
+ *                       type: boolean
+ *                       example: true
+ *                     storageProvider:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "gridfs"
+ *                     gridfsFileId:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "6808f60046428645581f8c9a"
+ *                     gridfsUrl:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "/api/gridfs/6808f60046428645581f8c9a"
  *       400:
  *         description: Formation non trouvée ou non supportée
  *       404:
@@ -2220,13 +2428,20 @@ router.post('/candidats/:id/livret-apprentissage', async (req: Request, res: Res
       });
     }
 
+    const storedDocument = await getStoredCandidateAttachment(id, 'livret dapprentissage');
+    const archivedToMongoDb = Boolean(storedDocument.attachment?.fileId);
+
     res.json({
       success: true,
-      message: "Livret d'apprentissage généré et uploadé avec succès",
+      message: "Livret d'apprentissage généré avec succès",
       data: {
         formation: result.formation,
         templateUsed: result.templateUsed,
         filename: result.filename,
+        archivedToMongoDb,
+        storageProvider: archivedToMongoDb ? 'gridfs' : null,
+        gridfsFileId: storedDocument.attachment?.fileId || null,
+        gridfsUrl: storedDocument.attachment?.url || null,
       },
     });
   } catch (error) {
@@ -2583,22 +2798,54 @@ router.post('/projet-pro', upload.single('file'), async (req: Request, res: Resp
  *       - Lieu fixe : Nanterre
  *       - Date du jour
  *       
- *       Le PDF généré est uploadé dans la colonne "Prise de connaissance" d'Airtable.
+ *       Le PDF généré est archivé dans MongoDB Atlas via GridFS dans le champ
+ *       `Prise de connaissance`.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat (IdEtudiant)
+ *         description: ID MongoDB du candidat
+ *         example: 6808f5f546428645581f8c84
  *     responses:
  *       200:
- *         description: PDF généré et uploadé avec succès
+ *         description: PDF généré et archivé avec succès
  *         content:
- *           application/pdf:
+ *           application/json:
  *             schema:
- *               type: string
- *               format: binary
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Prise de connaissance générée avec succès"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     candidatId:
+ *                       type: string
+ *                       example: "6808f5f546428645581f8c84"
+ *                     fileName:
+ *                       type: string
+ *                       example: "Prise_de_connaissance_Dupont_Jean.pdf"
+ *                     archivedToMongoDb:
+ *                       type: boolean
+ *                       example: true
+ *                     storageProvider:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "gridfs"
+ *                     gridfsFileId:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "6808f60046428645581f8c9a"
+ *                     gridfsUrl:
+ *                       type: string
+ *                       nullable: true
+ *                       example: "/api/gridfs/6808f60046428645581f8c9a"
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       500:
@@ -2618,12 +2865,21 @@ router.post('/candidats/:id/prise-connaissance', async (req: Request, res: Respo
       });
     }
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${encodeURIComponent(result.filename!)}"`
-    );
-    res.send(result.pdfBuffer);
+    const storedDocument = await getStoredCandidateAttachment(id, 'Prise de connaissance');
+    const archivedToMongoDb = Boolean(storedDocument.attachment?.fileId);
+
+    res.json({
+      success: true,
+      message: 'Prise de connaissance générée avec succès',
+      data: {
+        candidatId: id,
+        fileName: result.filename || null,
+        archivedToMongoDb,
+        storageProvider: archivedToMongoDb ? 'gridfs' : null,
+        gridfsFileId: storedDocument.attachment?.fileId || null,
+        gridfsUrl: storedDocument.attachment?.url || null,
+      },
+    });
   } catch (error) {
     logger.error('Erreur génération Prise de Connaissance:', error);
     res.status(500).json({
@@ -2646,24 +2902,24 @@ router.post('/candidats/:id/prise-connaissance', async (req: Request, res: Respo
  *     description: |
  *       Génère le certificat de scolarité **en alternance** pour un candidat à partir
  *       du template PDF image. Le service :
- *       1. Récupère les données du candidat depuis Airtable (Prénom, NOM de naissance,
+ *       1. Récupère les données du candidat depuis MongoDB (Prénom, NOM de naissance,
  *          Date de naissance, Commune de naissance)
  *       2. Remplit le PDF en superposant le **NOM Prénom** (en gras) suivi de
  *          **né(e) le : JJ/MM/AAAA à Lieu** sur une seule ligne
- *       3. Upload le PDF généré vers Airtable dans la table "Liste des candidats",
- *          colonne **"certificat de scolarité"**
- *       4. Retourne le résultat avec l'URL Airtable du fichier uploadé
+ *       3. Archive le PDF généré dans MongoDB Atlas via GridFS dans le champ
+ *          **"certificat de scolarité"**
+ *       4. Retourne le résultat avec l'identifiant GridFS et l'URL API du fichier archivé
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID Airtable du candidat (table "Liste des candidats")
- *         example: recC8DfinY52bGCtR
+ *         description: ID MongoDB du candidat
+ *         example: 6808f5f546428645581f8c84
  *     responses:
  *       200:
- *         description: Certificat de scolarité généré et uploadé avec succès
+ *         description: Certificat de scolarité généré et archivé avec succès
  *         content:
  *           application/json:
  *             schema:
@@ -2672,10 +2928,12 @@ router.post('/candidats/:id/prise-connaissance', async (req: Request, res: Respo
  *               success: true
  *               message: "Certificat de scolarité généré avec succès"
  *               data:
- *                 candidatId: "recC8DfinY52bGCtR"
+ *                 candidatId: "6808f5f546428645581f8c84"
  *                 fileName: "Certificat_Scolarite_CHERIF_Bilal.pdf"
- *                 uploadedToAirtable: true
- *                 airtableUrl: "https://dl.airtable.com/.attachments/..."
+ *                 archivedToMongoDb: true
+ *                 storageProvider: "gridfs"
+ *                 gridfsFileId: "6808f60046428645581f8c9a"
+ *                 gridfsUrl: "/api/gridfs/6808f60046428645581f8c9a"
  *       404:
  *         description: Candidat non trouvé
  *         content:
@@ -2718,37 +2976,31 @@ router.post('/candidats/:id/certificat-scolarite', async (req: Request, res: Res
       });
     }
 
-    // 3. Upload vers Airtable dans la colonne "certificat de scolarité"
+    // 3. Archivage dans MongoDB GridFS dans le champ "certificat de scolarité"
     const fileName = result.fileName || `Certificat_Scolarite_${id}.pdf`;
-    let uploadedToAirtable = false;
-    let certificatUrl: string | null = null;
+    let archivedToMongoDb = false;
+    let gridfsFileId: string | null = null;
+    let gridfsUrl: string | null = null;
 
     try {
-      // Écrire le buffer dans un fichier temporaire
-      const tmpFilePath = path.join(os.tmpdir(), `certificat_scolarite_${id}_${Date.now()}.pdf`);
-      fs.writeFileSync(tmpFilePath, result.pdfBuffer);
+      const uploadResult = await candidatRepo.uploadDocumentBuffer(
+        id,
+        'certificat de scolarité',
+        result.pdfBuffer,
+        fileName,
+        'application/pdf'
+      );
 
-      // Upload vers Airtable
-      uploadedToAirtable = await candidatRepo.uploadDocument(id, 'certificat de scolarité', tmpFilePath);
-
-      if (uploadedToAirtable) {
-        logger.info(`✅ Certificat de scolarité uploadé vers Airtable pour ${id}`);
-        // Récupérer l'URL du fichier uploadé
-        try {
-          const updatedRecord = await candidatRepo.getById(id);
-          const certData = updatedRecord?.fields?.['certificat de scolarité'] as any[] | undefined;
-          certificatUrl = certData?.[0]?.url || null;
-        } catch (e) {
-          // Pas grave si on n'arrive pas à récupérer l'URL
-        }
+      if (uploadResult) {
+        archivedToMongoDb = true;
+        gridfsFileId = uploadResult.fileId;
+        gridfsUrl = uploadResult.url;
+        logger.info(`✅ Certificat de scolarité archivé dans MongoDB GridFS pour ${id} (fileId=${gridfsFileId})`);
       } else {
-        logger.warn(`⚠️ Échec upload certificat de scolarité vers Airtable pour ${id}`);
+        logger.warn(`⚠️ Échec archivage certificat de scolarité dans MongoDB GridFS pour ${id}`);
       }
-
-      // Nettoyer le fichier temporaire
-      try { fs.unlinkSync(tmpFilePath); } catch (e) { /* ignore */ }
-    } catch (uploadError: any) {
-      logger.warn(`⚠️ Erreur upload certificat de scolarité vers Airtable: ${uploadError.message}`);
+    } catch (archiveError: any) {
+      logger.warn(`⚠️ Erreur archivage certificat de scolarité vers MongoDB GridFS: ${archiveError.message}`);
     }
 
     // 4. Retourner le résultat
@@ -2758,8 +3010,10 @@ router.post('/candidats/:id/certificat-scolarite', async (req: Request, res: Res
       data: {
         candidatId: id,
         fileName,
-        uploadedToAirtable,
-        airtableUrl: certificatUrl,
+        archivedToMongoDb,
+        storageProvider: archivedToMongoDb ? 'gridfs' : null,
+        gridfsFileId,
+        gridfsUrl,
       },
     });
   } catch (error) {

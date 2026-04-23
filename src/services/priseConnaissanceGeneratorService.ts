@@ -82,39 +82,28 @@ export class PriseConnaissanceGeneratorService {
       const pdfBuffer = Buffer.from(pdfBytes);
       console.log(`[PriseConnaissance] PDF généré, taille: ${pdfBuffer.length} bytes`);
 
-      // 5. Fichier temporaire
       const safeName = `${nom}_${prenom}`.replace(/[^a-zA-Z0-9_-]/g, '_');
       const filename = `Prise_de_connaissance_${safeName}.pdf`;
-      const tmpDir = path.join(__dirname, '../tmp');
-      if (!fs.existsSync(tmpDir)) {
-        fs.mkdirSync(tmpDir, { recursive: true });
-      }
-      const tmpPath = path.join(tmpDir, filename);
-      fs.writeFileSync(tmpPath, pdfBuffer);
-      console.log(`[PriseConnaissance] Fichier temporaire: ${tmpPath}`);
 
-      // 6. Upload vers Airtable
-      console.log(`[PriseConnaissance] Upload vers Airtable, colonne: "${PRISE_CONNAISSANCE_AIRTABLE_COLUMN}"`);
-      const uploadSuccess = await this.candidatRepo.uploadDocument(
+      // 5. Upload vers MongoDB GridFS
+      console.log(`[PriseConnaissance] Upload vers MongoDB GridFS, colonne: "${PRISE_CONNAISSANCE_AIRTABLE_COLUMN}"`);
+      const uploadResult = await this.candidatRepo.uploadDocumentBuffer(
         idEtudiant,
         PRISE_CONNAISSANCE_AIRTABLE_COLUMN,
-        tmpPath
+        pdfBuffer,
+        filename,
+        'application/pdf'
       );
-
-      // 7. Nettoyer le fichier temporaire
-      if (fs.existsSync(tmpPath)) {
-        fs.unlinkSync(tmpPath);
-        console.log(`[PriseConnaissance] Fichier temporaire supprimé`);
-      }
+      const uploadSuccess = Boolean(uploadResult);
 
       if (uploadSuccess) {
-        console.log('[PriseConnaissance] Upload réussi');
+        console.log(`[PriseConnaissance] Upload réussi (fileId=${uploadResult!.fileId})`);
         return { success: true, pdfBuffer, filename };
       } else {
-        console.error('[PriseConnaissance] Échec de l\'upload Airtable');
+        console.error('[PriseConnaissance] Échec de l\'upload MongoDB GridFS');
         return {
           success: false,
-          error: 'Échec de l\'upload du PDF vers Airtable',
+          error: 'Échec de l\'upload du PDF vers MongoDB GridFS',
         };
       }
     } catch (error: any) {

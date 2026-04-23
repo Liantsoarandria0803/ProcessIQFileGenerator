@@ -252,37 +252,19 @@ export class LivretApprentissageService {
       const prenomSanitized = (prenom as string).replace(/[^a-zA-ZÀ-ÿ0-9]/g, '_');
       const filename = `Livret_Apprentissage_${template.keyword}_${nomSanitized}_${prenomSanitized}.pdf`;
 
-      // 5. Sauvegarder en fichier temporaire pour l'upload
-      const tmpDir = path.join(__dirname, '../tmp');
-      await fsPromises.mkdir(tmpDir, { recursive: true });
-      const tmpPath = path.join(tmpDir, filename);
-      await fsPromises.writeFile(tmpPath, finalPdfBuffer);
-
-      logger.info(`[LivretApprentissage] Fichier temporaire: ${tmpPath}`);
-
-      let uploadSuccess = false;
-      try {
-        // 6. Upload vers Airtable
-        logger.info(`[LivretApprentissage] Upload vers Airtable colonne: "${LIVRET_AIRTABLE_COLUMN}"`);
-        uploadSuccess = await this.candidatRepo.uploadDocument(
-          idEtudiant,
-          LIVRET_AIRTABLE_COLUMN,
-          tmpPath
-        );
-      } finally {
-        // 7. Nettoyer le fichier temporaire
-        try {
-          await fsPromises.unlink(tmpPath);
-          logger.info(`[LivretApprentissage] Fichier temporaire supprimé: ${tmpPath}`);
-        } catch (error: any) {
-          if (error?.code !== 'ENOENT') {
-            logger.warn(`[LivretApprentissage] Impossible de supprimer le fichier temporaire: ${tmpPath}`, error);
-          }
-        }
-      }
+      // 5. Upload vers MongoDB GridFS
+      logger.info(`[LivretApprentissage] Upload vers MongoDB GridFS colonne: "${LIVRET_AIRTABLE_COLUMN}"`);
+      const uploadResult = await this.candidatRepo.uploadDocumentBuffer(
+        idEtudiant,
+        LIVRET_AIRTABLE_COLUMN,
+        finalPdfBuffer,
+        filename,
+        'application/pdf'
+      );
+      const uploadSuccess = Boolean(uploadResult);
 
       if (uploadSuccess) {
-        logger.info(`[LivretApprentissage] ✅ Upload réussi pour ${prenom} ${nom}`);
+        logger.info(`[LivretApprentissage] ✅ Upload réussi pour ${prenom} ${nom} (fileId=${uploadResult!.fileId})`);
         return {
           success: true,
           pdfBuffer: Buffer.from(finalPdfBuffer),
@@ -294,7 +276,7 @@ export class LivretApprentissageService {
         logger.error(`[LivretApprentissage] ❌ Upload échoué`);
         return {
           success: false,
-          error: "Échec de l'upload du PDF vers Airtable",
+          error: "Échec de l'upload du PDF vers MongoDB GridFS",
         };
       }
     } catch (error: any) {
