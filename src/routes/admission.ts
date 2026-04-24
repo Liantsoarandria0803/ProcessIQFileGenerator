@@ -21,6 +21,7 @@ import logger from '../utils/logger';
 import { InformationsPersonnelles } from '../types/admission';
 import config from '../config';
 import { Attachment } from '../types';
+import { listFilesByCandidat } from '../services/gridfsService';
 
 const router = Router();
 const candidatRepo = new CandidatRepository();
@@ -51,6 +52,66 @@ type StoredCandidateAttachment = Attachment & {
   contentType?: string;
   uploadedAt?: Date | string;
 };
+
+type CandidateDocumentType =
+  | 'cv'
+  | 'cin'
+  | 'lettre_motivation'
+  | 'carte_vitale'
+  | 'dernier_diplome'
+  | 'fiche_entreprise'
+  | 'convention'
+  | 'cerfa'
+  | 'convention_apprentissage'
+  | 'suivie_entretien'
+  | 'atre'
+  | 'compte_rendu'
+  | 'reglement_interieur'
+  | 'livret_apprentissage'
+  | 'prise_de_connaissance'
+  | 'certificat_scolarite'
+  | 'resultat_pdf'
+  | 'projet_pro'
+  | 'autre';
+
+type CandidateDocumentItem = {
+  documentType: CandidateDocumentType;
+  columnName: string;
+  fileId: string | null;
+  url: string | null;
+  filename: string;
+  contentType: string | null;
+  size: number | null;
+  uploadedAt: string | null;
+  source: 'record' | 'gridfs';
+};
+
+type CandidateDocumentsMap = Record<string, CandidateDocumentItem[]>;
+
+const CANDIDATE_DOCUMENT_DEFINITIONS: Array<{ key: CandidateDocumentType; columns: string[] }> = [
+  { key: 'cv', columns: ['CV'] },
+  { key: 'cin', columns: ['CIN', 'Carte d\'identité'] },
+  { key: 'lettre_motivation', columns: ['lettre de motivation', 'Lettre de motivation'] },
+  { key: 'carte_vitale', columns: ['Photocopie carte vitale', 'Carte vitale'] },
+  { key: 'dernier_diplome', columns: ['dernier diplome', 'Dernier diplôme'] },
+  { key: 'fiche_entreprise', columns: ['Fiche entreprise'] },
+  { key: 'convention', columns: ['Convention', 'convention'] },
+  { key: 'cerfa', columns: ['cerfa'] },
+  { key: 'convention_apprentissage', columns: ['Convention apprentissage'] },
+  { key: 'suivie_entretien', columns: ['Suivie entretien'] },
+  { key: 'atre', columns: ['Atre'] },
+  { key: 'compte_rendu', columns: ['compte rendu de visite'] },
+  { key: 'reglement_interieur', columns: ['Reglement interieur'] },
+  { key: 'livret_apprentissage', columns: ['livret dapprentissage'] },
+  { key: 'prise_de_connaissance', columns: ['Prise de connaissance'] },
+  { key: 'certificat_scolarite', columns: ['certificat de scolarité'] },
+  { key: 'resultat_pdf', columns: ['PDF Résultat'] },
+  { key: 'projet_pro', columns: ['projet', 'Projet pro', 'projet_pro'] },
+];
+
+const DOCUMENT_TYPE_BY_COLUMN = new Map<string, CandidateDocumentType>(
+  CANDIDATE_DOCUMENT_DEFINITIONS.flatMap(({ key, columns }) => columns.map((column) => [column, key] as const))
+);
 
 function getStoredAttachmentFromFields(
   fields: Record<string, any>,
@@ -86,6 +147,214 @@ async function getStoredCandidateAttachment(
   return getStoredAttachmentFromFields(updatedRecord.fields as Record<string, any>, columnNames);
 }
 
+function toIsoDate(value: unknown): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toISOString();
+}
+
+function normalizeDocumentUrl(fileId?: string | null, url?: string | null): string | null {
+  const cleanUrl = typeof url === 'string' && url.trim() ? url.trim() : null;
+  if (cleanUrl) {
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+      return cleanUrl;
+    }
+    return cleanUrl.startsWith('/') ? cleanUrl : `/${cleanUrl}`;
+  }
+
+  return fileId ? `/api/gridfs/${fileId}` : null;
+}
+
+function normalizeStoredAttachments(value: unknown): StoredCandidateAttachment[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is StoredCandidateAttachment => Boolean(item && typeof item === 'object'));
+}
+
+function isAttachmentLike(value: unknown): value is StoredCandidateAttachment {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.fileId === 'string' ||
+    typeof candidate.url === 'string' ||
+    typeof candidate.filename === 'string'
+  );
+}
+
+function normalizeAttachment(value: StoredCandidateAttachment): StoredCandidateAttachment {
+  const fileId = typeof value.fileId === 'string' && value.fileId.trim() ? value.fileId.trim() : undefined;
+
+  return {
+    ...value,
+    fileId,
+    url: normalizeDocumentUrl(fileId, value.url) || value.url,
+  };
+}
+
+function normalizeCandidateFieldsDocumentUrls(fields: Record<string, any>): Record<string, any> {
+  const normalizedFields: Record<string, any> = { ...fields };
+
+  for (const [fieldName, fieldValue] of Object.entries(fields)) {
+    if (!Array.isArray(fieldValue)) {
+      continue;
+    }
+
+    if (!fieldValue.every((item) => isAttachmentLike(item))) {
+      continue;
+    }
+
+    normalizedFields[fieldName] = fieldValue.map((item) => normalizeAttachment(item));
+  }
+
+  return normalizedFields;
+}
+
+function normalizeCandidateRecord<T extends { id: string; fields: Record<string, any> }>(candidat: T): T {
+  return {
+    ...candidat,
+    fields: normalizeCandidateFieldsDocumentUrls(candidat.fields),
+  };
+}
+
+function resolveDocumentType(columnName?: string | null): CandidateDocumentType {
+  if (!columnName) {
+    return 'autre';
+  }
+
+  return DOCUMENT_TYPE_BY_COLUMN.get(columnName) || 'autre';
+}
+
+function createDocumentItem(
+  source: 'record' | 'gridfs',
+  columnName: string,
+  payload: {
+    fileId?: string | null;
+    url?: string | null;
+    filename?: string | null;
+    contentType?: string | null;
+    size?: number | null;
+    uploadedAt?: unknown;
+  }
+): CandidateDocumentItem {
+  const fileId = payload.fileId ? String(payload.fileId) : null;
+
+  return {
+    documentType: resolveDocumentType(columnName),
+    columnName,
+    fileId,
+    url: normalizeDocumentUrl(fileId, payload.url),
+    filename: payload.filename || 'document',
+    contentType: payload.contentType || null,
+    size: typeof payload.size === 'number' ? payload.size : null,
+    uploadedAt: toIsoDate(payload.uploadedAt),
+    source,
+  };
+}
+
+async function collectCandidateDocuments(
+  candidatId: string,
+  fields: Record<string, any>
+): Promise<{
+  documents: CandidateDocumentsMap;
+  documentsCount: number;
+  hasDocuments: boolean;
+}> {
+  const documents: CandidateDocumentsMap = {};
+  const seen = new Set<string>();
+
+  const pushDocument = (item: CandidateDocumentItem) => {
+    const dedupeKey = [
+      item.documentType,
+      item.columnName,
+      item.fileId || '',
+      item.url || '',
+      item.filename,
+    ].join('::');
+
+    if (seen.has(dedupeKey)) {
+      return;
+    }
+
+    seen.add(dedupeKey);
+
+    if (!documents[item.documentType]) {
+      documents[item.documentType] = [];
+    }
+
+    documents[item.documentType].push(item);
+  };
+
+  for (const { columns } of CANDIDATE_DOCUMENT_DEFINITIONS) {
+    for (const columnName of columns) {
+      const attachments = normalizeStoredAttachments(fields[columnName]);
+      for (const attachment of attachments) {
+        pushDocument(createDocumentItem('record', columnName, {
+          fileId: attachment.fileId,
+          url: attachment.url,
+          filename: attachment.filename,
+          contentType: attachment.contentType || attachment.type,
+          size: attachment.size,
+          uploadedAt: attachment.uploadedAt,
+        }));
+      }
+    }
+  }
+
+  const gridfsFiles = await listFilesByCandidat(candidatId);
+  for (const file of gridfsFiles) {
+    const metadata = (file.metadata || {}) as Record<string, any>;
+    const columnName = String(metadata.documentType || metadata.columnName || 'autre');
+    pushDocument(createDocumentItem('gridfs', columnName, {
+      fileId: file.fileId,
+      url: file.url,
+      filename: metadata.originalFilename || file.filename,
+      contentType: file.contentType,
+      size: file.size,
+      uploadedAt: metadata.uploadedAt || file.uploadedAt,
+    }));
+  }
+
+  for (const key of Array.from(DOCUMENT_TYPE_BY_COLUMN.values())) {
+    if (!documents[key]) {
+      documents[key] = [];
+    }
+  }
+
+  return {
+    documents,
+    documentsCount: Array.from(Object.values(documents)).reduce((sum, items) => sum + items.length, 0),
+    hasDocuments: Array.from(Object.values(documents)).some((items) => items.length > 0),
+  };
+}
+
+async function enrichCandidateWithDocuments<T extends { id: string; fields: Record<string, any> }>(candidat: T) {
+  const normalizedFields = normalizeCandidateFieldsDocumentUrls(candidat.fields);
+  const { documents, documentsCount, hasDocuments } = await collectCandidateDocuments(candidat.id, normalizedFields);
+
+  return {
+    id: candidat.id,
+    fields: normalizedFields,
+    documents,
+    documents_count: documentsCount,
+    has_documents: hasDocuments,
+    resultat_pdf: documents.resultat_pdf || [],
+    suivie_entretien: documents.suivie_entretien || [],
+    projet_pro: documents.projet_pro || [],
+  };
+}
+
 /**
  * @swagger
  * /api/admission/candidats:
@@ -117,7 +386,7 @@ async function getStoredCandidateAttachment(
  */
 router.get('/candidats', async (req: Request, res: Response) => {
   try {
-    const candidats = await candidatRepo.getAll();
+    const candidats = (await candidatRepo.getAll()).map((candidat) => normalizeCandidateRecord(candidat));
     res.json({
       success: true,
       data: candidats,
@@ -176,11 +445,11 @@ router.get('/historique-utilisateurs', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/candidats-with-documents:
  *   get:
- *     summary: Liste tous les candidats avec leurs documents (Résultat PDF + Suivie entretien + Projet pro)
+ *     summary: Liste tous les candidats avec leurs documents MongoDB/GridFS
  *     tags: [Candidats]
  *     description: >
- *       Récupère la liste complète des candidats depuis Airtable avec une jointure
- *       sur l'email pour inclure les documents des tables "Résultats PDF", "Resultat entretien" et "projet pro".
+ *       Récupère la liste complète des candidats depuis MongoDB et agrège les documents
+ *       stockés dans les champs du candidat ainsi que dans GridFS.
  *     responses:
  *       200:
  *         description: Liste des candidats avec documents récupérée avec succès
@@ -241,58 +510,10 @@ router.get('/historique-utilisateurs', async (req: Request, res: Response) => {
  */
 router.get('/candidats-with-documents', async (req: Request, res: Response) => {
   try {
-    // Récupérer toutes les données en parallèle
-    const [candidats, resultatsPdf, resultatsEntretien, projetsPro] = await Promise.all([
-      candidatRepo.getAll(),
-      resultatPdfRepo.getAll(),
-      resultatEntretienRepo.getAll(),
-      projetProRepo.getAll(),
-    ]);
-
-    // Indexer les résultats PDF par email
-    const pdfByEmail = new Map<string, typeof resultatsPdf>();
-    for (const pdf of resultatsPdf) {
-      const email = pdf.fields['E-mail'];
-      if (email) {
-        const existing = pdfByEmail.get(email) || [];
-        existing.push(pdf);
-        pdfByEmail.set(email, existing);
-      }
-    }
-
-    // Indexer les résultats entretien par email
-    const entretienByEmail = new Map<string, typeof resultatsEntretien>();
-    for (const entretien of resultatsEntretien) {
-      const email = entretien.fields['E-mail'];
-      if (email) {
-        const existing = entretienByEmail.get(email) || [];
-        existing.push(entretien);
-        entretienByEmail.set(email, existing);
-      }
-    }
-
-    // Indexer les projets pro par email
-    const projetProByEmail = new Map<string, typeof projetsPro>();
-    for (const projet of projetsPro) {
-      const email = projet.fields['E-mail'];
-      if (email) {
-        const existing = projetProByEmail.get(email) || [];
-        existing.push(projet);
-        projetProByEmail.set(email, existing);
-      }
-    }
-
-    // Jointure : enrichir chaque candidat avec ses documents
-    const candidatsWithDocuments = candidats.map((candidat) => {
-      const email = (candidat.fields as any)['E-mail'] as string | undefined;
-      return {
-        id: candidat.id,
-        fields: candidat.fields,
-        resultat_pdf: email ? (pdfByEmail.get(email) || []) : [],
-        suivie_entretien: email ? (entretienByEmail.get(email) || []) : [],
-        projet_pro: email ? (projetProByEmail.get(email) || []) : [],
-      };
-    });
+    const candidats = await candidatRepo.getAll();
+    const candidatsWithDocuments = await Promise.all(
+      candidats.map((candidat) => enrichCandidateWithDocuments(candidat))
+    );
 
     res.json({
       success: true,
@@ -312,11 +533,11 @@ router.get('/candidats-with-documents', async (req: Request, res: Response) => {
  * @swagger
  * /api/admission/candidats/{id}/with-documents:
  *   get:
- *     summary: Récupère un candidat par ID avec ses documents (Résultat PDF + Suivie entretien)
+ *     summary: Récupère un candidat par ID avec ses documents MongoDB/GridFS
  *     tags: [Candidats]
  *     description: >
- *       Récupère un candidat spécifique depuis Airtable avec une jointure
- *       sur l'email pour inclure ses documents des tables "Résultats PDF" et "Resultat entretien".
+ *       Récupère un candidat spécifique depuis MongoDB et agrège les documents
+ *       stockés dans ses champs et dans GridFS.
  *     parameters:
  *       - in: path
  *         name: id
@@ -364,7 +585,6 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
   try {
     const { id } = req.params;
 
-    // Récupérer le candidat
     const candidat = await candidatRepo.getById(id);
     if (!candidat) {
       return res.status(404).json({
@@ -372,31 +592,11 @@ router.get('/candidats/:id/with-documents', async (req: Request, res: Response) 
         error: 'Candidat non trouvé',
       });
     }
-
-    const email = (candidat.fields as any)['E-mail'] as string | undefined;
-
-    let resultatsPdf: any[] = [];
-    let resultatsEntretien: any[] = [];
-
-    if (email) {
-      // Récupérer les documents liés par email en parallèle
-      const [allPdf, allEntretien] = await Promise.all([
-        resultatPdfRepo.getAll(),
-        resultatEntretienRepo.getAll(),
-      ]);
-
-      resultatsPdf = allPdf.filter((r) => r.fields['E-mail'] === email);
-      resultatsEntretien = allEntretien.filter((r) => r.fields['E-mail'] === email);
-    }
+    const enrichedCandidate = await enrichCandidateWithDocuments(candidat);
 
     res.json({
       success: true,
-      data: {
-        id: candidat.id,
-        fields: candidat.fields,
-        resultat_pdf: resultatsPdf,
-        suivie_entretien: resultatsEntretien,
-      },
+      data: enrichedCandidate,
     });
   } catch (error) {
     logger.error('Erreur récupération candidat avec documents:', error);
@@ -454,7 +654,7 @@ router.get('/candidats/:id', async (req: Request, res: Response) => {
     
     res.json({
       success: true,
-      data: candidat
+      data: normalizeCandidateRecord(candidat)
     });
   } catch (error) {
     logger.error('Erreur récupération candidat:', error);
