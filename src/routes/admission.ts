@@ -160,16 +160,29 @@ function toIsoDate(value: unknown): string | null {
   return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toISOString();
 }
 
+function toPublicApiUrl(url: string): string {
+  const cleanUrl = url.trim();
+  if (!cleanUrl) {
+    return cleanUrl;
+  }
+
+  if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+    return cleanUrl;
+  }
+
+  const baseUrl = String(config.publicBaseUrl || config.api?.baseUrl || '').trim().replace(/\/+$/, '');
+  const normalizedPath = cleanUrl.startsWith('/') ? cleanUrl : `/${cleanUrl}`;
+
+  return baseUrl ? `${baseUrl}${normalizedPath}` : normalizedPath;
+}
+
 function normalizeDocumentUrl(fileId?: string | null, url?: string | null): string | null {
   const cleanUrl = typeof url === 'string' && url.trim() ? url.trim() : null;
   if (cleanUrl) {
-    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
-      return cleanUrl;
-    }
-    return cleanUrl.startsWith('/') ? cleanUrl : `/${cleanUrl}`;
+    return toPublicApiUrl(cleanUrl);
   }
 
-  return fileId ? `/api/gridfs/${fileId}` : null;
+  return fileId ? toPublicApiUrl(`/api/gridfs/${fileId}`) : null;
 }
 
 function normalizeStoredAttachments(value: unknown): StoredCandidateAttachment[] {
