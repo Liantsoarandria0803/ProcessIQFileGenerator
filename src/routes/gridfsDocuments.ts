@@ -5,6 +5,11 @@ import logger from '../utils/logger';
 
 const router = Router();
 
+function buildContentDisposition(filename: string, forceDownload: boolean): string {
+  const dispositionType = forceDownload ? 'attachment' : 'inline';
+  return `${dispositionType}; filename="${encodeURIComponent(filename)}"`;
+}
+
 router.get('/candidat/:candidatId', async (req: Request, res: Response) => {
   try {
     if (!isMongoConnected()) {
@@ -27,7 +32,7 @@ router.get('/candidat/:candidatId', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/:fileId', async (req: Request, res: Response) => {
+async function streamGridfsFile(req: Request, res: Response, forceDownload: boolean): Promise<Response | void> {
   try {
     if (!isMongoConnected()) {
       return res.status(503).json({
@@ -51,7 +56,7 @@ router.get('/:fileId', async (req: Request, res: Response) => {
     const filename = fileInfo.filename || 'document';
 
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(filename)}"`);
+    res.setHeader('Content-Disposition', buildContentDisposition(filename, forceDownload));
     if (fileInfo.length) {
       res.setHeader('Content-Length', fileInfo.length.toString());
     }
@@ -72,6 +77,16 @@ router.get('/:fileId', async (req: Request, res: Response) => {
       res.status(500).json({ success: false, error: error.message });
     }
   }
+}
+
+router.get('/:fileId/download', async (req: Request, res: Response) => {
+  return streamGridfsFile(req, res, true);
+});
+
+router.get('/:fileId', async (req: Request, res: Response) => {
+  const download = String(req.query.download || '').trim().toLowerCase();
+  const forceDownload = download === '1' || download === 'true' || download === 'yes';
+  return streamGridfsFile(req, res, forceDownload);
 });
 
 export default router;
