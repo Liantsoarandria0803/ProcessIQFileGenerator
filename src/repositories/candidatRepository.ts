@@ -2,6 +2,7 @@ import logger from '../utils/logger';
 import { deleteFile } from '../services/gridfsService';
 import { CandidatMongoRepository } from './mongo/candidatMongoRepository';
 import { Attachment, Candidat, CandidatFields } from '../types';
+import { GridFSFileInfo } from '../services/gridfsService';
 
 export class CandidatRepository {
   private readonly mongoRepository: CandidatMongoRepository;
@@ -41,6 +42,16 @@ export class CandidatRepository {
 
   async uploadDocument(recordId: string, columnName: string, filePath: string): Promise<boolean> {
     return this.mongoRepository.uploadDocument(recordId, columnName, filePath);
+  }
+
+  async uploadDocumentBuffer(
+    recordId: string,
+    columnName: string,
+    buffer: Buffer,
+    originalName: string,
+    contentType: string,
+  ): Promise<GridFSFileInfo | null> {
+    return this.mongoRepository.uploadDocumentBuffer(recordId, columnName, buffer, originalName, contentType);
   }
 
   async uploadCV(recordId: string, filePath: string): Promise<boolean> {
