@@ -1,6 +1,7 @@
 import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as dns from 'dns';
 import mongoose from 'mongoose';
 import { connectDB, disconnectDB } from '../config/database';
 import { CandidatRepository } from '../repositories/candidatRepository';
@@ -19,6 +20,22 @@ import {
 
 dotenv.config();
 dotenv.config({ path: '.env.local', override: false });
+
+dns.setDefaultResultOrder('ipv4first');
+
+const DNS_SERVERS = String(process.env.DNS_SERVERS || '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+if (DNS_SERVERS.length > 0) {
+  try {
+    dns.setServers(DNS_SERVERS);
+    console.log(`🌐 DNS override activé: ${DNS_SERVERS.join(', ')}`);
+  } catch {
+    // ignore invalid DNS server values
+  }
+}
 
 type SystemDocumentType =
   | 'fiche-renseignement'

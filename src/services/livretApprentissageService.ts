@@ -17,6 +17,7 @@ const LIVRET_DOCUMENT_FIELD = 'livret dapprentissage';
 // Mapping formation → template PDF
 const FORMATION_TEMPLATES: { keyword: string; filename: string }[] = [
   { keyword: 'MCO', filename: "Livret d'Apprentissage MCO.pdf" },
+  { keyword: 'BTS COM', filename: "Livret d'Apprentissage MCO.pdf" },
   { keyword: 'Bachelor', filename: "Livret d'Apprentissage Bachelor.pdf" },
   { keyword: 'NDRC', filename: "Livret d'apprentissage NDRC.pdf" },
   { keyword: 'TP NTC', filename: "Livret d'Apprentissage TP NTC.pdf" },
@@ -65,6 +66,7 @@ export class LivretApprentissageService {
 
   private static LIVRET_TEMPLATE_FIELDS: Record<string, typeof LivretApprentissageService.LIVRET_COMMON_FIELDS> = {
     MCO: LivretApprentissageService.LIVRET_COMMON_FIELDS,
+    'BTS COM': LivretApprentissageService.LIVRET_COMMON_FIELDS,
     NDRC: LivretApprentissageService.LIVRET_COMMON_FIELDS,
     BACHELOR: LivretApprentissageService.LIVRET_COMMON_FIELDS,
     'TP NTC': LivretApprentissageService.LIVRET_COMMON_FIELDS,
@@ -84,6 +86,11 @@ export class LivretApprentissageService {
       formationUpper.includes('TITRE PROFESSIONNEL NTC')
     ) {
       return FORMATION_TEMPLATES.find((entry) => entry.keyword === 'TP NTC') || null;
+    }
+
+    // Alias métier: "BTS COM" utilise le template MCO
+    if (formationUpper.includes('BTS COM')) {
+      return FORMATION_TEMPLATES.find((entry) => entry.keyword === 'BTS COM') || null;
     }
 
     // Chercher "TP NTC" en premier car "TP" pourrait matcher d'autres choses
@@ -132,7 +139,7 @@ export class LivretApprentissageService {
       if (!template) {
         return {
           success: false,
-          error: `Aucun template de livret d'apprentissage trouvé pour la formation "${formation}". Formations supportées: MCO, Bachelor, NDRC, TP NTC`,
+          error: `Aucun template de livret d'apprentissage trouvé pour la formation "${formation}". Formations supportées: BTS COM, MCO, Bachelor, NDRC, TP NTC`,
         };
       }
 
