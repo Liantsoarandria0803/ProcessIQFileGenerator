@@ -12,7 +12,7 @@ import logger from '../../utils/logger';
 import {
   uploadBuffer,
   uploadFromDisk,
-  deleteByMetadata,
+  deleteFile,
   GridFSFileInfo,
 } from '../../services/gridfsService';
 
@@ -163,15 +163,24 @@ export class CandidatMongoRepository {
       const filter = await this.buildFilter(recordId);
       if (!filter) return false;
 
+      const previousDoc = await this.collection.findOne(filter, {
+        projection: { [columnName]: 1 },
+      });
+      const previousAttachments = (previousDoc as any)?.[columnName];
+      const previousFileIds = Array.from(
+        new Set(
+          (Array.isArray(previousAttachments) ? previousAttachments : [])
+            .map((attachment: any) => attachment?.fileId)
+            .filter((value: any): value is string => typeof value === 'string' && value.length > 0)
+        )
+      );
+
       if (!fs.existsSync(filePath)) {
         logger.error(`❌ Fichier inexistant: ${filePath}`);
         return false;
       }
 
       const fileName = path.basename(filePath);
-
-      // Supprimer l'ancien fichier GridFS pour ce candidat + type
-      await deleteByMetadata(recordId, columnName);
 
       // Upload vers GridFS
       const fileInfo: GridFSFileInfo = await uploadFromDisk(filePath, undefined, {
@@ -181,26 +190,46 @@ export class CandidatMongoRepository {
       });
 
       // Stocker la référence dans le document candidat.
-      const result = await this.collection.updateOne(
-        filter,
-        {
-          $set: {
-            [columnName]: [{
-              fileId: fileInfo.fileId,
-              url: fileInfo.url,
-              filename: fileInfo.filename,
-              contentType: fileInfo.contentType,
-              size: fileInfo.size,
-              uploadedAt: fileInfo.uploadedAt,
-            }],
-            updatedAt: new Date(),
+      let result;
+      try {
+        result = await this.collection.updateOne(
+          filter,
+          {
+            $set: {
+              [columnName]: [{
+                fileId: fileInfo.fileId,
+                url: fileInfo.url,
+                filename: fileInfo.filename,
+                contentType: fileInfo.contentType,
+                size: fileInfo.size,
+                uploadedAt: fileInfo.uploadedAt,
+              }],
+              updatedAt: new Date(),
+            },
           },
-        },
-      );
+        );
+      } catch (error) {
+        try {
+          await deleteFile(fileInfo.fileId);
+        } catch {
+          // ignore
+        }
+        throw error;
+      }
 
       if (result.matchedCount === 0) {
         logger.warn(`⚠️ Candidat ${recordId} non trouvé pour uploadDocument`);
+        try {
+          await deleteFile(fileInfo.fileId);
+        } catch {
+          // ignore
+        }
         return false;
+      }
+
+      const fileIdsToDelete = previousFileIds.filter((fileId) => fileId !== fileInfo.fileId);
+      if (fileIdsToDelete.length > 0) {
+        await Promise.allSettled(fileIdsToDelete.map((fileId) => deleteFile(fileId)));
       }
 
       logger.info(`✅ Document ${columnName} uploadé via GridFS pour candidat ${recordId} (fileId=${fileInfo.fileId})`);
@@ -231,8 +260,17 @@ export class CandidatMongoRepository {
       const filter = await this.buildFilter(recordId);
       if (!filter) return null;
 
-      // Supprimer l'ancien fichier GridFS pour ce candidat + type
-      await deleteByMetadata(recordId, columnName);
+      const previousDoc = await this.collection.findOne(filter, {
+        projection: { [columnName]: 1 },
+      });
+      const previousAttachments = (previousDoc as any)?.[columnName];
+      const previousFileIds = Array.from(
+        new Set(
+          (Array.isArray(previousAttachments) ? previousAttachments : [])
+            .map((attachment: any) => attachment?.fileId)
+            .filter((value: any): value is string => typeof value === 'string' && value.length > 0)
+        )
+      );
 
       // Upload vers GridFS
       const fileInfo = await uploadBuffer(buffer, originalName, contentType, {
@@ -242,22 +280,47 @@ export class CandidatMongoRepository {
       });
 
       // Stocker la référence dans le document candidat
-      await this.collection.updateOne(
-        filter,
-        {
-          $set: {
-            [columnName]: [{
-              fileId: fileInfo.fileId,
-              url: fileInfo.url,
-              filename: fileInfo.filename,
-              contentType: fileInfo.contentType,
-              size: fileInfo.size,
-              uploadedAt: fileInfo.uploadedAt,
-            }],
-            updatedAt: new Date(),
+      let result;
+      try {
+        result = await this.collection.updateOne(
+          filter,
+          {
+            $set: {
+              [columnName]: [{
+                fileId: fileInfo.fileId,
+                url: fileInfo.url,
+                filename: fileInfo.filename,
+                contentType: fileInfo.contentType,
+                size: fileInfo.size,
+                uploadedAt: fileInfo.uploadedAt,
+              }],
+              updatedAt: new Date(),
+            },
           },
-        },
-      );
+        );
+      } catch (error) {
+        try {
+          await deleteFile(fileInfo.fileId);
+        } catch {
+          // ignore
+        }
+        throw error;
+      }
+
+      if (result.matchedCount === 0) {
+        logger.warn(`⚠️ Candidat ${recordId} non trouvé pour uploadDocumentBuffer`);
+        try {
+          await deleteFile(fileInfo.fileId);
+        } catch {
+          // ignore
+        }
+        return null;
+      }
+
+      const fileIdsToDelete = previousFileIds.filter((fileId) => fileId !== fileInfo.fileId);
+      if (fileIdsToDelete.length > 0) {
+        await Promise.allSettled(fileIdsToDelete.map((fileId) => deleteFile(fileId)));
+      }
 
       logger.info(`✅ Document ${columnName} (buffer) uploadé via GridFS pour candidat ${recordId}`);
       return fileInfo;

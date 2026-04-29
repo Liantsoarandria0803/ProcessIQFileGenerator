@@ -121,6 +121,20 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 const PORT = config.port;
 
+const DNS_SERVERS = String(process.env.DNS_SERVERS || '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+if (DNS_SERVERS.length > 0) {
+  try {
+    dns.setServers(DNS_SERVERS);
+    logger.info(`DNS override active: ${DNS_SERVERS.join(', ')}`);
+  } catch (error: any) {
+    logger.warn(`DNS override ignored (invalid servers): ${error?.message || error}`);
+  }
+}
+
 const startServer = () => {
   app.listen(PORT, () => {
     logger.info(`Serveur demarre sur le port ${PORT}`);
